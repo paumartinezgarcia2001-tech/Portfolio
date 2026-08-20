@@ -1,36 +1,56 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# --- build ---
+dist/
+.astro/
+.output/
+.vercel/
+.netlify/
 
-# dependencies
-/node_modules
-/.pnp
+# --- dependencias ---
+node_modules/
+.pnp
 .pnp.js
+.pnpm-store/
 
-# testing
-/coverage
+# --- entorno ---
+.env
+.env.local
+.env.production
+.env.development
+!.env.example
 
-# next.js
-/.next/
-/out/
+# --- contexto de trabajo, local ---
+# Notas internas para las sesiones de Claude. Fuera del repo a propósito:
+# contienen rutas locales y el inventario de herramientas, y este repo es
+# público.
+CLAUDE.md
+HANDOFF.md
 
-# production
-/build
-
-# misc
+# --- sistema ---
 .DS_Store
-*.pem
+Thumbs.db
+desktop.ini
 
-# debug
+# --- editores ---
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+
+# --- logs ---
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
 
-# local env files
-.env*.local
-.env
-
-# vercel
-.vercel
-
-# typescript
-*.tsbuildinfo
-next-env.d.ts
+# --- media sin optimizar ---
+# El material en bruto (WAV, proyectos de DAW, RAW de fotos, vídeo sin
+# comprimir) no va al repo: pesa demasiado y GitHub no es un almacén de
+# archivos. En public/ solo entra media ya comprimida y lista para servir.
+src/assets/raw/
+*.wav
+*.aiff
+*.flac
+*.logicx
+*.als
+*.ptx
