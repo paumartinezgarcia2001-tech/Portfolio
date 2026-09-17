@@ -1,0 +1,53 @@
+---
+/**
+ * C20 · SeoHead — título, descripción, canonical, Open Graph y JSON-LD `Person`.
+ * La imagen OG pixelada (1200×630) está pendiente de diseñar.
+ */
+import { PUBLIC_SITE_URL } from 'astro:env/client';
+import { SITE } from '../config/site';
+
+interface Props {
+  /** Nombre de la sección, p. ej. «next dates». */
+  title: string;
+  description?: string | undefined;
+  noindex?: boolean | undefined;
+}
+
+const { title, description = SITE.description, noindex = false } = Astro.props;
+
+const fullTitle = `${title} — ${SITE.name}`;
+const origin = PUBLIC_SITE_URL ?? Astro.site?.origin ?? Astro.url.origin;
+const canonical = new URL(Astro.url.pathname, origin).href;
+
+const personLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Person',
+  name: SITE.personName,
+  alternateName: SITE.name,
+  jobTitle: SITE.jobTitle,
+  url: new URL('/', origin).href,
+  sameAs: [SITE.social.instagram, SITE.social.soundcloud],
+};
+
+// Evita que un «</script>» dentro de los datos cierre la etiqueta.
+const toJsonLd = (data: unknown) => JSON.stringify(data).replace(/</g, '\\u003c');
+---
+
+<title>{fullTitle}</title>
+<meta name="description" content={description} />
+<link rel="canonical" href={canonical} />
+{noindex && <meta name="robots" content="noindex,nofollow" />}
+
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content={SITE.name} />
+<meta property="og:locale" content={SITE.locale} />
+<meta property="og:title" content={fullTitle} />
+<meta property="og:description" content={description} />
+<meta property="og:url" content={canonical} />
+{/* TODO(C20): og:image 1200×630 pixelada con el alias, cuando se apruebe el diseño. */}
+<meta name="twitter:card" content="summary" />
+<meta name="twitter:title" content={fullTitle} />
+<meta name="twitter:description" content={description} />
+
+<script type="application/ld+json" is:inline set:html={toJsonLd(personLd)} />
+<slot />

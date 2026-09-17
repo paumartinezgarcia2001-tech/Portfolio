@@ -1,0 +1,158 @@
+/*
+ * Tokens del sistema de diseño (prompt maestro §4). No cambies los valores
+ * sin que Pau o Luna lo pidan.
+ */
+
+/* Registrar el acento permite animar su cambio (0,5 s) al cambiar de sección. */
+@property --accent {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #ff00ff;
+}
+
+/*
+ * Helvetica con licencia web (Q04, pendiente). Si se compra, copia los WOFF2
+ * a `public/fonts/`, descomenta estos bloques y precarga solo el 400 en
+ * `BaseLayout.astro`. Sin licencia, Windows y Android muestran Arial (sin Light).
+ *
+ * @font-face {
+ *   font-family: 'Helvetica Neue';
+ *   src: url('/fonts/helvetica-neue-300.woff2') format('woff2');
+ *   font-weight: 300;
+ *   font-style: normal;
+ *   font-display: swap;
+ * }
+ * @font-face {
+ *   font-family: 'Helvetica Neue';
+ *   src: url('/fonts/helvetica-neue-400.woff2') format('woff2');
+ *   font-weight: 400;
+ *   font-style: normal;
+ *   font-display: swap;
+ * }
+ * @font-face {
+ *   font-family: 'Helvetica Neue';
+ *   src: url('/fonts/helvetica-neue-700.woff2') format('woff2');
+ *   font-weight: 700;
+ *   font-style: normal;
+ *   font-display: swap;
+ * }
+ */
+
+@layer tokens {
+  :root {
+    /* --- Color (§4.1) --- */
+    --c-menu-bg: #27272b;
+    --c-menu-fg: #c5c7d6;
+    --c-panel-bg: #c5c7d6;
+    --c-panel-fg: #27272b;
+
+    --c-info: #ff00ff;
+    --c-next: #00ffff;
+    --c-media: #ffff00;
+    --c-archive: #00ff00;
+    --c-contact: #ff5f1f;
+    --c-player: #bf00ff;
+
+    /* Líneas entre filas del menú (C03). */
+    --c-rule: color-mix(in srgb, var(--c-menu-fg) 40%, transparent);
+
+    /* Color de la sección activa. `html[data-section]` lo cambia abajo. */
+    --accent: var(--c-info);
+
+    /* --- Tipografía (§4.2) --- */
+    --font-sans: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    --fw-light: 300;
+    --fw-regular: 400;
+    --fw-bold: 700;
+
+    --fs-paragraph: 1.5rem;
+    --fs-small: 1rem;
+    --fs-label: 0.875rem;
+    --fs-ticker: 2rem;
+    /* Título grande de cada sección en móvil (C07). */
+    --fs-title: 17vw;
+
+    --lh-paragraph: 1.2;
+    --lh-tight: 1;
+
+    /* --- Medidas (§4.3) --- */
+    /* Zonas seguras (muesca y barra de inicio en iOS; 0 en el resto). */
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-right: env(safe-area-inset-right, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-left: env(safe-area-inset-left, 0px);
+
+    --pad: 1.5rem;
+    --ticker-w: 3rem;
+    --menu-pad-left: calc(var(--ticker-w) + var(--pad) + var(--safe-left));
+    --row-h: calc((100dvh - 2 * var(--pad) - var(--safe-top) - var(--safe-bottom)) / 6);
+    --mini-player-h: 3.5rem;
+    --cursor-size: 32px;
+    --rule-w: 2px;
+    --focus-w: 3px;
+
+    /* Tamaño del menú (C05): la etiqueta más larga debe caber en una línea y
+       dentro de su fila. `--col-w` es el ancho de la columna izquierda. */
+    --col-w: 50vw;
+    --menu-text-w: calc(var(--col-w) - var(--menu-pad-left) - var(--pad) - var(--safe-right));
+    /* «next dates» mide ≈4,95 em en Helvetica/Arial Bold. */
+    --menu-fit: 5.2;
+    --fs-menu: min(calc(var(--menu-text-w) / var(--menu-fit)), calc(var(--row-h) * 0.75));
+    /* «▶ reproductor» mide ≈6,6 em y con --fs-menu no cabría en ningún tamaño
+       de prueba: la fila del reproductor usa el mismo tamaño que el menú salvo
+       cuando no cabe (decisión D31). */
+    --player-fit: 6.9;
+    --fs-player: min(var(--fs-menu), calc(var(--menu-text-w) / var(--player-fit)));
+
+    /* --- Capas (§4.3) --- */
+    --z-panel: 1;
+    --z-left: 10;
+    --z-pixel-transition: 20;
+    --z-overlay: 30;
+    --z-mini-player: 40;
+    --z-back: 50;
+    --z-cursor: 60;
+
+    /* --- Movimiento (§4.3) --- */
+    --dur-slide: 500ms;
+    --ease-slide: cubic-bezier(0.2, 0.7, 0.2, 1);
+    --dur-accent: 500ms;
+    --dur-hover: 150ms;
+    --dur-mobile: 300ms;
+  }
+
+  @media (min-width: 640px) {
+    :root {
+      --fs-paragraph: 1.75rem;
+      --fs-small: 1.25rem;
+      --fs-label: 1rem;
+      --fs-ticker: 2.25rem;
+      --fs-title: 10vw;
+    }
+  }
+
+  /* Móvil: la columna del menú ocupa todo el ancho. */
+  @media (max-width: 1023.98px) {
+    :root {
+      --col-w: 100vw;
+    }
+  }
+
+  /* Acento por sección (C01). `none` (404 y legales) usa el rosa de info. */
+  html[data-section='info'],
+  html[data-section='none'] {
+    --accent: var(--c-info);
+  }
+  html[data-section='next'] {
+    --accent: var(--c-next);
+  }
+  html[data-section='media'] {
+    --accent: var(--c-media);
+  }
+  html[data-section='archive'] {
+    --accent: var(--c-archive);
+  }
+  html[data-section='contact'] {
+    --accent: var(--c-contact);
+  }
+}

@@ -1,0 +1,37 @@
+---
+/**
+ * Marcador temporal para las secciones que se construyen en fases
+ * posteriores. Se borra cuando la sección esté hecha.
+ */
+interface Props {
+  phase: number;
+  what: string;
+}
+
+const { phase, what } = Astro.props;
+---
+
+<p class="placeholder" data-placeholder>
+  <span class="placeholder__tag">TODO · fase {phase}</span>
+  <span>{what}</span>
+</p>
+
+<style>
+  @layer components {
+    .placeholder {
+      display: grid;
+      gap: 0.5rem;
+      max-width: 36rem;
+      font-size: var(--fs-small);
+    }
+
+    .placeholder__tag {
+      justify-self: start;
+      padding: 0.1em 0.4em;
+      background: var(--accent);
+      color: var(--c-panel-fg);
+      font-size: var(--fs-label);
+      letter-spacing: 0.04em;
+    }
+  }
+</style>

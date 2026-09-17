@@ -1,0 +1,98 @@
+---
+/**
+ * C09 · MobileBackButton — solo por debajo de 1024 px.
+ * En la página muestra «←» y abre el menú; en el menú muestra «×» y vuelve a
+ * la página. El estado vive en `html[data-view]` (sin tocar `history`).
+ * La lógica está en src/scripts/app.ts.
+ */
+---
+
+<button
+  type="button"
+  class="back"
+  data-back-button
+  aria-controls="left"
+  aria-expanded="false"
+  aria-label="Volver al menú"
+>
+  <svg class="back__icon back__icon--arrow" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+    <path d="M20 12H5M11 5l-7 7 7 7"></path>
+  </svg>
+  <svg class="back__icon back__icon--close" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+    <path d="M5 5l14 14M19 5 5 19"></path>
+  </svg>
+</button>
+
+<style>
+  @layer components {
+    .back {
+      display: none;
+    }
+
+    @media (max-width: 1023.98px) {
+      .back {
+        /* Área táctil visible de 56 × 56 px en la esquina. */
+        position: fixed;
+        top: var(--safe-top);
+        left: var(--safe-left);
+        z-index: var(--z-back);
+        display: grid;
+        place-items: center;
+        width: 3.5rem;
+        height: 3.5rem;
+        padding: 0 0.5rem 0.5rem 0;
+        color: var(--c-panel-fg);
+      }
+
+      /* El círculo de 64 px, parcialmente fuera de la pantalla. */
+      .back::before {
+        content: '';
+        position: absolute;
+        top: -1rem;
+        left: -1rem;
+        z-index: -1;
+        width: 4rem;
+        height: 4rem;
+        border-radius: 50%;
+        background: var(--accent);
+        transition: transform var(--dur-hover) linear;
+      }
+
+      .back:active::before {
+        transform: scale(0.94);
+      }
+
+      .back:focus-visible {
+        outline: none;
+        box-shadow: none;
+      }
+
+      .back:focus-visible::before {
+        outline: var(--focus-w) solid var(--c-panel-fg);
+        outline-offset: calc(var(--focus-w) * -2);
+      }
+
+      .back__icon {
+        grid-area: 1 / 1;
+        width: 1.5rem;
+        height: 1.5rem;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2.25;
+        stroke-linecap: square;
+      }
+
+      .back__icon--close {
+        visibility: hidden;
+      }
+
+      :global(html[data-view='menu']) .back__icon--arrow {
+        visibility: hidden;
+      }
+
+      :global(html[data-view='menu']) .back__icon--close {
+        visibility: visible;
+      }
+    }
+  }
+</style>

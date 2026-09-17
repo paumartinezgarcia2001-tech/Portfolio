@@ -1,0 +1,104 @@
+---
+/**
+ * C04 · NewsTicker — barra vertical de noticias en el borde izquierdo.
+ * Fase 1: texto fijo. Fase 2: `site_settings.ticker_text` + próxima fecha.
+ */
+import { SITE } from '../config/site';
+import { buildTickerCopy, normalizeTickerText, tickerDurationSeconds } from '../lib/ticker';
+
+interface Props {
+  text?: string | undefined;
+}
+
+const text = normalizeTickerText(Astro.props.text ?? SITE.tickerText);
+const copy = buildTickerCopy(text);
+const duration = tickerDurationSeconds(copy);
+---
+
+{
+  text && (
+    <div
+      class="ticker"
+      role="marquee"
+      aria-label="Noticias"
+      tabindex="0"
+      style={`--ticker-duration: ${duration}s`}
+      data-ticker
+    >
+      <span class="visually-hidden">{text}</span>
+      <div class="ticker__track" aria-hidden="true">
+        <p class="ticker__copy">{copy}</p>
+        <p class="ticker__copy">{copy}</p>
+      </div>
+    </div>
+  )
+}
+
+<style>
+  @layer components {
+    .ticker {
+      /* Sobre la franja de acento el cursor (C10) se ve en oscuro. */
+      --cursor-over: var(--c-panel-fg);
+
+      position: absolute;
+      inset-block: 0;
+      left: var(--safe-left);
+      z-index: 1;
+      width: var(--ticker-w);
+      overflow: hidden;
+      background-color: var(--accent);
+      color: var(--c-panel-fg);
+      font-size: var(--fs-ticker);
+      font-weight: var(--fw-light);
+      /* En modo vertical, el alto de línea es el ancho de la franja: así el
+         texto queda centrado en ella. */
+      line-height: var(--ticker-w);
+    }
+
+    /* Anillo oscuro dentro de la franja, visible por los cuatro lados. */
+    .ticker:focus-visible {
+      outline: var(--focus-w) solid var(--c-panel-fg);
+      outline-offset: calc(var(--focus-w) * -2);
+      box-shadow: none;
+    }
+
+    .ticker__track {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      animation: ticker-up var(--ticker-duration, 32s) linear infinite;
+      will-change: transform;
+    }
+
+    /* Se pausa al pasar el ratón o al enfocarla (WCAG 2.2.2). */
+    .ticker:hover .ticker__track,
+    .ticker:focus-within .ticker__track {
+      animation-play-state: paused;
+    }
+
+    .ticker__copy {
+      flex: none;
+      /* Girado 90° en sentido horario: se lee de arriba abajo. */
+      writing-mode: vertical-rl;
+      text-orientation: mixed;
+      white-space: pre;
+      font-size: inherit;
+    }
+
+    @keyframes ticker-up {
+      from {
+        transform: translateY(0);
+      }
+
+      to {
+        transform: translateY(-50%);
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .ticker__track {
+        animation: none;
+      }
+    }
+  }
+</style>

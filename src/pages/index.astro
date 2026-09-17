@@ -1,0 +1,75 @@
+---
+/**
+ * C12 · Info — se abre por defecto. Texto en src/content/info.md.
+ */
+import { getEntry, render } from 'astro:content';
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+const entry = await getEntry('pages', 'info');
+if (!entry) throw new Error('Falta src/content/info.md');
+const { Content } = await render(entry);
+---
+
+<BaseLayout section="info" title={entry.data.title} headingLang="en">
+  <article class="prose info">
+    <Content />
+  </article>
+</BaseLayout>
+
+<style>
+  @layer components {
+    .prose {
+      max-width: 44rem;
+      font-size: var(--fs-paragraph);
+      line-height: var(--lh-paragraph);
+    }
+
+    /* Bloques: titulillo en mayúsculas (Regular) con separador de 2 px. */
+    .prose :global(h2) {
+      margin: 2.5rem 0 0.75rem;
+      padding-top: 0.5rem;
+      border-top: var(--rule-w) solid var(--c-panel-fg);
+      font-size: var(--fs-label);
+      font-weight: var(--fw-regular);
+      letter-spacing: 0.04em;
+      line-height: var(--lh-paragraph);
+      text-transform: uppercase;
+    }
+
+    .prose :global(h2:first-child) {
+      margin-top: 0;
+    }
+
+    .prose :global(p) {
+      margin: 0;
+      text-align: justify;
+      hyphens: auto;
+      -webkit-hyphens: auto;
+      hyphenate-limit-chars: 7 3 3;
+      text-wrap: pretty;
+    }
+
+    .prose :global(p + p) {
+      margin-top: 1em;
+    }
+
+    /* Enlaces: resaltado tipo rotulador con el acento (#27272B sobre neón ≥4,7:1). */
+    .prose :global(a) {
+      --cursor-over: var(--c-panel-fg);
+
+      padding-inline: 0.08em;
+      background: var(--accent);
+      color: var(--c-panel-fg);
+      text-decoration: underline;
+      text-decoration-thickness: 1px;
+      text-underline-offset: 0.15em;
+      box-decoration-break: clone;
+      -webkit-box-decoration-break: clone;
+      hyphens: manual;
+    }
+
+    .prose :global(a:hover) {
+      text-decoration-thickness: 2px;
+    }
+  }
+</style>

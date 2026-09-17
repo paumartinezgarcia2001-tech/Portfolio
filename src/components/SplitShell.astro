@@ -1,0 +1,43 @@
+---
+/**
+ * C02 · SplitShell — dos mitades exactas en escritorio (≥1024 px) y dos capas
+ * en móvil, donde `html[data-view]` decide cuál se ve.
+ */
+import type { SectionState } from '../config/sections';
+import LeftColumn from './LeftColumn.astro';
+import RightPanel from './RightPanel.astro';
+
+interface Props {
+  section: SectionState;
+  heading: string;
+  headingLang?: string | undefined;
+  tickerText?: string | undefined;
+}
+
+const { section, heading, headingLang, tickerText } = Astro.props;
+---
+
+<div class="shell">
+  <LeftColumn section={section} tickerText={tickerText} />
+  <RightPanel section={section} heading={heading} headingLang={headingLang}>
+    <slot />
+  </RightPanel>
+</div>
+
+<style>
+  @layer components {
+    .shell {
+      position: relative;
+      height: 100dvh;
+      overflow: hidden;
+    }
+
+    @media (min-width: 1024px) {
+      .shell {
+        display: grid;
+        /* La división está exactamente en el centro y no se redimensiona. */
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      }
+    }
+  }
+</style>

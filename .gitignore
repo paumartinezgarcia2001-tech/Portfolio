@@ -17,6 +17,19 @@ node_modules/
 .env.production
 .env.development
 !.env.example
+.dev.vars
+.dev.vars.*
+
+# --- Cloudflare / wrangler ---
+.wrangler/
+# Se genera con `npm run generate-types` (lo hace también `npm run typecheck`).
+worker-configuration.d.ts
+
+# --- tests ---
+test-results/
+playwright-report/
+blob-report/
+coverage/
 
 # --- contexto de trabajo, local ---
 # Notas internas para las sesiones de Claude. Fuera del repo a propósito:

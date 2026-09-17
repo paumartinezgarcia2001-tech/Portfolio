@@ -1,0 +1,105 @@
+---
+/**
+ * C07 · RightPanel — contenido de la sección activa, con scroll propio.
+ * El <h1> está oculto visualmente en escritorio (el menú ya indica dónde
+ * estás) y se ve como título grande en móvil.
+ */
+import type { SectionState } from '../config/sections';
+
+interface Props {
+  section: SectionState;
+  /** Texto del <h1>. */
+  heading: string;
+  /** Idioma del <h1> si no es español (las etiquetas del menú van en inglés). */
+  headingLang?: string | undefined;
+}
+
+const { section, heading, headingLang } = Astro.props;
+---
+
+<main id="panel" class="panel" data-panel={section} tabindex="-1">
+  <h1 class="panel__title" tabindex="-1" lang={headingLang}>{heading}</h1>
+  <slot />
+</main>
+
+<style>
+  @layer components {
+    .panel {
+      position: relative;
+      height: 100dvh;
+      overflow-x: hidden;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      scrollbar-width: none;
+      padding: var(--pad);
+      background: var(--c-panel-bg);
+      color: var(--c-panel-fg);
+      font-size: var(--fs-paragraph);
+      line-height: var(--lh-paragraph);
+    }
+
+    .panel::-webkit-scrollbar {
+      display: none;
+    }
+
+    .panel:focus {
+      outline: none;
+    }
+
+    /* Media: fondo oscuro y sin padding (C15). */
+    .panel[data-panel='media'] {
+      padding: 0;
+      background: var(--c-menu-bg);
+      color: var(--c-menu-fg);
+    }
+
+    .panel__title {
+      margin: 0 0 var(--pad);
+      font-size: var(--fs-title);
+      font-weight: var(--fw-regular);
+      line-height: var(--lh-tight);
+    }
+
+    .panel__title:focus-visible {
+      outline-offset: 0.1em;
+    }
+
+    @media (max-width: 1023.98px) {
+      /* Deja sitio al botón atrás (C09), que queda en la esquina, y respeta las
+         zonas seguras de iOS. */
+      .panel {
+        padding: calc(var(--pad) + 3.5rem + var(--safe-top)) calc(var(--pad) + var(--safe-right))
+          calc(var(--pad) + var(--safe-bottom)) calc(var(--pad) + var(--safe-left));
+      }
+
+      .panel[data-panel='media'] {
+        padding-top: 0;
+      }
+
+      .panel[data-panel='media'] .panel__title {
+        position: absolute;
+        top: calc(var(--pad) + 3.5rem + var(--safe-top));
+        left: calc(var(--pad) + var(--safe-left));
+        z-index: 1;
+      }
+
+      /* Con el menú abierto, el panel queda fuera del foco y del lector. */
+      :global(html[data-view='menu']) .panel {
+        visibility: hidden;
+        transition: visibility 0s linear var(--dur-mobile);
+      }
+    }
+
+    @media (min-width: 1024px) {
+      .panel__title {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        margin: 0;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+      }
+    }
+  }
+</style>

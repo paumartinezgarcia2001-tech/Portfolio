@@ -1,0 +1,59 @@
+---
+/**
+ * C10 · CustomCursor — provisional: un círculo del color de acento.
+ * Solo con ratón (`hover: hover` y `pointer: fine`) y JS. La forma va en
+ * `data-shape` para poder cambiarla más adelante sin tocar la lógica.
+ */
+---
+
+<div class="cursor" data-cursor data-shape="circle" aria-hidden="true" transition:persist="cursor"></div>
+
+<script>
+  import '../scripts/cursor';
+</script>
+
+<style>
+  @layer components {
+    .cursor {
+      display: none;
+    }
+
+    :global(html.has-cursor) .cursor {
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: var(--z-cursor);
+      display: block;
+      width: var(--cursor-size);
+      height: var(--cursor-size);
+      margin: calc(var(--cursor-size) / -2) 0 0 calc(var(--cursor-size) / -2);
+      pointer-events: none;
+      opacity: 0;
+      transform: translate3d(-200px, -200px, 0);
+      transition:
+        opacity var(--dur-hover) linear,
+        background-color var(--dur-hover) linear;
+      will-change: transform;
+      view-transition-name: cursor;
+    }
+
+    :global(html.has-cursor) .cursor[data-shape='circle'] {
+      border-radius: 50%;
+      background-color: var(--cursor-color, var(--accent));
+    }
+
+    :global(html.has-cursor) .cursor[data-visible] {
+      opacity: 1;
+    }
+
+    /* El cursor nativo se oculta, salvo en los campos de texto. */
+    :global(html.has-cursor),
+    :global(html.has-cursor *) {
+      cursor: none;
+    }
+
+    :global(html.has-cursor) :global(:is(input, textarea, select, [contenteditable], iframe)) {
+      cursor: auto;
+    }
+  }
+</style>

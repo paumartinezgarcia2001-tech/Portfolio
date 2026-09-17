@@ -1,0 +1,79 @@
+---
+/**
+ * C01 · BaseLayout — documento común de todas las páginas públicas.
+ * El panel oculto (fase 6) usa su propio AdminLayout, sin efectos.
+ */
+import { ClientRouter } from 'astro:transitions';
+import '../styles/global.css';
+import CustomCursor from '../components/CustomCursor.astro';
+import MobileBackButton from '../components/MobileBackButton.astro';
+import PixelOverlay from '../components/PixelOverlay.astro';
+import SeoHead from '../components/SeoHead.astro';
+import SplitShell from '../components/SplitShell.astro';
+import type { SectionState } from '../config/sections';
+import { MOBILE_START_VIEW, SITE } from '../config/site';
+
+interface Props {
+  section: SectionState;
+  /** Título de la sección (se completa con « — travest15m0»). */
+  title: string;
+  description?: string | undefined;
+  noindex?: boolean | undefined;
+  /** Texto del <h1>; por defecto, `title`. */
+  heading?: string | undefined;
+  /** Idioma del <h1> si no es español. */
+  headingLang?: string | undefined;
+}
+
+const { section, title, description, noindex, heading = title, headingLang } = Astro.props;
+---
+
+<!doctype html>
+<html lang={SITE.lang} data-section={section} data-view={MOBILE_START_VIEW} transition:animate="none">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    {/* Orden de las capas CSS: tiene que ser la primera hoja de estilo del documento. */}
+    <style is:inline>
+      @layer astro, reset, tokens, base, components, utilities;
+    </style>
+    <SeoHead title={title} description={description} noindex={noindex} />
+    <meta name="theme-color" content="#27272B" />
+    <meta name="color-scheme" content="only light" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <ClientRouter />
+  </head>
+  <body>
+    <a class="skip-link" href="#panel" data-skip-link>Saltar al contenido</a>
+    <MobileBackButton />
+    <SplitShell section={section} heading={heading} headingLang={headingLang}>
+      <slot />
+    </SplitShell>
+    <PixelOverlay />
+    <CustomCursor />
+    <script>
+      import '../scripts/app';
+    </script>
+  </body>
+</html>
+
+<style>
+  @layer components {
+    .skip-link {
+      position: fixed;
+      top: var(--pad);
+      left: var(--pad);
+      z-index: calc(var(--z-cursor) + 1);
+      padding: 0.5em 0.75em;
+      background: var(--c-panel-bg);
+      color: var(--c-panel-fg);
+      font-size: var(--fs-small);
+      text-decoration: none;
+      translate: 0 calc(-100% - var(--pad) - 1rem);
+    }
+
+    .skip-link:focus-visible {
+      translate: 0 0;
+    }
+  }
+</style>

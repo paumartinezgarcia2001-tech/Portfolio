@@ -1,0 +1,98 @@
+---
+/**
+ * C05 · MainMenu — cinco secciones, cada una en su fila (`--row-h`).
+ * Está dentro de la columna persistente: `aria-current` se actualiza por JS
+ * al navegar (src/scripts/app.ts).
+ */
+import { SECTIONS, type SectionState } from '../config/sections';
+
+interface Props {
+  current: SectionState;
+}
+
+const { current } = Astro.props;
+---
+
+<nav class="menu" aria-label="Secciones">
+  <ul class="menu__list" role="list">
+    {
+      SECTIONS.map((section) => (
+        <li class="menu__row">
+          <a
+            class="menu__link"
+            href={section.href}
+            lang="en"
+            data-menu-link={section.key}
+            aria-current={current === section.key ? 'page' : undefined}
+          >
+            {section.label}
+          </a>
+        </li>
+      ))
+    }
+  </ul>
+</nav>
+
+<style>
+  @layer components {
+    .menu__list {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .menu__row {
+      height: var(--row-h);
+      border-top: var(--rule-w) solid var(--c-rule);
+    }
+
+    .menu__link {
+      /* Color propio del ítem (hover, foco y estado activo). */
+      --item-color: var(--c-menu-fg);
+      /* El cursor (C10) toma el color del ítem. */
+      --cursor-over: var(--item-color);
+
+      display: flex;
+      align-items: center;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      color: var(--c-menu-fg);
+      font-size: var(--fs-menu);
+      font-weight: var(--fw-bold);
+      line-height: var(--lh-tight);
+      white-space: nowrap;
+      text-decoration: none;
+      transition: color var(--dur-hover) linear;
+    }
+
+    .menu__link[data-menu-link='info'] {
+      --item-color: var(--c-info);
+    }
+    .menu__link[data-menu-link='next'] {
+      --item-color: var(--c-next);
+    }
+    .menu__link[data-menu-link='media'] {
+      --item-color: var(--c-media);
+    }
+    .menu__link[data-menu-link='archive'] {
+      --item-color: var(--c-archive);
+    }
+    .menu__link[data-menu-link='contact'] {
+      --item-color: var(--c-contact);
+    }
+
+    .menu__link[aria-current='page'],
+    .menu__link:hover,
+    .menu__link:focus-visible {
+      color: var(--item-color);
+    }
+
+    /* Columna oscura: el foco es un contorno del acento (§4.1, regla 3). */
+    .menu__link:focus-visible {
+      outline: var(--focus-w) solid var(--accent);
+      outline-offset: calc(var(--focus-w) * -1);
+      box-shadow: none;
+    }
+  }
+</style>

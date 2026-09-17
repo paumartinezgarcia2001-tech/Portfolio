@@ -1,0 +1,43 @@
+---
+/**
+ * C11a · PixelOverlay — rejilla tipo pantalla LCD sobre toda la web.
+ * No recibe eventos. Se desactiva con `prefers-contrast: more`, con colores
+ * forzados y en el panel oculto (que no usa este layout).
+ */
+import { PIXEL } from '../config/pixel';
+
+const { cell, line, opacity } = PIXEL.overlay;
+const style = `--px-period: ${cell + line}px; --px-line: ${line}px; --px-opacity: ${opacity};`;
+---
+
+{
+  PIXEL.enabled && (
+    <div class="pixel-overlay" aria-hidden="true" style={style} transition:persist="pixel-overlay" />
+  )
+}
+
+<style>
+  @layer components {
+    .pixel-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: var(--z-overlay);
+      pointer-events: none;
+      /* Líneas negras: con negro, `multiply` y la mezcla normal dan lo mismo,
+         así que la textura no cambia durante las view transitions. */
+      background-image:
+        linear-gradient(to right, #000 var(--px-line), transparent var(--px-line)),
+        linear-gradient(to bottom, #000 var(--px-line), transparent var(--px-line));
+      background-size: var(--px-period) var(--px-period);
+      mix-blend-mode: multiply;
+      opacity: var(--px-opacity);
+      view-transition-name: pixel-overlay;
+    }
+
+    @media (prefers-contrast: more), (forced-colors: active), print {
+      .pixel-overlay {
+        display: none;
+      }
+    }
+  }
+</style>

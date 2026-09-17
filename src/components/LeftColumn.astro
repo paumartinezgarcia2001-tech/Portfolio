@@ -1,0 +1,81 @@
+---
+/**
+ * C03 · LeftColumn — barra de noticias + menú + reproductor.
+ * Persiste entre navegaciones (`transition:persist`), así que el <audio> del
+ * reproductor (fase 4) no se recrea.
+ *
+ * ⚠️ No apliques transform, translate, filter, perspective, contain ni
+ * container-type a este contenedor: romperían el `position: fixed` de la
+ * mini-barra del reproductor en móvil. En móvil se desliza con `left`.
+ */
+import type { SectionState } from '../config/sections';
+import MainMenu from './MainMenu.astro';
+import MixPlayer from './MixPlayer.astro';
+import NewsTicker from './NewsTicker.astro';
+
+interface Props {
+  section: SectionState;
+  tickerText?: string | undefined;
+}
+
+const { section, tickerText } = Astro.props;
+---
+
+<aside id="left" class="left" aria-label="Menú" transition:persist="left-column">
+  <NewsTicker text={tickerText} />
+  <div class="left__rows">
+    <MainMenu current={section} />
+    <MixPlayer />
+  </div>
+</aside>
+
+<style>
+  @layer components {
+    .left {
+      position: relative;
+      height: 100dvh;
+      overflow: hidden;
+      padding-top: calc(var(--pad) + var(--safe-top));
+      padding-bottom: calc(var(--pad) + var(--safe-bottom));
+      padding-left: var(--menu-pad-left);
+      padding-right: calc(var(--pad) + var(--safe-right));
+      background: var(--c-menu-bg);
+      color: var(--c-menu-fg);
+    }
+
+    .left__rows {
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Móvil: capa a pantalla completa que entra y sale por la izquierda. */
+    @media (max-width: 1023.98px) {
+      .left {
+        position: fixed;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        z-index: var(--z-left);
+        width: 100%;
+        transition:
+          left var(--dur-mobile) var(--ease-slide),
+          visibility 0s linear 0s;
+      }
+
+      :global(html[data-view='page']) .left {
+        left: -100%;
+        visibility: hidden;
+        transition:
+          left var(--dur-mobile) var(--ease-slide),
+          visibility 0s linear var(--dur-mobile);
+      }
+    }
+
+    @media (max-width: 1023.98px) and (prefers-reduced-motion: reduce) {
+      .left,
+      :global(html[data-view='page']) .left {
+        transition: none;
+      }
+    }
+  }
+</style>

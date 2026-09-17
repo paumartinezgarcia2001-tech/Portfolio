@@ -1,0 +1,66 @@
+---
+/**
+ * C06 · MixPlayer — sexta fila del menú.
+ * Fase 1: solo maquetado (estado inicial «▶ reproductor», sin audio).
+ * Fase 4: `<mix-player>` completo con un único <audio>, barajado y mini-barra.
+ */
+---
+
+<mix-player class="player" role="region" aria-label="Reproductor de mixes" data-state="idle">
+  <button type="button" class="player__idle" aria-disabled="true" aria-describedby="player-status">
+    <svg class="player__icon" viewBox="0 0 10 12" aria-hidden="true" focusable="false">
+      <path d="M0 0 10 6 0 12Z"></path>
+    </svg>
+    <span class="player__label">reproductor</span>
+  </button>
+  <p id="player-status" class="visually-hidden">Todavía no hay mixes.</p>
+</mix-player>
+
+<style>
+  @layer components {
+    .player {
+      /* El cursor (C10) se vuelve violeta sobre el reproductor. */
+      --cursor-over: var(--c-player);
+
+      display: block;
+      height: var(--row-h);
+      border-block: var(--rule-w) solid var(--c-rule);
+      color: var(--c-menu-fg);
+    }
+
+    .player__idle {
+      display: flex;
+      align-items: center;
+      gap: 0.25em;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      color: inherit;
+      font-size: var(--fs-player);
+      font-weight: var(--fw-bold);
+      line-height: var(--lh-tight);
+      text-align: left;
+      white-space: nowrap;
+      transition: color var(--dur-hover) linear;
+    }
+
+    .player__icon {
+      flex: none;
+      width: 0.62em;
+      height: 0.74em;
+      fill: currentColor;
+    }
+
+    /* Hover y foco en violeta, coherente con el menú (C05). */
+    .player:hover,
+    .player:focus-within {
+      color: var(--c-player);
+    }
+
+    .player__idle:focus-visible {
+      outline: var(--focus-w) solid var(--c-player);
+      outline-offset: calc(var(--focus-w) * -1);
+      box-shadow: none;
+    }
+  }
+</style>

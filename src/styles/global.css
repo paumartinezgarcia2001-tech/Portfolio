@@ -1,0 +1,146 @@
+/*
+ * Estilos globales. Orden de capas (de más débil a más fuerte):
+ * `astro` (animaciones que genera Astro) < reset < tokens < base < components < utilities.
+ * Los <style> de los componentes van dentro de `@layer components`.
+ */
+@layer astro, reset, tokens, base, components, utilities;
+
+@import './reset.css';
+@import './tokens.css';
+
+@layer base {
+  html {
+    height: 100%;
+    overflow: hidden;
+    color-scheme: only light;
+    background: var(--c-menu-bg);
+    color: var(--c-panel-fg);
+    font-family: var(--font-sans);
+    font-weight: var(--fw-regular);
+    line-height: var(--lh-paragraph);
+    /* El acento se anima al cambiar de sección (C01). */
+    transition: --accent var(--dur-accent) linear;
+  }
+
+  body {
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+    background: var(--c-menu-bg);
+  }
+
+  a {
+    color: inherit;
+  }
+
+  /* Foco visible (§4.1, regla 3). En paneles claros: contorno oscuro con halo
+     del acento. La columna oscura lo redefine en sus componentes. */
+  :focus-visible {
+    outline: var(--focus-w) solid var(--c-panel-fg);
+    outline-offset: 0;
+    box-shadow: 0 0 0 calc(var(--focus-w) * 2) var(--accent);
+  }
+
+  /* El <h1> y el <main> reciben el foco por código al navegar: sin anillo. */
+  [tabindex='-1']:focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  ::selection {
+    background: var(--accent);
+    color: var(--c-panel-fg);
+  }
+}
+
+@layer utilities {
+  .visually-hidden:not(:focus-within, :active) {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    overflow: hidden !important;
+    clip-path: inset(50%) !important;
+    white-space: nowrap !important;
+  }
+}
+
+/* ------------------------------------------------------------------------ */
+/* C08 · Transición de sección (View Transitions + ClientRouter)            */
+/* ------------------------------------------------------------------------ */
+@layer components {
+  /* En escritorio, el panel nuevo sale de detrás del menú y se desliza a la
+     derecha. La columna izquierda, el overlay y el cursor quedan encima. */
+  @media (min-width: 1024px) {
+    #left {
+      view-transition-name: left-column;
+    }
+
+    #panel {
+      view-transition-name: panel;
+    }
+  }
+
+  ::view-transition-group(panel),
+  ::view-transition-group(left-column),
+  ::view-transition-group(pixel-overlay),
+  ::view-transition-group(cursor) {
+    animation: none;
+  }
+
+  ::view-transition-group(panel) {
+    z-index: 1;
+  }
+
+  ::view-transition-group(left-column) {
+    z-index: 2;
+  }
+
+  ::view-transition-group(pixel-overlay) {
+    z-index: 3;
+  }
+
+  ::view-transition-group(cursor) {
+    z-index: 4;
+  }
+
+  /* El panel viejo se queda quieto debajo; el nuevo lo va tapando. */
+  ::view-transition-old(panel) {
+    animation: none;
+  }
+
+  ::view-transition-new(panel) {
+    animation: panel-in var(--dur-slide) var(--ease-slide) both;
+  }
+
+  /* Elementos persistentes: se muestra solo la imagen viva, sin fundido. */
+  ::view-transition-old(left-column),
+  ::view-transition-old(pixel-overlay),
+  ::view-transition-old(cursor) {
+    animation: none;
+    opacity: 0;
+  }
+
+  ::view-transition-new(left-column),
+  ::view-transition-new(pixel-overlay),
+  ::view-transition-new(cursor) {
+    animation: none;
+    mix-blend-mode: normal;
+  }
+
+  @keyframes panel-in {
+    from {
+      transform: translateX(-100%);
+    }
+
+    to {
+      transform: translateX(0);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    ::view-transition-group(*),
+    ::view-transition-old(*),
+    ::view-transition-new(*) {
+      animation: none !important;
+    }
+  }
+}

@@ -1,0 +1,25 @@
+---
+/**
+ * C15 · Media — marcador de la fase 1. La fase 3 añade el vídeo HLS
+ * pixelado a sangre (`<pixel-video>`).
+ */
+import PhasePlaceholder from '../components/PhasePlaceholder.astro';
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+
+<BaseLayout section="media" title="media" headingLang="en" description="Vídeo de travest15m0, DJ en Madrid.">
+  <div class="media-stage">
+    <PhasePlaceholder phase={3} what="Vídeo a sangre, pixelado en tiempo real." />
+  </div>
+</BaseLayout>
+
+<style>
+  @layer components {
+    .media-stage {
+      display: grid;
+      place-items: center;
+      min-height: 100%;
+      padding: var(--pad);
+    }
+  }
+</style>
