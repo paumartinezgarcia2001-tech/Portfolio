@@ -1,10 +1,15 @@
 ---
 /**
- * C16 · Archive — marcador de la fase 1. La fase 2 pinta los bolos pasados
- * con EventList (C13), variante `archive`.
+ * C16 · Archive — bolos publicados anteriores a hoy, del más reciente al más
+ * antiguo. Variante `archive`: fecha y nombre subrayados en verde.
  */
-import PhasePlaceholder from '../components/PhasePlaceholder.astro';
+import DataNotice from '../components/DataNotice.astro';
+import EventList from '../components/EventList.astro';
 import BaseLayout from '../layouts/BaseLayout.astro';
+import { getPastGigs } from '../lib/data';
+
+const { data: gigs, ok } = await getPastGigs();
+if (!ok && Astro.cache.enabled) Astro.cache.set(false);
 ---
 
 <BaseLayout
@@ -13,5 +18,11 @@ import BaseLayout from '../layouts/BaseLayout.astro';
   headingLang="en"
   description="Archivo de sesiones de travest15m0, DJ en Madrid."
 >
-  <PhasePlaceholder phase={2} what="Archivo de bolos pasados desde la base de datos." />
+  {
+    gigs.length > 0 ? (
+      <EventList events={gigs} variant="archive" label="Archivo de fechas" />
+    ) : (
+      !ok && <DataNotice what="las fechas del archivo" />
+    )
+  }
 </BaseLayout>

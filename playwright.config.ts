@@ -8,6 +8,11 @@ import { defineConfig, devices, type PlaywrightTestProject } from '@playwright/t
  * - `PW_CHROMIUM_EXECUTABLE=/ruta/a/chrome`: usa un Chromium ya instalado.
  * - `E2E_BASE_URL=https://…`: prueba contra un servidor que ya esté en marcha
  *   (por ejemplo, un preview de Cloudflare) en lugar de levantar uno.
+ *
+ * La web se compila con `DATA_SOURCE=fixtures`: los bolos salen de
+ * `src/lib/data/fixtures.ts`, así que los tests no dependen de Supabase.
+ * Ojo: esa compilación deja `dist/` con datos de prueba; vuelve a compilar
+ * con `npm run build` antes de un `npm run preview` normal.
  */
 
 const PORT = Number(process.env.E2E_PORT ?? 4321);
@@ -75,5 +80,6 @@ export default defineConfig({
         url: baseURL,
         reuseExistingServer: !process.env.CI,
         timeout: 180_000,
+        env: { DATA_SOURCE: 'fixtures' },
       },
 });

@@ -1,0 +1,45 @@
+---
+/**
+ * C13 · EventList — lista de bolos compartida por next dates y archive.
+ * `variant="archive"` subraya también el nombre de la fiesta.
+ */
+import { EVENT_UNDERLINE_STYLE } from '../config/site';
+import type { Gig } from '../lib/data/core';
+import EventItem from './EventItem.astro';
+
+interface Props {
+  events: Gig[];
+  variant: 'next' | 'archive';
+  /** Nombre accesible de la lista. */
+  label: string;
+}
+
+const { events, variant, label } = Astro.props;
+---
+
+<ol class="events" role="list" aria-label={label} data-variant={variant} data-underline={EVENT_UNDERLINE_STYLE}>
+  {
+    events.map((gig) => (
+      <li class="events__item">
+        <EventItem gig={gig} />
+      </li>
+    ))
+  }
+</ol>
+
+<style>
+  @layer components {
+    .events {
+      display: grid;
+      gap: 0;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .events__item {
+      margin: 0;
+      padding: 0;
+    }
+  }
+</style>

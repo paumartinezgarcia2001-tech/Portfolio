@@ -26,6 +26,8 @@ interface Props {
 }
 
 const { section, title, description, noindex, heading = title, headingLang } = Astro.props;
+// Lo carga src/middleware.ts; si no está (p. ej. en el 404 de un recurso), se usa el texto por defecto.
+const tickerText = Astro.locals.tickerText;
 ---
 
 <!doctype html>
@@ -37,7 +39,9 @@ const { section, title, description, noindex, heading = title, headingLang } = A
     <style is:inline>
       @layer astro, reset, tokens, base, components, utilities;
     </style>
-    <SeoHead title={title} description={description} noindex={noindex} />
+    <SeoHead title={title} description={description} noindex={noindex}>
+      <slot name="head" />
+    </SeoHead>
     <meta name="theme-color" content="#27272B" />
     <meta name="color-scheme" content="only light" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
@@ -46,7 +50,7 @@ const { section, title, description, noindex, heading = title, headingLang } = A
   <body>
     <a class="skip-link" href="#panel" data-skip-link>Saltar al contenido</a>
     <MobileBackButton />
-    <SplitShell section={section} heading={heading} headingLang={headingLang}>
+    <SplitShell section={section} heading={heading} headingLang={headingLang} tickerText={tickerText}>
       <slot />
     </SplitShell>
     <PixelOverlay />

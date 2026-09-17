@@ -1,6 +1,7 @@
 // @ts-check
 import { defineConfig, envField } from 'astro/config';
 import cloudflare from '@astrojs/cloudflare';
+import { cacheCloudflare } from '@astrojs/cloudflare/cache';
 
 // Dominio público (Q03, pendiente). Workers Builds lo pasa como variable de
 // entorno al compilar; en local se puede dejar vacío.
@@ -25,9 +26,22 @@ export default defineConfig({
     // Protección CSRF para formularios y Actions (fases 5 y 6).
     checkOrigin: true,
   },
+  // Caché de rutas de Astro 7 en la red de Cloudflare (§6). Las páginas
+  // públicas fijan su duración y etiquetas en src/middleware.ts; el panel
+  // (fase 6) purga por etiqueta al guardar.
+  cache: {
+    provider: cacheCloudflare(),
+  },
   env: {
     schema: {
       // --- Públicas ---
+      // `fixtures` sirve datos de prueba sin Supabase (tests e2e). Se fija al compilar.
+      DATA_SOURCE: envField.enum({
+        context: 'server',
+        access: 'public',
+        values: ['supabase', 'fixtures'],
+        default: 'supabase',
+      }),
       PUBLIC_SITE_URL: envField.string({ context: 'client', access: 'public', optional: true, url: true }),
       PUBLIC_SUPABASE_URL: envField.string({ context: 'client', access: 'public', optional: true, url: true }),
       PUBLIC_SUPABASE_PUBLISHABLE_KEY: envField.string({ context: 'client', access: 'public', optional: true }),

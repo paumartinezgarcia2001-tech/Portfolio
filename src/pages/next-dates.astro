@@ -1,10 +1,16 @@
 ---
 /**
- * C14 · Next dates — marcador de la fase 1. La fase 2 pinta los bolos
- * desde Supabase con EventList (C13).
+ * C14 · Next dates — bolos publicados de hoy en adelante (corte a las 08:00
+ * del día siguiente, hora de Madrid), en orden ascendente.
  */
-import PhasePlaceholder from '../components/PhasePlaceholder.astro';
+import DataNotice from '../components/DataNotice.astro';
+import EventList from '../components/EventList.astro';
 import BaseLayout from '../layouts/BaseLayout.astro';
+import { getUpcomingGigs } from '../lib/data';
+import { musicEventLd, toJsonLd } from '../lib/seo';
+
+const { data: gigs, ok } = await getUpcomingGigs();
+if (!ok && Astro.cache.enabled) Astro.cache.set(false);
 ---
 
 <BaseLayout
@@ -13,5 +19,40 @@ import BaseLayout from '../layouts/BaseLayout.astro';
   headingLang="en"
   description="Próximas fechas de travest15m0, DJ en Madrid."
 >
-  <PhasePlaceholder phase={2} what="Próximas fechas desde la base de datos." />
+  {
+    gigs.map((gig) => (
+      <script type="application/ld+json" is:inline slot="head" set:html={toJsonLd(musicEventLd(gig))} />
+    ))
+  }
+  {
+    gigs.length > 0 ? (
+      <EventList events={gigs} variant="next" label="Próximas fechas" />
+    ) : ok ? (
+      <div class="events-empty">
+        <p class="events-empty__text">PRÓXIMAS FECHAS POR ANUNCIAR</p>
+      </div>
+    ) : (
+      <DataNotice what="las próximas fechas" />
+    )
+  }
 </BaseLayout>
+
+<style>
+  @layer components {
+    .events-empty {
+      container-type: inline-size;
+    }
+
+    /* Mismo estilo que una fecha (C13 y C14). */
+    .events-empty__text {
+      font-size: 9.4cqi;
+      font-weight: var(--fw-regular);
+      line-height: var(--lh-tight);
+      text-decoration-line: underline;
+      text-decoration-color: var(--accent);
+      text-decoration-thickness: max(3px, 0.08em);
+      text-underline-offset: 0.1em;
+      text-decoration-skip-ink: none;
+    }
+  }
+</style>

@@ -1,0 +1,21 @@
+---
+/**
+ * Aviso discreto cuando la base de datos no responde (fase 2).
+ */
+interface Props {
+  what: string;
+}
+
+const { what } = Astro.props;
+---
+
+<p class="data-notice" role="status">No se han podido cargar {what}. Vuelve a intentarlo en unos minutos.</p>
+
+<style>
+  @layer components {
+    .data-notice {
+      max-width: 36rem;
+      font-size: var(--fs-small);
+    }
+  }
+</style>

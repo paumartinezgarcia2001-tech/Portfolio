@@ -1,0 +1,129 @@
+---
+/**
+ * C13 · EventItem — un bolo: fecha grande, nombre de la fiesta, sala y
+ * ciudad, y lineup (a la derecha en escritorio, debajo en móvil).
+ */
+import { formatEventDate } from '../lib/dates';
+import type { Gig } from '../lib/data/core';
+
+interface Props {
+  gig: Gig;
+}
+
+const { gig } = Astro.props;
+const name = gig.partyName ?? 'TBA';
+const lineup = gig.lineup.length > 0 ? gig.lineup.join(', ') : 'TBA';
+---
+
+<article class="event">
+  <div class="event__main">
+    <time class="event__date" datetime={gig.eventDate}>{formatEventDate(gig.eventDate)}</time>
+    <h2 class="event__name">
+      {
+        gig.ticketUrl ? (
+          <a class="event__link" href={gig.ticketUrl} target="_blank" rel="noopener">
+            {name}
+            <span class="visually-hidden"> (entradas, se abre en otra pestaña)</span>
+          </a>
+        ) : (
+          name
+        )
+      }
+    </h2>
+    <p class="event__place">{gig.venue}, {gig.city}</p>
+  </div>
+  <p class="event__lineup">{lineup}</p>
+</article>
+
+<style>
+  @layer components {
+    /* Sin separación entre eventos (brief): ni líneas ni márgenes. */
+    .event {
+      display: grid;
+      align-items: start;
+      content-visibility: auto;
+      contain-intrinsic-size: auto 14rem;
+    }
+
+    .event__main {
+      /* La fecha y el nombre se miden respecto al ancho de esta columna. */
+      container-type: inline-size;
+      min-width: 0;
+    }
+
+    .event__date {
+      display: block;
+      font-size: 9.4cqi;
+      font-weight: var(--fw-regular);
+      line-height: var(--lh-tight);
+      white-space: nowrap;
+    }
+
+    .event__name {
+      margin-top: 0.12em;
+      font-size: 5.2cqi;
+      font-weight: var(--fw-bold);
+      line-height: 1.05;
+      text-transform: uppercase;
+      overflow-wrap: anywhere;
+    }
+
+    .event__link {
+      --cursor-over: var(--c-panel-fg);
+
+      color: inherit;
+    }
+
+    .event__place,
+    .event__lineup {
+      font-size: var(--fs-small);
+      line-height: var(--lh-paragraph);
+    }
+
+    .event__place {
+      margin-top: 0.3em;
+    }
+
+    .event__lineup {
+      margin-top: 0.3em;
+      text-align: left;
+      overflow-wrap: anywhere;
+    }
+
+    /* Subrayado en el color de la sección (≥3 px: el neón contrasta poco). */
+    .event__date,
+    :global(.events[data-variant='archive']) .event__name,
+    .event__link {
+      text-decoration-line: underline;
+      text-decoration-color: var(--accent);
+      text-decoration-thickness: max(3px, 0.08em);
+      text-underline-offset: 0.1em;
+      text-decoration-skip-ink: none;
+    }
+
+    /* Alternativa: banda de color en el 35 % inferior de la línea. */
+    :global(.events[data-underline='marker']) :is(.event__date, .event__link),
+    :global(.events[data-underline='marker'][data-variant='archive']) .event__name {
+      text-decoration-line: none;
+      background-image: linear-gradient(to top, var(--accent) 35%, transparent 35%);
+      box-decoration-break: clone;
+      -webkit-box-decoration-break: clone;
+    }
+
+    :global(.events[data-underline='marker']) .event__date {
+      display: inline-block;
+    }
+
+    @media (min-width: 1024px) {
+      .event {
+        grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+        column-gap: var(--pad);
+      }
+
+      /* Lineup en la columna derecha, alineado arriba. */
+      .event__lineup {
+        margin-top: 0;
+      }
+    }
+  }
+</style>
