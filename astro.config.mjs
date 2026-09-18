@@ -42,6 +42,13 @@ export default defineConfig({
         values: ['supabase', 'fixtures'],
         default: 'supabase',
       }),
+      // `true` = si una consulta a Supabase falla al compilar, el build se
+      // detiene en vez de publicar listas vacías. Lo activa el build estático
+      // provisional (astro.config.pages.mjs). Se fija al compilar.
+      DATA_STRICT: envField.boolean({ context: 'server', access: 'public', default: false }),
+      // `true` = noindex en todas las páginas (despliegue provisional en
+      // GitHub Pages, astro.config.pages.mjs). Se fija al compilar.
+      SITE_NOINDEX: envField.boolean({ context: 'server', access: 'public', default: false }),
       PUBLIC_SITE_URL: envField.string({ context: 'client', access: 'public', optional: true, url: true }),
       PUBLIC_SUPABASE_URL: envField.string({ context: 'client', access: 'public', optional: true, url: true }),
       PUBLIC_SUPABASE_PUBLISHABLE_KEY: envField.string({ context: 'client', access: 'public', optional: true }),

@@ -12,6 +12,7 @@ import SeoHead from '../components/SeoHead.astro';
 import SplitShell from '../components/SplitShell.astro';
 import type { SectionState } from '../config/sections';
 import { MOBILE_START_VIEW, SITE } from '../config/site';
+import { withBase } from '../lib/url';
 
 interface Props {
   section: SectionState;
@@ -44,7 +45,7 @@ const tickerText = Astro.locals.tickerText;
     </SeoHead>
     <meta name="theme-color" content="#27272B" />
     <meta name="color-scheme" content="only light" />
-    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href={withBase('/favicon.svg')} type="image/svg+xml" />
     <ClientRouter />
   </head>
   <body>

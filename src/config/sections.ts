@@ -1,7 +1,11 @@
 /**
  * Secciones de la web, en el orden del menú (C05).
  * Los colores viven en `src/styles/tokens.css`; aquí solo se nombra el token.
+ * `href` es la ruta lógica, sin el `base`: al pintarla, pásala por
+ * `withBase()` (src/lib/url.ts).
  */
+import { withoutBase } from '../lib/url';
+
 export type SectionKey = 'info' | 'next' | 'media' | 'archive' | 'contact';
 
 /** Valor de `html[data-section]`. `none` = 404 y páginas legales. */
@@ -33,8 +37,8 @@ export function getSection(key: SectionKey): Section {
   return section;
 }
 
-/** Devuelve la sección que corresponde a una ruta (sin barra final). */
+/** Devuelve la sección que corresponde a una ruta (con o sin `base` y barra final). */
 export function sectionFromPath(pathname: string): SectionState {
-  const clean = pathname.replace(/\/+$/, '') || '/';
+  const clean = withoutBase(pathname).replace(/\/+$/, '') || '/';
   return SECTIONS.find((s) => s.href === clean)?.key ?? 'none';
 }

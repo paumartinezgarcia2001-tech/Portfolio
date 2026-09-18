@@ -5,6 +5,7 @@
  * al navegar (src/scripts/app.ts).
  */
 import { SECTIONS, type SectionState } from '../config/sections';
+import { withBase } from '../lib/url';
 
 interface Props {
   current: SectionState;
@@ -20,7 +21,7 @@ const { current } = Astro.props;
         <li class="menu__row">
           <a
             class="menu__link"
-            href={section.href}
+            href={withBase(section.href)}
             lang="en"
             data-menu-link={section.key}
             aria-current={current === section.key ? 'page' : undefined}

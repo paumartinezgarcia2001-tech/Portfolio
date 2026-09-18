@@ -10,6 +10,8 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
+    "build:pages": "astro build --config astro.config.pages.mjs",
+    "preview:pages": "astro preview --config astro.config.pages.mjs",
     "typecheck": "wrangler types && astro check",
     "test": "vitest run",
     "test:watch": "vitest",

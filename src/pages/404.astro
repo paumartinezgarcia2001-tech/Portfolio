@@ -3,13 +3,14 @@
  * C18 · 404 — dentro del mismo layout, con el menú visible.
  */
 import BaseLayout from '../layouts/BaseLayout.astro';
+import { withBase } from '../lib/url';
 ---
 
 <BaseLayout section="none" title="404" heading="404" description="Esta página no existe." noindex>
   <div class="not-found">
     <p class="not-found__code" aria-hidden="true">404</p>
     <p class="not-found__text">Esta página no existe.</p>
-    <p><a class="not-found__link" href="/">volver a info</a></p>
+    <p><a class="not-found__link" href={withBase('/')}>volver a info</a></p>
   </div>
 </BaseLayout>
 

@@ -2,14 +2,20 @@
  * Capa de datos de la web pública (fase 2).
  * Cada consulta tiene un tiempo máximo y una alternativa: si Supabase no
  * responde, la web se sigue viendo con listas vacías y un aviso discreto.
+ *
+ * Excepción: con `DATA_STRICT` (build estático de GitHub Pages, ver
+ * astro.config.pages.mjs) un fallo detiene la compilación. En una web
+ * estática el aviso se quedaría publicado hasta el siguiente build; así sigue
+ * en línea la última versión buena.
  */
-import { DATA_SOURCE } from 'astro:env/server';
+import { DATA_SOURCE, DATA_STRICT } from 'astro:env/server';
 import { SITE } from '../../config/site';
 import { getCutoffDate } from '../dates';
 import { createSupabasePublicClient, isSupabaseConfigured } from '../supabase/server';
 import {
   DEFAULT_SETTINGS,
   GIG_COLUMNS,
+  QUERY_TIMEOUT_MS,
   buildTickerText,
   runQuery,
   sortPast,
@@ -33,7 +39,30 @@ interface SettingsRow {
 const useFixtures = DATA_SOURCE === 'fixtures';
 let warnedNotConfigured = false;
 
+/**
+ * Tiempo máximo de cada consulta. Al compilar la web estática no hay nadie
+ * esperando, así que se da más margen (p. ej., si Supabase tarda en despertar).
+ */
+const timeoutMs = DATA_STRICT ? 10_000 : QUERY_TIMEOUT_MS;
+
+/** En modo estricto, un resultado fallido detiene el build (ver arriba). */
+function checked<T>(result: DataResult<T>, label: string): DataResult<T> {
+  if (DATA_STRICT && !result.ok) {
+    throw new Error(
+      `[datos] ${label}: la consulta a Supabase ha fallado y DATA_STRICT está activo. ` +
+        'Se detiene el build para no publicar la web sin datos.',
+    );
+  }
+  return result;
+}
+
 function notConfigured<T>(fallback: T): DataResult<T> {
+  if (DATA_STRICT) {
+    throw new Error(
+      '[datos] Faltan PUBLIC_SUPABASE_URL y PUBLIC_SUPABASE_PUBLISHABLE_KEY, y DATA_STRICT está activo. ' +
+        'En GitHub van en Settings → Secrets and variables → Actions → Variables.',
+    );
+  }
   if (!warnedNotConfigured) {
     console.warn('[datos] Supabase no está configurado (PUBLIC_SUPABASE_URL / PUBLIC_SUPABASE_PUBLISHABLE_KEY).');
     warnedNotConfigured = true;
@@ -59,9 +88,9 @@ export async function getUpcomingGigs(now: Date = new Date()): Promise<DataResul
         .order('created_at', { ascending: true })
         .abortSignal(signal),
     [],
-    { label: 'próximas fechas' },
+    { label: 'próximas fechas', timeoutMs },
   );
-  return { data: sortUpcoming(result.data.map(toGig)), ok: result.ok };
+  return checked({ data: sortUpcoming(result.data.map(toGig)), ok: result.ok }, 'próximas fechas');
 }
 
 /** Bolos publicados anteriores a hoy, del más reciente al más antiguo (C16). */
@@ -83,9 +112,9 @@ export async function getPastGigs(now: Date = new Date()): Promise<DataResult<Gi
         .limit(5000)
         .abortSignal(signal),
     [],
-    { label: 'archivo' },
+    { label: 'archivo', timeoutMs },
   );
-  return { data: sortPast(result.data.map(toGig)), ok: result.ok };
+  return checked({ data: sortPast(result.data.map(toGig)), ok: result.ok }, 'archivo');
 }
 
 /** El próximo bolo, o `null` si no hay ninguno anunciado. */
@@ -107,10 +136,10 @@ export async function getNextGig(now: Date = new Date()): Promise<DataResult<Gig
         .limit(1)
         .abortSignal(signal),
     [],
-    { label: 'próxima fecha' },
+    { label: 'próxima fecha', timeoutMs },
   );
   const first = result.data[0];
-  return { data: first ? toGig(first) : null, ok: result.ok };
+  return checked({ data: first ? toGig(first) : null, ok: result.ok }, 'próxima fecha');
 }
 
 /** Ajustes de la web (fila única de `site_settings`). */
@@ -128,13 +157,16 @@ export async function getSettings(): Promise<DataResult<SiteSettings>> {
         .abortSignal(signal)
         .maybeSingle(),
     null,
-    { label: 'ajustes' },
+    { label: 'ajustes', timeoutMs },
   );
-  if (!result.data) return { data: DEFAULT_SETTINGS, ok: false };
-  return {
-    data: { tickerText: result.data.ticker_text, tickerAppendNextGig: result.data.ticker_append_next_gig },
-    ok: result.ok,
-  };
+  if (!result.data) return checked({ data: DEFAULT_SETTINGS, ok: false }, 'ajustes');
+  return checked(
+    {
+      data: { tickerText: result.data.ticker_text, tickerAppendNextGig: result.data.ticker_append_next_gig },
+      ok: result.ok,
+    },
+    'ajustes',
+  );
 }
 
 /** Texto de la barra de noticias: ajustes + próxima fecha (C04). */
@@ -154,7 +186,7 @@ export async function checkDatabase(): Promise<DataResult<boolean>> {
   const result = await runQuery<{ id: number }[]>(
     (signal) => supabase.from('site_settings').select('id').limit(1).abortSignal(signal),
     [],
-    { label: 'health' },
+    { label: 'health', timeoutMs },
   );
-  return { data: result.ok, ok: result.ok };
+  return checked({ data: result.ok, ok: result.ok }, 'health');
 }

@@ -4,7 +4,9 @@
  * La imagen OG pixelada (1200×630) está pendiente de diseñar.
  */
 import { PUBLIC_SITE_URL } from 'astro:env/client';
+import { SITE_NOINDEX } from 'astro:env/server';
 import { SITE } from '../config/site';
+import { cleanPathname, withBase } from '../lib/url';
 
 interface Props {
   /** Nombre de la sección, p. ej. «next dates». */
@@ -13,11 +15,14 @@ interface Props {
   noindex?: boolean | undefined;
 }
 
-const { title, description = SITE.description, noindex = false } = Astro.props;
+const { title, description = SITE.description } = Astro.props;
+// SITE_NOINDEX saca toda la web de los buscadores (despliegue provisional).
+const noindex = (Astro.props.noindex ?? false) || SITE_NOINDEX;
 
 const fullTitle = `${title} — ${SITE.name}`;
 const origin = PUBLIC_SITE_URL ?? Astro.site?.origin ?? Astro.url.origin;
-const canonical = new URL(Astro.url.pathname, origin).href;
+// `Astro.url.pathname` ya incluye el `base`.
+const canonical = new URL(cleanPathname(Astro.url.pathname), origin).href;
 
 const personLd = {
   '@context': 'https://schema.org',
@@ -25,7 +30,7 @@ const personLd = {
   name: SITE.personName,
   alternateName: SITE.name,
   jobTitle: SITE.jobTitle,
-  url: new URL('/', origin).href,
+  url: new URL(withBase('/'), origin).href,
   sameAs: [SITE.social.instagram, SITE.social.soundcloud],
 };
 
