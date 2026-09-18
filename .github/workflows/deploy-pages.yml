@@ -1,0 +1,92 @@
+# Despliegue PROVISIONAL en GitHub Pages (lo construido hasta la fase 2).
+# El hosting definitivo es Cloudflare Workers (prompt maestro §12): al migrar,
+# borra este archivo y astro.config.pages.mjs.
+#
+# Se ejecuta:
+# - con cada push a main;
+# - cada día a las 07:17 UTC (09:17 en verano y 08:17 en invierno, hora de
+#   Madrid), después del corte de las 08:00 (§7.3): así los bolos pasan solos
+#   de next dates al archivo y la barra de noticias se actualiza. De paso,
+#   mantiene despierto el proyecto gratuito de Supabase;
+# - a mano: pestaña Actions → «Deploy GitHub Pages» → Run workflow (p. ej.,
+#   después de añadir un bolo en Supabase).
+#
+# Necesita, en Settings del repo:
+# - Pages → Build and deployment → Source: «GitHub Actions»;
+# - Secrets and variables → Actions → Variables: PUBLIC_SUPABASE_URL y
+#   PUBLIC_SUPABASE_PUBLISHABLE_KEY (públicas por diseño, pero fuera del código).
+#
+# Si Supabase falla, el build se detiene (DATA_STRICT) y sigue publicada la
+# versión anterior.
+
+name: Deploy GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '17 7 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Un despliegue cada vez; si llega otro, espera a que acabe el que está en curso.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+env:
+  ASTRO_TELEMETRY_DISABLED: 1
+
+jobs:
+  build:
+    name: Compilar
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Descargar el repo
+        uses: actions/checkout@v7
+
+      - name: Preparar Node (versión de .nvmrc)
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Leer la dirección de GitHub Pages
+        id: pages
+        uses: actions/configure-pages@v6
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Tests unitarios
+        run: npm test
+
+      - name: Compilar la web estática con los datos de hoy
+        run: npm run build:pages
+        env:
+          PAGES_ORIGIN: ${{ steps.pages.outputs.origin }}
+          PAGES_BASE_PATH: ${{ steps.pages.outputs.base_path }}
+          PUBLIC_SUPABASE_URL: ${{ vars.PUBLIC_SUPABASE_URL || secrets.PUBLIC_SUPABASE_URL }}
+          PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ vars.PUBLIC_SUPABASE_PUBLISHABLE_KEY || secrets.PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+
+      - name: Empaquetar dist/
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: dist
+
+  deploy:
+    name: Publicar
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Publicar en GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
