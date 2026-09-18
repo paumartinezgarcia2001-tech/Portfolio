@@ -39,6 +39,18 @@ async function expectPlaying(page: Page): Promise<void> {
   await expect(page.locator('media-video')).toHaveAttribute('data-ready', '');
 }
 
+/**
+ * El <video> que está en la página es el que avanza (no basta con que suene:
+ * uno fuera del DOM también suena, y en pantalla solo se ve el póster).
+ */
+async function expectVideoOnPage(page: Page): Promise<void> {
+  const first = await videoInfo(page);
+  await expect.poll(async () => (await videoInfo(page)).time, { timeout: 5_000 }).toBeGreaterThan(first.time + 0.3);
+  const later = await videoInfo(page);
+  expect(later.paused).toBe(false);
+  expect(later.frames).toBeGreaterThan(first.frames);
+}
+
 /** ¿Puede este navegador reproducir el vídeo de prueba? (WebKit en Linux/Windows, a veces no.) */
 async function canPlayFixture(page: Page): Promise<boolean> {
   return page.evaluate((type) => 'MediaSource' in window && MediaSource.isTypeSupported(type), FIXTURE_CODECS);
@@ -237,11 +249,37 @@ test.describe('Media', () => {
     });
     expect(afterLeaving).toEqual([]);
 
-    // Y al volver, arranca de nuevo con una sola instancia.
+    // Y al volver, arranca de nuevo con una sola instancia… y es el <video> de
+    // la página el que se ve (Astro recrea los <video> al navegar).
     if (isMobileViewport(testInfo.project.use.viewport)) await openMobileMenu(page);
     await menuLink(page, 'media').click();
     await expectPlaying(page);
+    await expectVideoOnPage(page);
     expect((await videoInfo(page)).stats).toEqual({ elements: 1, hls: 1 });
+  });
+
+  test('con HLS nativo (Chrome ≥ 141, Safari), al volver a Media se ve el vídeo, no solo suena', async ({ page }, testInfo) => {
+    // Con HLS nativo, `video.src` se pone en el mismo momento del montaje. Este
+    // Chromium no lo reproduce de verdad (acaba en el MP4 de respaldo), pero el
+    // orden de las cosas es el de Chrome y Safari.
+    await page.addInitScript(() => {
+      const canPlayType = HTMLMediaElement.prototype.canPlayType;
+      HTMLMediaElement.prototype.canPlayType = function (this: HTMLMediaElement, type: string) {
+        return type === 'application/vnd.apple.mpegurl' ? 'maybe' : canPlayType.call(this, type);
+      };
+    });
+    const mobile = isMobileViewport(testInfo.project.use.viewport);
+    await page.goto('/media');
+    test.skip(!(await canPlayFixture(page)), 'Este navegador no reproduce AV1 + Opus');
+    await expectPlaying(page);
+
+    if (mobile) await openMobileMenu(page);
+    await menuLink(page, 'archive').click();
+    await expect(page.locator('html')).toHaveAttribute('data-section', 'archive');
+    if (mobile) await openMobileMenu(page);
+    await menuLink(page, 'media').click();
+    await expectPlaying(page);
+    await expectVideoOnPage(page);
   });
 
   test('si el HLS falla, usa el MP4 de respaldo', async ({ page }) => {

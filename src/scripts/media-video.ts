@@ -16,6 +16,8 @@
  * - Se pausa fuera de la vista (IntersectionObserver), con la pestaña oculta
  *   y con el menú móvil abierto.
  * - Todo se libera en `astro:before-swap` (hls.js, red, decodificador).
+ * - Se monta en una microtarea, no en el propio `connectedCallback`: al
+ *   navegar, Astro recrea los <video> justo después de conectar el elemento.
  */
 import type HlsType from 'hls.js';
 import type { ErrorData } from 'hls.js';
@@ -69,6 +71,7 @@ export class MediaVideoElement extends HTMLElement {
   #abort: AbortController | null = null;
   #intersection: IntersectionObserver | null = null;
   #viewObserver: MutationObserver | null = null;
+  #childObserver: MutationObserver | null = null;
   #source: { hls: string; mp4: string } | null = null;
   /** Se ha pedido reproducir: la fuente está (o se está) cargando. */
   #started = false;
@@ -78,7 +81,14 @@ export class MediaVideoElement extends HTMLElement {
   #retried = { network: false, media: false };
 
   connectedCallback(): void {
-    this.#setup();
+    // Al navegar con el ClientRouter, Astro conecta este elemento y, justo
+    // después y en la misma tarea, cambia cada <video> nuevo por una copia
+    // hecha en el documento vivo (`reifyMediaElements`, withastro/astro#17603).
+    // Si se montara ya, el vídeo sonaría fuera de la página y solo se vería el
+    // póster: se monta en una microtarea, cuando el <video> ya es el definitivo.
+    queueMicrotask(() => {
+      if (this.isConnected) this.#setup();
+    });
   }
 
   disconnectedCallback(): void {
@@ -134,6 +144,16 @@ export class MediaVideoElement extends HTMLElement {
     this.#viewObserver = new MutationObserver(() => this.#sync());
     this.#viewObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-view'] });
 
+    // Por si algo vuelve a cambiar el <video> por otro más tarde: se vuelve a
+    // montar con el nuevo (nunca se queda sonando uno que no está en la página).
+    this.#childObserver = new MutationObserver(() => {
+      if (this.#video && !this.#video.isConnected && this.isConnected) {
+        this.teardown();
+        this.#setup();
+      }
+    });
+    this.#childObserver.observe(this, { childList: true });
+
     this.#syncSoundButton();
     this.#syncToggleButton();
 
@@ -150,6 +170,8 @@ export class MediaVideoElement extends HTMLElement {
     this.#intersection = null;
     this.#viewObserver?.disconnect();
     this.#viewObserver = null;
+    this.#childObserver?.disconnect();
+    this.#childObserver = null;
     this.#destroyHls();
     const video = this.#video;
     if (video) {
