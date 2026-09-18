@@ -14,7 +14,8 @@
 # Necesita, en Settings del repo:
 # - Pages → Build and deployment → Source: «GitHub Actions»;
 # - Secrets and variables → Actions → Variables: PUBLIC_SUPABASE_URL y
-#   PUBLIC_SUPABASE_PUBLISHABLE_KEY (públicas por diseño, pero fuera del código).
+#   PUBLIC_SUPABASE_PUBLISHABLE_KEY (públicas por diseño, pero fuera del código)
+#   y, cuando exista el bucket de R2, PUBLIC_MEDIA_BASE_URL (vídeo de Media).
 #
 # Si Supabase falla, el build se detiene (DATA_STRICT) y sigue publicada la
 # versión anterior.
@@ -73,6 +74,9 @@ jobs:
           PAGES_BASE_PATH: ${{ steps.pages.outputs.base_path }}
           PUBLIC_SUPABASE_URL: ${{ vars.PUBLIC_SUPABASE_URL || secrets.PUBLIC_SUPABASE_URL }}
           PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ vars.PUBLIC_SUPABASE_PUBLISHABLE_KEY || secrets.PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+          # Dominio público del bucket R2 (vídeo de Media, fase 3). Si está vacío,
+          # Media muestra un aviso en lugar del vídeo.
+          PUBLIC_MEDIA_BASE_URL: ${{ vars.PUBLIC_MEDIA_BASE_URL }}
 
       - name: Empaquetar dist/
         uses: actions/upload-pages-artifact@v5
