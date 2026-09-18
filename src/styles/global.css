@@ -7,6 +7,7 @@
 
 @import './reset.css';
 @import './tokens.css';
+@import './highlighter.css';
 
 @layer base {
   html {

@@ -88,13 +88,14 @@ de un dominio como bajo `/Portfolio`.
 
 ```
 src/
+  assets/      textura del rotulador (SVG)
   config/      datos de la web, secciones y ajustes del filtro pixelado
   content/     textos en Markdown (info.md)
   components/  piezas del layout (menú, barra de noticias, cursor…)
   layouts/     BaseLayout
   pages/       una página por sección
   scripts/     JS del navegador (navegación, móvil, cursor)
-  styles/      reset, tokens y estilos globales
+  styles/      reset, tokens, estilos globales y el rotulador (highlighter.css)
   lib/         fechas, datos (Supabase o fixtures), SEO, rutas con base
   middleware.ts  carga la barra de noticias y fija la caché
 scripts/       importación de bolos (Node)

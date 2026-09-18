@@ -8,6 +8,18 @@ import { isMobileViewport } from './helpers';
 
 const dates = (page: Page) => page.locator('.event__date');
 
+/** Color de la tinta del rotulador (D39) y si lleva la textura de papel. */
+async function highlighter(locator: ReturnType<Page['locator']>) {
+  return locator.evaluate((el) => {
+    const style = getComputedStyle(el);
+    return {
+      ink: style.getPropertyValue('--hl-ink').trim(),
+      texture: style.backgroundImage.includes('data:image/svg+xml'),
+      layers: style.backgroundImage.split('gradient(').length - 1,
+    };
+  });
+}
+
 test.describe('Next dates', () => {
   test('ordena las fechas de la más próxima a la más lejana', async ({ page }) => {
     await page.goto('/next-dates');
@@ -16,15 +28,17 @@ test.describe('Next dates', () => {
     expect([...iso]).toEqual([...iso].sort());
   });
 
-  test('muestra la fecha en formato DD MES AAAA y con subrayado del acento', async ({ page }) => {
+  test('muestra la fecha en formato DD MES AAAA, resaltada con el rotulador del acento', async ({ page }) => {
     await page.goto('/next-dates');
     const first = dates(page).first();
     await expect(first).toHaveText('30 SEPTIEMBRE 2099');
     await expect(first).toHaveAttribute('datetime', '2099-09-30');
-    await expect(first).toHaveCSS('text-decoration-line', 'underline');
-    await expect(first).toHaveCSS('text-decoration-color', 'rgb(0, 255, 255)');
-    const thickness = await first.evaluate((el) => parseFloat(getComputedStyle(el).textDecorationThickness));
-    expect(thickness).toBeGreaterThanOrEqual(3);
+    await expect(first).toHaveCSS('text-decoration-line', 'none');
+    const hl = first.locator('.hl');
+    await expect(hl).toHaveCount(1);
+    await expect(hl).toHaveCSS('text-decoration-line', 'none');
+    // Dos pasadas en texto grande: textura + pulso + dos puntas + tinta acumulada + dos trazos.
+    expect(await highlighter(hl)).toEqual({ ink: 'rgb(0, 255, 255)', texture: true, layers: 6 });
   });
 
   test('sin nombre de fiesta y sin lineup se muestra TBA', async ({ page }) => {
@@ -34,12 +48,13 @@ test.describe('Next dates', () => {
     await expect(item.locator('.event__lineup')).toHaveText('TBA');
   });
 
-  test('el nombre de la fiesta va en mayúsculas y en negrita, y solo se subraya en archive', async ({ page }) => {
+  test('el nombre de la fiesta va en mayúsculas y en negrita, y solo se resalta en archive', async ({ page }) => {
     await page.goto('/next-dates');
     const name = page.locator('.event__name').first();
     await expect(name).toHaveCSS('font-weight', '700');
     await expect(name).toHaveCSS('text-transform', 'uppercase');
     await expect(name).toHaveCSS('text-decoration-line', 'none');
+    await expect(name.locator('.hl')).toHaveCount(0);
     // La sala y el lineup no van en negrita.
     await expect(page.locator('.event__place').first()).toHaveCSS('font-weight', '400');
     await expect(page.locator('.event__lineup').first()).toHaveCSS('font-weight', '400');
@@ -61,16 +76,21 @@ test.describe('Next dates', () => {
 });
 
 test.describe('Archive', () => {
-  test('ordena de la más reciente a la más antigua y subraya el nombre', async ({ page }) => {
+  test('ordena de la más reciente a la más antigua y resalta la fecha y el nombre', async ({ page }) => {
     await page.goto('/archive');
     const iso = await dates(page).evaluateAll((els) => els.map((el) => el.getAttribute('datetime') ?? ''));
     expect(iso.length).toBeGreaterThan(1);
     expect([...iso]).toEqual([...iso].sort().reverse());
 
-    const name = page.locator('.event__name').first();
-    await expect(name).toHaveCSS('text-decoration-line', 'underline');
-    await expect(name).toHaveCSS('text-decoration-color', 'rgb(0, 255, 0)');
-    await expect(dates(page).first()).toHaveCSS('text-decoration-color', 'rgb(0, 255, 0)');
+    const name = page.locator('.event__name .hl').first();
+    expect(await highlighter(name)).toEqual({ ink: 'rgb(0, 255, 0)', texture: true, layers: 5 });
+    expect((await highlighter(dates(page).first().locator('.hl'))).ink).toBe('rgb(0, 255, 0)');
+
+    // Dos trazos seguidos no son iguales.
+    const strokes = await page
+      .locator('.event__date .hl')
+      .evaluateAll((els) => els.slice(0, 3).map((el) => el.getAttribute('data-hl')));
+    expect(new Set(strokes).size).toBe(3);
   });
 });
 
@@ -107,7 +127,7 @@ test.describe('Maquetación de los bolos', () => {
         .evaluate((el) => {
           const style = getComputedStyle(el);
           const range = document.createRange();
-          range.selectNodeContents(el);
+          range.selectNodeContents(el.querySelector('.hl') ?? el);
           const rects = range.getClientRects();
           return {
             text: el.textContent,

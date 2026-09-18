@@ -29,7 +29,9 @@ if (!ok && Astro.cache.enabled) Astro.cache.set(false);
       <EventList events={gigs} variant="next" label="Próximas fechas" />
     ) : ok ? (
       <div class="events-empty">
-        <p class="events-empty__text">PRÓXIMAS FECHAS POR ANUNCIAR</p>
+        <p class="events-empty__text">
+          <span class="hl hl--double" data-hl="1">PRÓXIMAS FECHAS POR ANUNCIAR</span>
+        </p>
       </div>
     ) : (
       <DataNotice what="las próximas fechas" />
@@ -43,16 +45,11 @@ if (!ok && Astro.cache.enabled) Astro.cache.set(false);
       container-type: inline-size;
     }
 
-    /* Mismo estilo que una fecha (C13 y C14). */
+    /* Mismo estilo que una fecha (C13 y C14), con el rotulador (D39). */
     .events-empty__text {
       font-size: 9.4cqi;
       font-weight: var(--fw-regular);
       line-height: var(--lh-tight);
-      text-decoration-line: underline;
-      text-decoration-color: var(--accent);
-      text-decoration-thickness: max(3px, 0.08em);
-      text-underline-offset: 0.1em;
-      text-decoration-skip-ink: none;
     }
   }
 </style>

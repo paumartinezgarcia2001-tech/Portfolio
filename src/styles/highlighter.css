@@ -1,0 +1,150 @@
+/*
+ * Rotulador fluorescente (decisión D39, 18-09-2026).
+ *
+ * Sustituye a los subrayados: lo que iba subrayado (fechas, nombres de fiesta
+ * del archivo, enlaces) va resaltado como con un rotulador sobre papel, en el
+ * color de la sección (`--accent`), con las imperfecciones de uno de verdad:
+ * - bordes irregulares y vetas de tinta seca (textura de src/assets/highlighter.svg);
+ * - puntas biseladas y redondeadas de forma desigual;
+ * - más tinta donde se apoya el rotulador y menos hacia el final;
+ * - el trazo se sale un poco por los lados y no va del todo recto;
+ * - en texto grande no llega de una pasada: dos pasadas que se solapan (.hl--double);
+ * - tres variantes (`data-hl`) para que dos trazos seguidos no sean iguales.
+ *
+ * Uso:
+ *   <span class="hl" data-hl="1">texto</span>
+ *   <span class="hl hl--double" data-hl="2">25 SEPTIEMBRE 2026</span>
+ * Los enlaces de los textos en Markdown (`.prose a`) lo llevan sin clase.
+ *
+ * ⚠️ La textura pinta con el color del papel (#C5C7D6 = --c-panel-bg) lo que el
+ * trazo no cubre, así que solo funciona sobre los paneles claros. Si cambia ese
+ * color, cámbialo también en el SVG.
+ */
+@layer components {
+  :where(.hl, .prose a) {
+    --hl-ink: var(--accent);
+    --hl-paper: var(--c-panel-bg);
+    /* Cuánto se sale el trazo por cada lado. */
+    --hl-over: 0.2em;
+    /* El pulso: el trazo sube o baja un poco. */
+    --hl-tilt: 179.6deg;
+    /* Desfase de la textura, para que las variantes no coincidan. */
+    --hl-phase: 0em;
+    /* Franja sin tinta arriba: la caja del texto sobresale de su línea y, si
+       no, el papel de la textura taparía lo que hay justo encima. */
+    --hl-top: 0.08em;
+    /* Tinta: cargada al apoyar, más seca al final. */
+    --hl-dense: color-mix(in srgb, var(--hl-ink) 86%, transparent);
+    --hl-mid: color-mix(in srgb, var(--hl-ink) 72%, transparent);
+    --hl-dry: color-mix(in srgb, var(--hl-ink) 62%, transparent);
+    --hl-pool: color-mix(in srgb, var(--hl-ink) 45%, transparent);
+    --hl-pass: linear-gradient(90deg, var(--hl-dense), var(--hl-mid) 14%, var(--hl-mid) 55%, var(--hl-dry));
+    /* Sobre el acento, el cursor (C10) se ve en oscuro (D32). */
+    --cursor-over: var(--c-panel-fg);
+
+    padding: 0.02em var(--hl-over) 0.05em;
+    margin-inline: calc(var(--hl-over) * -1);
+    border-radius: 0.22em 0.1em 0.3em 0.08em / 0.42em 0.24em 0.5em 0.3em;
+    color: inherit;
+    text-decoration: none;
+    /* De arriba abajo: textura del papel, pulso, puntas biseladas, tinta
+       acumulada al apoyar y el trazo. */
+    background-image:
+      url('../assets/highlighter.svg'),
+      linear-gradient(var(--hl-tilt), var(--hl-paper) 0 3%, transparent 9% 91%, var(--hl-paper) 97%),
+      linear-gradient(104deg, var(--hl-paper) 0 0.09em, transparent 0.15em),
+      linear-gradient(-76deg, var(--hl-paper) 0 0.07em, transparent 0.13em),
+      radial-gradient(closest-side, var(--hl-pool), transparent),
+      var(--hl-pass);
+    background-size:
+      auto calc(100% - var(--hl-top)),
+      100% calc(100% - var(--hl-top)),
+      100% calc(100% - var(--hl-top)),
+      100% calc(100% - var(--hl-top)),
+      0.7em calc(100% - var(--hl-top)),
+      100% calc(100% - var(--hl-top));
+    background-position:
+      var(--hl-phase) var(--hl-top),
+      0 var(--hl-top),
+      0 var(--hl-top),
+      100% var(--hl-top),
+      0 var(--hl-top),
+      0 var(--hl-top);
+    background-repeat: repeat-x, no-repeat, no-repeat, no-repeat, no-repeat, no-repeat;
+    /* Cada línea es un trazo aparte. */
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+  }
+
+  /* Texto grande (fechas): dos pasadas que no coinciden del todo y se
+     solapan en el centro, donde la tinta queda más oscura. */
+  :where(.hl--double) {
+    --hl-dense: color-mix(in srgb, var(--hl-ink) 74%, transparent);
+    --hl-mid: color-mix(in srgb, var(--hl-ink) 58%, transparent);
+    --hl-dry: color-mix(in srgb, var(--hl-ink) 48%, transparent);
+
+    background-image:
+      url('../assets/highlighter.svg'),
+      linear-gradient(var(--hl-tilt), var(--hl-paper) 0 3%, transparent 9% 91%, var(--hl-paper) 97%),
+      linear-gradient(104deg, var(--hl-paper) 0 0.09em, transparent 0.15em),
+      linear-gradient(-76deg, var(--hl-paper) 0 0.07em, transparent 0.13em),
+      radial-gradient(closest-side, var(--hl-pool), transparent),
+      var(--hl-pass),
+      var(--hl-pass);
+    background-size:
+      auto calc(100% - var(--hl-top)),
+      100% calc(100% - var(--hl-top)),
+      100% calc(100% - var(--hl-top)),
+      100% calc(100% - var(--hl-top)),
+      0.7em calc(100% - var(--hl-top)),
+      calc(100% - 0.3em) 58%,
+      calc(100% - 0.12em) 58%;
+    background-position:
+      var(--hl-phase) var(--hl-top),
+      0 var(--hl-top),
+      0 var(--hl-top),
+      100% var(--hl-top),
+      0 var(--hl-top),
+      0 var(--hl-top),
+      100% 100%;
+    background-repeat: repeat-x, no-repeat, no-repeat, no-repeat, no-repeat, no-repeat, no-repeat;
+  }
+
+  /* Variantes: otra inclinación, otras puntas y otra zona de la textura. */
+  :where(.hl[data-hl='2'], .prose a:nth-of-type(3n + 2)) {
+    --hl-phase: -2.7em;
+    --hl-tilt: 180.5deg;
+
+    border-radius: 0.12em 0.26em 0.1em 0.3em / 0.3em 0.5em 0.28em 0.46em;
+  }
+
+  :where(.hl[data-hl='3'], .prose a:nth-of-type(3n)) {
+    --hl-phase: -5.3em;
+    --hl-tilt: 180deg;
+
+    border-radius: 0.3em 0.14em 0.2em 0.12em / 0.5em 0.34em 0.4em 0.3em;
+  }
+
+  /* Enlaces: al pasar el ratón, una segunda mano de tinta. */
+  :where(a.hl, .prose a):hover {
+    --hl-dense: var(--hl-ink);
+    --hl-mid: color-mix(in srgb, var(--hl-ink) 92%, transparent);
+    --hl-dry: color-mix(in srgb, var(--hl-ink) 84%, transparent);
+  }
+
+  /* Más contraste: tinta lisa, sin textura ni transparencias. */
+  @media (prefers-contrast: more) {
+    :where(.hl, .prose a) {
+      background: var(--hl-ink);
+    }
+  }
+
+  /* Colores forzados: el fondo desaparece; vuelve el subrayado para que se
+     siga viendo qué está marcado. */
+  @media (forced-colors: active) {
+    :where(.hl, .prose a) {
+      text-decoration: underline;
+      text-decoration-thickness: max(2px, 0.08em);
+    }
+  }
+}

@@ -53,23 +53,10 @@ const { Content } = await render(entry);
       margin-top: 1em;
     }
 
-    /* Enlaces: resaltado tipo rotulador con el acento (#27272B sobre neón ≥4,7:1). */
+    /* Enlaces: rotulador con el acento (src/styles/highlighter.css, D39).
+       #27272B sobre el neón ≥4,7:1. */
     .prose :global(a) {
-      --cursor-over: var(--c-panel-fg);
-
-      padding-inline: 0.08em;
-      background: var(--accent);
-      color: var(--c-panel-fg);
-      text-decoration: underline;
-      text-decoration-thickness: 1px;
-      text-underline-offset: 0.15em;
-      box-decoration-break: clone;
-      -webkit-box-decoration-break: clone;
       hyphens: manual;
-    }
-
-    .prose :global(a:hover) {
-      text-decoration-thickness: 2px;
     }
   }
 </style>

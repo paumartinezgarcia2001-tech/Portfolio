@@ -1,9 +1,8 @@
 ---
 /**
  * C13 · EventList — lista de bolos compartida por next dates y archive.
- * `variant="archive"` subraya también el nombre de la fiesta.
+ * `variant="archive"` resalta también el nombre de la fiesta (D19, D39).
  */
-import { EVENT_UNDERLINE_STYLE } from '../config/site';
 import type { Gig } from '../lib/data/core';
 import EventItem from './EventItem.astro';
 
@@ -17,11 +16,11 @@ interface Props {
 const { events, variant, label } = Astro.props;
 ---
 
-<ol class="events" role="list" aria-label={label} data-variant={variant} data-underline={EVENT_UNDERLINE_STYLE}>
+<ol class="events" role="list" aria-label={label} data-variant={variant}>
   {
-    events.map((gig) => (
+    events.map((gig, index) => (
       <li class="events__item">
-        <EventItem gig={gig} />
+        <EventItem gig={gig} variant={variant} index={index} />
       </li>
     ))
   }

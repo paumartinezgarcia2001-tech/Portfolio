@@ -27,12 +27,6 @@ export type MobileView = 'page' | 'menu';
  */
 export const MOBILE_START_VIEW: MobileView = 'page';
 
-/**
- * Estilo del subrayado de fechas y nombres (C13): `line` (subrayado grueso) o
- * `marker` (banda de color en el 35 % inferior de la línea), por si Pau lo prefiere.
- */
-export const EVENT_UNDERLINE_STYLE: 'line' | 'marker' = 'line';
-
 /** Anchura a partir de la cual la web se divide en dos mitades (§4.3). */
 export const DESKTOP_MIN_WIDTH = 1024;
 export const DESKTOP_MEDIA_QUERY = `(min-width: ${DESKTOP_MIN_WIDTH}px)`;

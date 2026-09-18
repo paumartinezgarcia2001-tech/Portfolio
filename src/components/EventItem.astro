@@ -2,29 +2,40 @@
 /**
  * C13 · EventItem — un bolo: fecha grande, nombre de la fiesta, sala y
  * ciudad, y lineup (a la derecha en escritorio, debajo en móvil).
+ * La fecha va resaltada con rotulador (D39); el nombre, también en el
+ * archivo (D19) o cuando enlaza a las entradas.
  */
 import { formatEventDate } from '../lib/dates';
 import type { Gig } from '../lib/data/core';
 
 interface Props {
   gig: Gig;
+  variant: 'next' | 'archive';
+  /** Posición en la lista: elige la variante del trazo para que no se repita. */
+  index?: number;
 }
 
-const { gig } = Astro.props;
+const { gig, variant, index = 0 } = Astro.props;
 const name = gig.partyName ?? 'TBA';
 const lineup = gig.lineup.length > 0 ? gig.lineup.join(', ') : 'TBA';
+const dateStroke = String((index % 3) + 1);
+const nameStroke = String(((index + 1) % 3) + 1);
 ---
 
 <article class="event">
   <div class="event__main">
-    <time class="event__date" datetime={gig.eventDate}>{formatEventDate(gig.eventDate)}</time>
+    <time class="event__date" datetime={gig.eventDate}
+      ><span class="hl hl--double" data-hl={dateStroke}>{formatEventDate(gig.eventDate)}</span></time
+    >
     <h2 class="event__name">
       {
         gig.ticketUrl ? (
-          <a class="event__link" href={gig.ticketUrl} target="_blank" rel="noopener">
+          <a class="event__link hl" data-hl={nameStroke} href={gig.ticketUrl} target="_blank" rel="noopener">
             {name}
             <span class="visually-hidden"> (entradas, se abre en otra pestaña)</span>
           </a>
+        ) : variant === 'archive' ? (
+          <span class="hl" data-hl={nameStroke}>{name}</span>
         ) : (
           name
         )
@@ -43,6 +54,11 @@ const lineup = gig.lineup.length > 0 ? gig.lineup.join(', ') : 'TBA';
       align-items: start;
       content-visibility: auto;
       contain-intrinsic-size: auto 14rem;
+      /* `content-visibility` recorta lo que se sale de la caja: se agranda
+         hacia fuera (sin mover nada) para no cortar el rotulador. El <li> es
+         un elemento de rejilla, así que estos márgenes no colapsan con él. */
+      margin: -0.5rem -1rem;
+      padding: 0.5rem 1rem;
     }
 
     .event__main {
@@ -68,11 +84,6 @@ const lineup = gig.lineup.length > 0 ? gig.lineup.join(', ') : 'TBA';
       overflow-wrap: anywhere;
     }
 
-    .event__link {
-      --cursor-over: var(--c-panel-fg);
-
-      color: inherit;
-    }
 
     .event__place,
     .event__lineup {
@@ -88,30 +99,6 @@ const lineup = gig.lineup.length > 0 ? gig.lineup.join(', ') : 'TBA';
       margin-top: 0.3em;
       text-align: left;
       overflow-wrap: anywhere;
-    }
-
-    /* Subrayado en el color de la sección (≥3 px: el neón contrasta poco). */
-    .event__date,
-    :global(.events[data-variant='archive']) .event__name,
-    .event__link {
-      text-decoration-line: underline;
-      text-decoration-color: var(--accent);
-      text-decoration-thickness: max(3px, 0.08em);
-      text-underline-offset: 0.1em;
-      text-decoration-skip-ink: none;
-    }
-
-    /* Alternativa: banda de color en el 35 % inferior de la línea. */
-    :global(.events[data-underline='marker']) :is(.event__date, .event__link),
-    :global(.events[data-underline='marker'][data-variant='archive']) .event__name {
-      text-decoration-line: none;
-      background-image: linear-gradient(to top, var(--accent) 35%, transparent 35%);
-      box-decoration-break: clone;
-      -webkit-box-decoration-break: clone;
-    }
-
-    :global(.events[data-underline='marker']) .event__date {
-      display: inline-block;
     }
 
     @media (min-width: 1024px) {

@@ -10,7 +10,7 @@ import { withBase } from '../lib/url';
   <div class="not-found">
     <p class="not-found__code" aria-hidden="true">404</p>
     <p class="not-found__text">Esta página no existe.</p>
-    <p><a class="not-found__link" href={withBase('/')}>volver a info</a></p>
+    <p><a class="hl" href={withBase('/')}>volver a info</a></p>
   </div>
 </BaseLayout>
 
@@ -32,17 +32,6 @@ import { withBase } from '../lib/url';
       .not-found__code {
         display: none;
       }
-    }
-
-    .not-found__link {
-      --cursor-over: var(--c-panel-fg);
-
-      padding-inline: 0.08em;
-      background: var(--accent);
-      color: var(--c-panel-fg);
-      text-decoration: underline;
-      text-decoration-thickness: 1px;
-      text-underline-offset: 0.15em;
     }
   }
 </style>
