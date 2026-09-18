@@ -1,0 +1,17 @@
+{
+  "rules": [
+    {
+      "allowed": {
+        "origins": [
+          "https://paumartinezgarcia2001-tech.github.io",
+          "http://localhost:4321",
+          "http://127.0.0.1:4321"
+        ],
+        "methods": ["GET", "HEAD"],
+        "headers": ["Range"]
+      },
+      "exposeHeaders": ["Content-Length", "Content-Range", "Accept-Ranges", "ETag"],
+      "maxAgeSeconds": 86400
+    }
+  ]
+}

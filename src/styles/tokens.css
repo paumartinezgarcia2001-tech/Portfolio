@@ -56,6 +56,11 @@
     /* Líneas entre filas del menú (C03). */
     --c-rule: color-mix(in srgb, var(--c-menu-fg) 40%, transparent);
 
+    /* Fondo de lo que va encima del vídeo de Media (controles y título en
+       móvil). Al 80 %: el texto #C5C7D6 da ≥4,5:1 incluso sobre un fotograma
+       blanco (al 70 % se quedaría en 3,3:1). */
+    --c-scrim: color-mix(in srgb, var(--c-menu-bg) 80%, transparent);
+
     /* Color de la sección activa. `html[data-section]` lo cambia abajo. */
     --accent: var(--c-info);
 

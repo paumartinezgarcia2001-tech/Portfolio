@@ -5,6 +5,7 @@
  * más larga, el nombre de fiesta más largo, fiesta sin nombre, lineup vacío,
  * lineup de diez artistas y enlace de entradas.
  */
+import { LAGRIMA_FULL_SET, type MediaVideoConfig } from '../../config/media';
 import type { Gig, SiteSettings } from './core';
 
 export const FIXTURE_SETTINGS: SiteSettings = {
@@ -81,3 +82,30 @@ export const FIXTURE_GIGS: Gig[] = [
     ticketUrl: null,
   },
 ];
+
+/**
+ * Vídeo de los tests e2e: lo genera `tests/e2e/global-setup.ts` en
+ * `.media/video/e2e-fixture/` a partir de un patrón de ffmpeg, en AV1 + Opus
+ * (el Chromium de Playwright no trae H.264 ni AAC). Lleva el enlace al set
+ * para probar ese control.
+ */
+export const FIXTURE_VIDEO: MediaVideoConfig = {
+  slug: 'e2e-fixture',
+  title: 'Vídeo de prueba (tests)',
+  audio: true,
+  hls: 'video/e2e-fixture/4x5/master.m3u8',
+  mp4: 'video/e2e-fixture/4x5/fallback.mp4',
+  poster: { jpg: 'video/e2e-fixture/4x5/poster.jpg', avif: 'video/e2e-fixture/4x5/poster.avif' },
+  width: 360,
+  height: 450,
+  mobile: {
+    hls: 'video/e2e-fixture/9x16/master.m3u8',
+    mp4: 'video/e2e-fixture/9x16/fallback.mp4',
+    poster: { jpg: 'video/e2e-fixture/9x16/poster.jpg', avif: 'video/e2e-fixture/9x16/poster.avif' },
+    width: 360,
+    height: 640,
+  },
+  focusX: 0.5,
+  focusY: 0.5,
+  fullSet: LAGRIMA_FULL_SET,
+};

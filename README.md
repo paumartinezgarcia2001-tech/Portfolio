@@ -3,9 +3,9 @@
 Web de **travest15m0**, DJ y productora de eventos afincada en Madrid.
 
 Astro 7 sobre Cloudflare Workers, sin React ni Tailwind. En construcción por fases:
-hechas la 1 (estructura, navegación e Info) y la 2 (bolos desde Supabase: next dates,
-archive y barra de noticias). Faltan el vídeo, el reproductor, el formulario, el panel
-y el despliegue definitivo.
+hechas la 1 (estructura, navegación e Info), la 2 (bolos desde Supabase: next dates,
+archive y barra de noticias) y la 3 (vídeo de Media en HLS y transición de píxeles).
+Faltan el reproductor, el formulario, el panel y el despliegue definitivo.
 
 Versión provisional: <https://paumartinezgarcia2001-tech.github.io/Portfolio/>
 (GitHub Pages, ver [más abajo](#despliegue-provisional-github-pages)).
@@ -37,9 +37,14 @@ con un aviso: la capa de datos nunca rompe la página.
 | `npm test` | Tests unitarios (Vitest) |
 | `npm run test:e2e` | Tests e2e (Playwright). La primera vez: `npx playwright install` |
 | `npm run test:rls` | Comprueba contra Supabase que nadie puede escribir con la clave pública |
+| `npm run media:hls -- "<vídeo>" --slug <nombre>` | Convierte un vídeo en HLS para Media (necesita ffmpeg) |
+| `npm run media:upload` | Sube `.media/` a R2 (necesita las claves `R2_*` en `.env`) |
+| `npm run media:serve` | Sirve `.media/` en `http://localhost:4322`, como si fuera R2 |
 
 Los e2e compilan la web y la sirven en el puerto 4321. Con `PW_ALL_BROWSERS=1` se
 prueban también Firefox y WebKit; las capturas quedan en `test-results/screenshots/`.
+Los de Media generan antes un vídeo de prueba con ffmpeg (en AV1, porque el Chromium
+de Playwright no trae H.264) y lo sirven en el puerto 4322; sin ffmpeg, se saltan.
 
 ## Datos (Supabase)
 
@@ -59,6 +64,46 @@ prueban también Firefox y WebKit; las capturas quedan en `test-results/screensh
 - `supabase/tests/rls.sql` comprueba dentro de la base de datos que el público solo
   puede leer lo publicado.
 
+## Vídeo de Media
+
+El vídeo no está en el repo: se sirve en HLS desde el bucket de R2
+`travest15m0-media`, en el dominio de `PUBLIC_MEDIA_BASE_URL`. Sin esa variable,
+Media muestra un aviso en su lugar. El vídeo se ve nítido, sin pixelar; la textura LCD
+de toda la web sí le pasa por encima.
+
+Para cambiar el vídeo:
+
+1. **Generar el HLS** (necesita ffmpeg; en Windows, `winget install Gyan.FFmpeg`):
+
+   ```sh
+   npm run media:hls -- "../Raw_Files/Audiovisual Content/INSULTO CLUB/CUKI.mp4" --slug cuki-insulto
+   ```
+
+   Saca una versión 4:5 (escritorio) y otra 9:16 (móvil) en `.media/video/<slug>-<hash>/`:
+   H.264 en 1080/720/480 (sin ampliar nunca), segmentos de 4 s, MP4 de respaldo y pósters
+   AVIF y JPG. Opciones útiles: `--start` y `--duration` (recorte), `--focus-x` y
+   `--focus-y` (encuadre), `--no-audio` (vídeo solo visual) y `--poster-at`. Todo en
+   `npm run media:hls -- --help`.
+2. **Subirlo a R2**: `npm run media:upload -- video/<slug>-<hash>`. Pone el
+   `Content-Type` y la caché inmutable, y no vuelve a subir lo que ya está.
+3. **Apuntar la web al vídeo nuevo**: pegar en `src/config/media.ts` el bloque que
+   imprime el paso 1 y rellenar `title` (lo leen los lectores de pantalla) y, si es
+   un fragmento del set de LAGRIMA, `fullSet: LAGRIMA_FULL_SET`.
+
+Para verlo en local sin R2: `npm run media:serve` y `PUBLIC_MEDIA_BASE_URL=http://localhost:4322`
+en `.env`.
+
+**R2, una sola vez**: crear el bucket, darle un dominio público (`media.<dominio>`; mientras
+no haya dominio sirve la URL `r2.dev` del bucket), crear un token de API de R2 con permiso
+de escritura en el bucket (sus datos van en `.env`, ver `.env.example`) y configurar CORS:
+
+```sh
+npx wrangler r2 bucket cors set travest15m0-media --file r2/cors.json
+```
+
+`r2/cors.json` permite `GET` y `HEAD` desde GitHub Pages y `localhost:4321`. Cuando
+haya dominio, añade `https://<dominio>` a `origins` y vuelve a ejecutar el comando.
+
 ## Despliegue provisional (GitHub Pages)
 
 Hasta que la web esté en Cloudflare (fase 7), lo construido se publica como web
@@ -74,7 +119,8 @@ estática en <https://paumartinezgarcia2001-tech.github.io/Portfolio/>.
   detiene y sigue publicada la versión anterior (nunca se publican listas vacías).
 - **Ajustes del repo** (una sola vez): *Settings → Pages → Source: GitHub Actions* y,
   en *Settings → Secrets and variables → Actions → Variables*,
-  `PUBLIC_SUPABASE_URL` y `PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
+  `PUBLIC_SUPABASE_URL` y `PUBLIC_SUPABASE_PUBLISHABLE_KEY`. Cuando exista el bucket de
+  R2, añade también `PUBLIC_MEDIA_BASE_URL` para que se vea el vídeo de Media.
 - **Límites**: sin servidor, así que el formulario (fase 5) y el panel (fase 6) no
   funcionarán aquí. GitHub pausa los workflows programados tras 60 días sin actividad
   en el repo: si pasa, se reactiva en la pestaña *Actions*.
@@ -89,16 +135,17 @@ de un dominio como bajo `/Portfolio`.
 ```
 src/
   assets/      textura del rotulador (SVG)
-  config/      datos de la web, secciones y ajustes del filtro pixelado
+  config/      datos de la web, secciones, vídeo de Media y ajustes del filtro pixelado
   content/     textos en Markdown (info.md)
-  components/  piezas del layout (menú, barra de noticias, cursor…)
+  components/  piezas del layout (menú, barra de noticias, cursor, vídeo…)
   layouts/     BaseLayout
   pages/       una página por sección
-  scripts/     JS del navegador (navegación, móvil, cursor)
+  scripts/     JS del navegador (navegación, móvil, cursor, vídeo, píxeles)
   styles/      reset, tokens, estilos globales y el rotulador (highlighter.css)
   lib/         fechas, datos (Supabase o fixtures), SEO, rutas con base
   middleware.ts  carga la barra de noticias y fija la caché
-scripts/       importación de bolos (Node)
+scripts/       importación de bolos y pipeline de vídeo: HLS, subida a R2 y servidor local (Node)
+r2/            CORS del bucket
 supabase/      migraciones y pruebas de RLS
 tests/
   unit/        Vitest

@@ -8,9 +8,12 @@
  * estática el aviso se quedaría publicado hasta el siguiente build; así sigue
  * en línea la última versión buena.
  */
+import { PUBLIC_MEDIA_BASE_URL } from 'astro:env/client';
 import { DATA_SOURCE, DATA_STRICT } from 'astro:env/server';
+import { MEDIA_VIDEO } from '../../config/media';
 import { SITE } from '../../config/site';
 import { getCutoffDate } from '../dates';
+import { resolveMediaVideo, type ResolvedMediaVideo } from '../media';
 import { createSupabasePublicClient, isSupabaseConfigured } from '../supabase/server';
 import {
   DEFAULT_SETTINGS,
@@ -27,7 +30,7 @@ import {
   type GigRow,
   type SiteSettings,
 } from './core';
-import { FIXTURE_GIGS, FIXTURE_SETTINGS } from './fixtures';
+import { FIXTURE_GIGS, FIXTURE_SETTINGS, FIXTURE_VIDEO } from './fixtures';
 
 export type { DataResult, Gig, SiteSettings } from './core';
 
@@ -189,4 +192,13 @@ export async function checkDatabase(): Promise<DataResult<boolean>> {
     { label: 'health', timeoutMs },
   );
   return checked({ data: result.ok, ok: result.ok }, 'health');
+}
+
+/**
+ * Vídeo de Media (C15) con las URLs completas, o `null` si falta
+ * `PUBLIC_MEDIA_BASE_URL`. De momento sale de `src/config/media.ts`; más
+ * adelante podrá venir de `site_settings.video` (panel, fase 6).
+ */
+export async function getMediaVideo(): Promise<ResolvedMediaVideo | null> {
+  return resolveMediaVideo(useFixtures ? FIXTURE_VIDEO : MEDIA_VIDEO, PUBLIC_MEDIA_BASE_URL);
 }

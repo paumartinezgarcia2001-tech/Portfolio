@@ -81,6 +81,10 @@ const { section, heading, headingLang } = Astro.props;
         top: calc(var(--pad) + 3.5rem + var(--safe-top));
         left: calc(var(--pad) + var(--safe-left));
         z-index: 1;
+        /* Encima del vídeo: mismo fondo que sus controles, para que se lea
+           sobre cualquier fotograma (C15). */
+        padding: 0 0.1em 0.04em;
+        background: var(--c-scrim);
       }
 
       /* Con el menú abierto, el panel queda fuera del foco y del lector. */

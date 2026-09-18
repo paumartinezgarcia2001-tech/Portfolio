@@ -18,16 +18,21 @@
     "test:e2e": "playwright test",
     "lint": "eslint .",
     "generate-types": "wrangler types",
-    "test:rls": "vitest run --config vitest.rls.config.ts"
+    "test:rls": "vitest run --config vitest.rls.config.ts",
+    "media:hls": "node scripts/video-to-hls.mjs",
+    "media:upload": "node scripts/upload-to-r2.mjs",
+    "media:serve": "node scripts/serve-media.mjs"
   },
   "dependencies": {
     "@astrojs/cloudflare": "^14.3.2",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.116.0",
-    "astro": "^7.3.3"
+    "astro": "^7.3.3",
+    "hls.js": "^1.7.3"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.10",
+    "@aws-sdk/client-s3": "^3.1135.0",
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.63.0",
     "@types/node": "^24.13.5",

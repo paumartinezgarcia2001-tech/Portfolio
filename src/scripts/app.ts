@@ -6,6 +6,7 @@
 import type { TransitionBeforeSwapEvent } from 'astro:transitions/client';
 import { DESKTOP_MEDIA_QUERY, type MobileView } from '../config/site';
 import { runPageCleanups } from './lifecycle';
+import './pixel-transition';
 
 const root = document.documentElement;
 const desktop = window.matchMedia(DESKTOP_MEDIA_QUERY);

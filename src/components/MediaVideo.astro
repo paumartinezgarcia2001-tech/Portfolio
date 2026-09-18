@@ -1,0 +1,232 @@
+---
+/**
+ * C15 · Vídeo a sangre de Media, sin pixelado (D40).
+ *
+ * - Ocupa todo el panel y se ajusta con `object-fit: cover` y el punto focal:
+ *   nunca deja bandas.
+ * - El póster es un <picture> (AVIF o JPG, 4:5 o 9:16 con la misma media query
+ *   que usa el vídeo). Se ve mientras carga y si el vídeo falla.
+ * - Controles abajo a la izquierda: sonido, pausa y, si hay, «ver set completo».
+ *   Con `prefers-reduced-motion` o `Save-Data` no arranca solo: botón «reproducir».
+ * - Sin JS, un <video> con los controles del navegador y el MP4 de respaldo.
+ * La lógica está en `src/scripts/media-video.ts`.
+ */
+import type { ResolvedMediaVideo } from '../lib/media';
+
+interface Props {
+  video: ResolvedMediaVideo;
+}
+
+const { video } = Astro.props;
+const { main, narrow, narrowQuery } = video;
+---
+
+<media-video
+  class="media-video"
+  data-slug={video.slug}
+  data-hls={main.hls}
+  data-mp4={main.mp4}
+  data-narrow-hls={narrow?.hls}
+  data-narrow-mp4={narrow?.mp4}
+  data-narrow-query={narrowQuery ?? undefined}
+  style={`--media-position: ${video.objectPosition};`}
+>
+  <picture class="media-video__poster">
+    {
+      narrow && narrowQuery && (
+        <>
+          {narrow.posterAvif && <source media={narrowQuery} srcset={narrow.posterAvif} type="image/avif" />}
+          <source media={narrowQuery} srcset={narrow.posterJpg} type="image/jpeg" />
+        </>
+      )
+    }
+    {main.posterAvif && <source srcset={main.posterAvif} type="image/avif" />}
+    <img src={main.posterJpg} alt="" width={main.width} height={main.height} fetchpriority="high" decoding="async" />
+  </picture>
+
+  <video
+    class="media-video__video"
+    data-video
+    muted
+    loop
+    playsinline
+    preload="metadata"
+    aria-label={video.title}></video>
+
+  <noscript>
+    <video
+      class="media-video__video media-video__video--static"
+      src={main.mp4}
+      poster={main.posterJpg}
+      muted
+      loop
+      playsinline
+      controls
+      preload="none"
+      aria-label={video.title}></video>
+  </noscript>
+
+  <button type="button" class="media-video__button media-video__start" data-action="start">
+    <svg class="media-video__icon" viewBox="0 0 10 12" aria-hidden="true" focusable="false">
+      <path d="M0 0 10 6 0 12Z"></path>
+    </svg>
+    reproducir
+  </button>
+
+  <div class="media-video__controls" role="group" aria-label="Controles del vídeo">
+    {
+      video.audio && (
+        <button type="button" class="media-video__button" data-action="sound" aria-pressed="false">
+          <span class="media-video__led" aria-hidden="true" />
+          sonido
+        </button>
+      )
+    }
+    <button type="button" class="media-video__button" data-action="toggle">pausa</button>
+    {
+      video.fullSet && (
+        <a class="media-video__button" href={video.fullSet.href} target="_blank" rel="noopener">
+          {video.fullSet.label}
+          <span aria-hidden="true">↗</span>
+          <span class="visually-hidden">(se abre en otra pestaña)</span>
+        </a>
+      )
+    }
+  </div>
+</media-video>
+
+<script>
+  import '../scripts/media-video';
+</script>
+
+<style>
+  @layer components {
+    .media-video {
+      /* Fase 4: en móvil, el alto de la mini-barra del reproductor. */
+      --media-inset-bottom: 0px;
+
+      position: absolute;
+      inset: 0 0 var(--media-inset-bottom);
+      display: block;
+      overflow: hidden;
+      background: var(--c-menu-bg);
+    }
+
+    .media-video__poster,
+    .media-video__poster img,
+    .media-video__video {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      max-width: none;
+      object-fit: cover;
+      object-position: var(--media-position, 50% 50%);
+    }
+
+    /* El vídeo tapa el póster en cuanto tiene el primer fotograma. */
+    .media-video__video {
+      opacity: 0;
+    }
+
+    .media-video[data-ready] .media-video__video,
+    .media-video__video--static {
+      opacity: 1;
+    }
+
+    .media-video[data-state='error'] .media-video__video {
+      visibility: hidden;
+    }
+
+    /* Controles: texto #C5C7D6 sobre #27272B translúcido (C15; --c-scrim). Sin JS no salen. */
+    .media-video__controls {
+      position: absolute;
+      left: calc(var(--pad) + var(--safe-left));
+      bottom: calc(var(--pad) + var(--safe-bottom));
+      z-index: 1;
+      display: none;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      max-width: calc(100% - 2 * var(--pad));
+    }
+
+    .media-video:is([data-state='loading'], [data-state='playing'], [data-state='paused']) .media-video__controls {
+      display: flex;
+    }
+
+    .media-video__button {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5em;
+      min-height: 44px;
+      padding: 0.5em 0.75em;
+      background: var(--c-scrim);
+      color: var(--c-menu-fg);
+      font-size: var(--fs-small);
+      line-height: 1;
+      text-decoration: none;
+      white-space: nowrap;
+      touch-action: manipulation;
+      transition: color var(--dur-hover) linear;
+    }
+
+    @media (hover: hover) {
+      .media-video__button:hover {
+        color: var(--accent);
+      }
+    }
+
+    /* Zona oscura: contorno del acento (§4.1, regla 3). */
+    .media-video__button:focus-visible {
+      outline: var(--focus-w) solid var(--accent);
+      outline-offset: 0;
+      box-shadow: none;
+    }
+
+    /* Piloto del sonido: un píxel apagado o encendido en el acento. */
+    .media-video__led {
+      flex: none;
+      width: 0.5em;
+      height: 0.5em;
+      border: 1px solid currentColor;
+    }
+
+    [aria-pressed='true'] > .media-video__led {
+      border-color: var(--accent);
+      background: var(--accent);
+    }
+
+    /* Sin autoplay (movimiento reducido, ahorro de datos o bloqueo del navegador). */
+    .media-video__start {
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      display: none;
+      width: fit-content;
+      height: fit-content;
+      margin: auto;
+      padding: 0.6em 0.9em;
+      font-size: var(--fs-paragraph);
+    }
+
+    .media-video[data-state='idle'] .media-video__start {
+      display: inline-flex;
+    }
+
+    .media-video__icon {
+      width: 0.62em;
+      height: 0.74em;
+      fill: currentColor;
+    }
+
+    @media (forced-colors: active) {
+      .media-video__button {
+        border: 1px solid ButtonText;
+      }
+
+      [aria-pressed='true'] > .media-video__led {
+        background: ButtonText;
+      }
+    }
+  }
+</style>

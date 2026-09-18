@@ -65,6 +65,32 @@
 }
 
 /* ------------------------------------------------------------------------ */
+/* C11c · Transición de píxeles (src/scripts/pixel-transition.ts)           */
+/* ------------------------------------------------------------------------ */
+@layer components {
+  /* Dentro de #panel; cada píxel del canvas es un cuadrado de 24 px. */
+  .pixel-transition {
+    position: absolute;
+    inset: 0;
+    z-index: var(--z-pixel-transition);
+    overflow: hidden;
+    pointer-events: none;
+  }
+
+  .pixel-transition canvas {
+    display: block;
+    max-width: none;
+    image-rendering: pixelated;
+  }
+
+  @media (prefers-reduced-motion: reduce), (forced-colors: active) {
+    .pixel-transition {
+      display: none;
+    }
+  }
+}
+
+/* ------------------------------------------------------------------------ */
 /* C08 · Transición de sección (View Transitions + ClientRouter)            */
 /* ------------------------------------------------------------------------ */
 @layer components {

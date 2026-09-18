@@ -13,9 +13,15 @@ import { defineConfig, devices, type PlaywrightTestProject } from '@playwright/t
  * `src/lib/data/fixtures.ts`, así que los tests no dependen de Supabase.
  * Ojo: esa compilación deja `dist/` con datos de prueba; vuelve a compilar
  * con `npm run build` antes de un `npm run preview` normal.
+ *
+ * Media (fase 3): `tests/e2e/global-setup.ts` genera un vídeo de prueba con
+ * ffmpeg en `.media/` y `scripts/serve-media.mjs` lo sirve en el puerto 4322
+ * como si fuera R2. Sin ffmpeg, esos tests se saltan.
  */
 
 const PORT = Number(process.env.E2E_PORT ?? 4321);
+const MEDIA_PORT = Number(process.env.E2E_MEDIA_PORT ?? 4322);
+const mediaBaseURL = `http://localhost:${MEDIA_PORT}`;
 const externalBaseURL = process.env.E2E_BASE_URL;
 const baseURL = externalBaseURL ?? `http://localhost:${PORT}`;
 const chromiumExecutable = process.env.PW_CHROMIUM_EXECUTABLE || undefined;
@@ -66,6 +72,7 @@ export default defineConfig({
   reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
   timeout: 30_000,
   expect: { timeout: 5_000 },
+  globalSetup: './tests/e2e/global-setup.ts',
   use: {
     baseURL,
     locale: 'es-ES',
@@ -75,11 +82,22 @@ export default defineConfig({
   projects,
   webServer: externalBaseURL
     ? undefined
-    : {
-        command: `npm run build && npx astro preview --port ${PORT}`,
-        url: baseURL,
-        reuseExistingServer: !process.env.CI,
-        timeout: 180_000,
-        env: { DATA_SOURCE: 'fixtures' },
-      },
+    : [
+        {
+          // `--ignore-lock`: Astro 7 lanza el preview en segundo plano si detecta un
+          // agente (p. ej. una sesión de Claude) y Playwright lo daría por caído.
+          command: `npm run build && npx astro preview --port ${PORT} --ignore-lock`,
+          url: baseURL,
+          reuseExistingServer: !process.env.CI,
+          timeout: 180_000,
+          env: { DATA_SOURCE: 'fixtures', PUBLIC_MEDIA_BASE_URL: mediaBaseURL },
+        },
+        {
+          // Hace de R2 para el vídeo de prueba (CORS, Range y Content-Type).
+          command: `node scripts/serve-media.mjs --port ${MEDIA_PORT}`,
+          url: `${mediaBaseURL}/`,
+          reuseExistingServer: !process.env.CI,
+          timeout: 30_000,
+        },
+      ],
 });

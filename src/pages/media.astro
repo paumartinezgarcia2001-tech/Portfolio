@@ -1,16 +1,39 @@
 ---
 /**
- * C15 · Media — marcador de la fase 1. La fase 3 añade el vídeo HLS
- * pixelado a sangre (`<pixel-video>`).
+ * C15 · Media — vídeo a sangre, servido en HLS desde R2 (`<media-video>`).
+ * Sin pixelado (D40). Mientras no exista el bucket (falta
+ * `PUBLIC_MEDIA_BASE_URL`), un aviso en su lugar.
  */
+import MediaVideo from '../components/MediaVideo.astro';
 import PhasePlaceholder from '../components/PhasePlaceholder.astro';
 import BaseLayout from '../layouts/BaseLayout.astro';
+import { getMediaVideo } from '../lib/data';
+
+const video = await getMediaVideo();
 ---
 
 <BaseLayout section="media" title="media" headingLang="en" description="Vídeo de travest15m0, DJ en Madrid.">
-  <div class="media-stage">
-    <PhasePlaceholder phase={3} what="Vídeo a sangre, pixelado en tiempo real." />
-  </div>
+  {
+    video?.origin && (
+      <Fragment slot="head">
+        {/* El póster (sin CORS) y hls.js (con CORS) usan conexiones distintas. */}
+        <link rel="preconnect" href={video.origin} />
+        <link rel="preconnect" href={video.origin} crossorigin />
+      </Fragment>
+    )
+  }
+  {
+    video ? (
+      <MediaVideo video={video} />
+    ) : (
+      <div class="media-stage">
+        <PhasePlaceholder
+          phase={3}
+          what="El vídeo está preparado, pero falta PUBLIC_MEDIA_BASE_URL: se verá cuando esté subido al bucket de R2."
+        />
+      </div>
+    )
+  }
 </BaseLayout>
 
 <style>

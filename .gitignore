@@ -56,6 +56,11 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
+# --- vídeo generado (scripts/video-to-hls.mjs) ---
+# El HLS y los fixtures de los tests se generan en local y se suben a R2:
+# nunca van al repo (prompt maestro §15).
+.media/
+
 # --- media sin optimizar ---
 # El material en bruto (WAV, proyectos de DAW, RAW de fotos, vídeo sin
 # comprimir) no va al repo: pesa demasiado y GitHub no es un almacén de
