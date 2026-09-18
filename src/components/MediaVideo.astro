@@ -7,8 +7,9 @@
  * - El póster es un <picture> (AVIF o JPG, 4:5 o 9:16 con la misma media query
  *   que usa el vídeo). Se ve mientras carga y si el vídeo falla.
  * - Controles abajo a la izquierda: sonido, pausa y, si hay, «ver set completo».
+ *   El sonido arranca activado si el navegador lo deja (D42).
  *   Con `prefers-reduced-motion` o `Save-Data` no arranca solo: botón «reproducir».
- * - Sin JS, un <video> con los controles del navegador y el MP4 de respaldo.
+ * - Sin JS, un <video> con sonido, los controles del navegador y el MP4 de respaldo.
  * La lógica está en `src/scripts/media-video.ts`.
  */
 import type { ResolvedMediaVideo } from '../lib/media';
@@ -44,6 +45,7 @@ const { main, narrow, narrowQuery } = video;
     <img src={main.posterJpg} alt="" width={main.width} height={main.height} fetchpriority="high" decoding="async" />
   </picture>
 
+  {/* `muted` solo hasta que el script decide el sonido: activado por defecto (D42). */}
   <video
     class="media-video__video"
     data-video
@@ -58,7 +60,6 @@ const { main, narrow, narrowQuery } = video;
       class="media-video__video media-video__video--static"
       src={main.mp4}
       poster={main.posterJpg}
-      muted
       loop
       playsinline
       controls

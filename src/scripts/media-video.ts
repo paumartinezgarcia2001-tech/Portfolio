@@ -7,8 +7,12 @@
  * - HLS nativo si el navegador lo trae (Safari); si no, carga hls.js (build
  *   «light») solo en ese momento; sin MSE o si el HLS falla, el MP4 de respaldo.
  * - Sin autoplay con `prefers-reduced-motion` o `Save-Data`: póster + botón.
- * - Arranca sin sonido. Activarlo emite `media:sound-on` (el reproductor de
- *   mixes se pausa) y `player:play` lo vuelve a silenciar.
+ * - Arranca con sonido (D42). Los navegadores solo lo dejan si la persona ya
+ *   ha tocado la página (p. ej., ha llegado desde el menú); si no, arranca
+ *   silenciado y «sonido» queda apagado. Si está sonando un mix, también
+ *   arranca silenciado, para no cortarlo.
+ * - Cuando empieza a sonar emite `media:sound-on` (el reproductor de mixes se
+ *   pausa); `player:play` lo vuelve a silenciar.
  * - Se pausa fuera de la vista (IntersectionObserver), con la pestaña oculta
  *   y con el menú móvil abierto.
  * - Todo se libera en `astro:before-swap` (hls.js, red, decodificador).
@@ -16,7 +20,7 @@
 import type HlsType from 'hls.js';
 import type { ErrorData } from 'hls.js';
 import { DESKTOP_MEDIA_QUERY } from '../config/site';
-import { MEDIA_SOUND_ON, PLAYER_PLAY, type MediaSoundOnDetail } from '../lib/media-events';
+import { MEDIA_SOUND_ON, PLAYER_PLAY, isPlayerPlaying, type MediaSoundOnDetail } from '../lib/media-events';
 
 type HlsConstructor = typeof HlsType;
 
@@ -173,7 +177,9 @@ export class MediaVideoElement extends HTMLElement {
         this.#userPaused = false;
         const hadFocus = target === document.activeElement;
         if (this.#started) {
-          // Ya estaba cargado (el navegador no dejó arrancar solo).
+          // Ya estaba cargado (el navegador no dejó arrancar solo). Ahora hay
+          // un clic: puede sonar.
+          this.#applyDefaultSound();
           this.#setState('loading');
           this.#sync();
         } else {
@@ -191,11 +197,7 @@ export class MediaVideoElement extends HTMLElement {
         break;
       case 'sound':
         video.muted = !video.muted;
-        if (!video.muted) {
-          document.dispatchEvent(
-            new CustomEvent<MediaSoundOnDetail>(MEDIA_SOUND_ON, { detail: { slug: this.dataset.slug ?? '' } }),
-          );
-        }
+        if (!video.muted) this.#announceSound();
         break;
     }
   }
@@ -203,6 +205,7 @@ export class MediaVideoElement extends HTMLElement {
   async #start(): Promise<void> {
     if (this.#started || !this.#abort) return;
     this.#started = true;
+    this.#applyDefaultSound();
     this.#setState('loading');
     const attached = await this.#attach();
     if (attached) this.#sync();
@@ -322,16 +325,46 @@ export class MediaVideoElement extends HTMLElement {
       return;
     }
     if (!video.paused) return;
-    video.play().catch((error: unknown) => {
-      const name = (error as { name?: string } | null)?.name;
-      if (name === 'NotAllowedError') {
-        // El navegador no deja arrancar solo (p. ej., ahorro de batería en iOS).
-        this.#userPaused = true;
-        this.#setState('idle');
-      } else if (name !== 'AbortError') {
-        console.warn('[media] play() ha fallado', error);
-      }
-    });
+    this.#play(video);
+  }
+
+  #play(video: HTMLVideoElement): void {
+    const withSound = !video.muted;
+    video.play().then(
+      () => {
+        if (withSound && !video.muted && this.#video === video) this.#announceSound();
+      },
+      (error: unknown) => {
+        if (this.#video !== video) return;
+        const name = (error as { name?: string } | null)?.name;
+        if (name === 'NotAllowedError' && withSound) {
+          // Sin haber tocado la página, el navegador no deja arrancar con
+          // sonido: se silencia («sonido» queda apagado) y se vuelve a probar.
+          video.muted = true;
+          this.#sync();
+        } else if (name === 'NotAllowedError') {
+          // Ni siquiera sin sonido (p. ej., ahorro de batería en iOS).
+          this.#userPaused = true;
+          this.#setState('idle');
+        } else if (name !== 'AbortError') {
+          console.warn('[media] play() ha fallado', error);
+        }
+      },
+    );
+  }
+
+  /** Sonido por defecto (D42): activado, salvo que esté sonando un mix. */
+  #applyDefaultSound(): void {
+    if (!this.#video) return;
+    this.#video.muted = isPlayerPlaying();
+    this.#syncSoundButton();
+  }
+
+  /** El vídeo suena: el reproductor de mixes se pausa (C06). */
+  #announceSound(): void {
+    document.dispatchEvent(
+      new CustomEvent<MediaSoundOnDetail>(MEDIA_SOUND_ON, { detail: { slug: this.dataset.slug ?? '' } }),
+    );
   }
 
   #syncSoundButton(): void {

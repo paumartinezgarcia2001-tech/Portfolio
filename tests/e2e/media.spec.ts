@@ -44,6 +44,42 @@ async function canPlayFixture(page: Page): Promise<boolean> {
   return page.evaluate((type) => 'MediaSource' in window && MediaSource.isTypeSupported(type), FIXTURE_CODECS);
 }
 
+/** Apunta los `media:sound-on` desde que se crea la página (sobrevive a la navegación del menú). */
+async function watchSoundOn(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    const w = window as unknown as { __soundOn: unknown[] };
+    w.__soundOn = [];
+    document.addEventListener('media:sound-on', (event) => w.__soundOn.push((event as CustomEvent).detail));
+  });
+}
+
+function soundOnEvents(page: Page): Promise<unknown[]> {
+  return page.evaluate(() => (window as unknown as { __soundOn: unknown[] }).__soundOn);
+}
+
+/**
+ * Lo que hacen Chrome, Firefox y Safari si no se ha tocado la página: `play()`
+ * con sonido falla con NotAllowedError (sin sonido, sí arranca). No sirve
+ * `navigator.userActivation`: con `page.goto`, Chromium ya la da por activada.
+ */
+async function blockSoundWithoutInteraction(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    let touched = false;
+    for (const type of ['pointerdown', 'keydown']) {
+      addEventListener(type, (event) => {
+        if (event.isTrusted) touched = true;
+      }, { capture: true });
+    }
+    const play = HTMLMediaElement.prototype.play;
+    HTMLMediaElement.prototype.play = function (this: HTMLMediaElement) {
+      if (!this.muted && !touched) {
+        return Promise.reject(new DOMException('Hace falta tocar la página', 'NotAllowedError'));
+      }
+      return play.call(this);
+    };
+  });
+}
+
 test.describe('Media', () => {
   test.skip(Boolean(process.env.E2E_BASE_URL), 'Usa el vídeo de prueba y el servidor local de .media');
   test.skip(process.env.E2E_MEDIA !== 'ok', `Sin vídeo de prueba: ${process.env.E2E_MEDIA ?? 'sin preparar'}`);
@@ -89,43 +125,67 @@ test.describe('Media', () => {
     }
   });
 
-  test('arranca sin sonido y el vídeo avanza', async ({ page }) => {
-    await page.goto('/media');
+  test('llegando desde el menú arranca con sonido (D42), avisa al reproductor y el vídeo avanza', async ({ page }, testInfo) => {
+    await watchSoundOn(page);
+    await page.goto('/');
     test.skip(!(await canPlayFixture(page)), 'Este navegador no reproduce AV1 + Opus');
+    if (isMobileViewport(testInfo.project.use.viewport)) await openMobileMenu(page);
+    await menuLink(page, 'media').click();
     await expectPlaying(page);
 
+    const sound = page.getByRole('button', { name: 'sonido' });
     const first = await videoInfo(page);
-    expect(first.muted).toBe(true);
-    await expect(page.getByRole('button', { name: 'sonido' })).toHaveAttribute('aria-pressed', 'false');
+    expect(first.muted).toBe(false);
+    await expect(sound).toHaveAttribute('aria-pressed', 'true');
+    await expect.poll(() => soundOnEvents(page)).toEqual([{ slug: 'e2e-fixture' }]);
 
     await expect.poll(async () => (await videoInfo(page)).time, { timeout: 5_000 }).toBeGreaterThan(first.time + 0.5);
     const later = await videoInfo(page);
     expect(later.frames).toBeGreaterThan(first.frames);
     expect(later.paused).toBe(false);
-  });
 
-  test('el sonido avisa al reproductor (media:sound-on) y player:play lo vuelve a silenciar', async ({ page }) => {
-    await page.goto('/media');
-    test.skip(!(await canPlayFixture(page)), 'Este navegador no reproduce AV1 + Opus');
-    await expectPlaying(page);
-    await page.evaluate(() => {
-      const w = window as unknown as { __soundOn: unknown[] };
-      w.__soundOn = [];
-      document.addEventListener('media:sound-on', (event) => w.__soundOn.push((event as CustomEvent).detail));
-    });
-
-    const sound = page.getByRole('button', { name: 'sonido' });
-    await sound.click();
-    await expect(sound).toHaveAttribute('aria-pressed', 'true');
-    expect((await videoInfo(page)).muted).toBe(false);
-    expect(await page.evaluate(() => (window as unknown as { __soundOn: unknown[] }).__soundOn)).toEqual([
-      { slug: 'e2e-fixture' },
-    ]);
-
-    // Fase 4: el reproductor emite player:play al empezar a sonar.
+    // Fase 4: el reproductor emite player:play al empezar a sonar → el vídeo se silencia.
     await page.evaluate(() => document.dispatchEvent(new CustomEvent('player:play')));
     await expect(sound).toHaveAttribute('aria-pressed', 'false');
     expect((await videoInfo(page)).muted).toBe(true);
+  });
+
+  test('si el navegador no deja arrancar con sonido, arranca silenciado y «sonido» lo activa', async ({ page }) => {
+    await blockSoundWithoutInteraction(page);
+    await watchSoundOn(page);
+    await page.goto('/media');
+    test.skip(!(await canPlayFixture(page)), 'Este navegador no reproduce AV1 + Opus');
+    await expectPlaying(page);
+
+    const sound = page.getByRole('button', { name: 'sonido' });
+    expect((await videoInfo(page)).muted).toBe(true);
+    await expect(sound).toHaveAttribute('aria-pressed', 'false');
+    expect(await soundOnEvents(page)).toEqual([]);
+
+    await sound.click();
+    await expect(sound).toHaveAttribute('aria-pressed', 'true');
+    const info = await videoInfo(page);
+    expect(info.muted).toBe(false);
+    expect(info.paused).toBe(false);
+    expect(await soundOnEvents(page)).toEqual([{ slug: 'e2e-fixture' }]);
+  });
+
+  test('con un mix sonando, arranca silenciado para no cortarlo', async ({ page }, testInfo) => {
+    await watchSoundOn(page);
+    await page.goto('/');
+    test.skip(!(await canPlayFixture(page)), 'Este navegador no reproduce AV1 + Opus');
+    // Fase 4: mientras suena un mix, <mix-player> lleva data-state="playing"
+    // (está en la columna izquierda, que persiste al navegar).
+    await page.evaluate(() => {
+      document.querySelector<HTMLElement>('mix-player')!.dataset.state = 'playing';
+    });
+    if (isMobileViewport(testInfo.project.use.viewport)) await openMobileMenu(page);
+    await menuLink(page, 'media').click();
+    await expectPlaying(page);
+
+    expect((await videoInfo(page)).muted).toBe(true);
+    await expect(page.getByRole('button', { name: 'sonido' })).toHaveAttribute('aria-pressed', 'false');
+    expect(await soundOnEvents(page)).toEqual([]);
   });
 
   test('pausa y reanudar', async ({ page }) => {
@@ -250,6 +310,9 @@ test.describe('Media', () => {
       await start.click();
       await expect(element).toHaveAttribute('data-state', 'playing', { timeout: 10_000 });
       await expect(start).toBeHidden();
+      // Lo ha pedido la persona: suena (D42).
+      expect((await videoInfo(page)).muted).toBe(false);
+      await expect(page.getByRole('button', { name: 'sonido' })).toHaveAttribute('aria-pressed', 'true');
     });
   });
 });
