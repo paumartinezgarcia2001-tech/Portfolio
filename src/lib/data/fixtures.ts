@@ -6,7 +6,7 @@
  * lineup de diez artistas y enlace de entradas.
  */
 import { LAGRIMA_FULL_SET, type MediaVideoConfig } from '../../config/media';
-import type { Gig, SiteSettings } from './core';
+import type { Gig, MixRow, SiteSettings } from './core';
 
 export const FIXTURE_SETTINGS: SiteSettings = {
   tickerText: 'travest15m0 · DJ · Madrid',
@@ -80,6 +80,38 @@ export const FIXTURE_GIGS: Gig[] = [
     city: 'Sevilla',
     lineup: [],
     ticketUrl: null,
+  },
+];
+
+/**
+ * Mixes de los tests e2e: tonos de 20 s que genera `tests/e2e/global-setup.ts`
+ * en `.media/mixes/` (MP3, como los de verdad). Rutas relativas al bucket
+ * (D46), igual que en la tabla `mixes`.
+ */
+export const FIXTURE_MIXES: MixRow[] = [
+  {
+    id: 'fixture-mix-1',
+    title: 'Mix de prueba 1',
+    subtitle: 'tests',
+    audio_url: 'mixes/e2e-mix-1.mp3',
+    duration_seconds: 20,
+    artwork_url: null,
+  },
+  {
+    id: 'fixture-mix-2',
+    title: 'Mix de prueba 2',
+    subtitle: 'tests',
+    audio_url: 'mixes/e2e-mix-2.mp3',
+    duration_seconds: 20,
+    artwork_url: null,
+  },
+  {
+    id: 'fixture-mix-3',
+    title: 'Mix de prueba 3',
+    subtitle: 'tests',
+    audio_url: 'mixes/e2e-mix-3.mp3',
+    duration_seconds: 20,
+    artwork_url: null,
   },
 ];
 

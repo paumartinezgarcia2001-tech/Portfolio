@@ -103,11 +103,8 @@
     /* «next dates» mide ≈4,95 em en Helvetica/Arial Bold. */
     --menu-fit: 5.2;
     --fs-menu: min(calc(var(--menu-text-w) / var(--menu-fit)), calc(var(--row-h) * 0.75));
-    /* «▶ reproductor» mide ≈6,6 em y con --fs-menu no cabría en ningún tamaño
-       de prueba: la fila del reproductor usa el mismo tamaño que el menú salvo
-       cuando no cabe (decisión D31). */
-    --player-fit: 6.9;
-    --fs-player: min(var(--fs-menu), calc(var(--menu-text-w) / var(--player-fit)));
+    /* La fila del reproductor ya no lleva texto, solo tres botones (D43): sus
+       iconos se miden con --fs-menu (src/components/MixPlayer.astro). */
 
     /* --- Capas (§4.3) --- */
     --z-panel: 1;

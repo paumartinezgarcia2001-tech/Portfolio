@@ -4,8 +4,8 @@ Web de **travest15m0**, DJ y productora de eventos afincada en Madrid.
 
 Astro 7 sobre Cloudflare Workers, sin React ni Tailwind. En construcción por fases:
 hechas la 1 (estructura, navegación e Info), la 2 (bolos desde Supabase: next dates,
-archive y barra de noticias) y la 3 (vídeo de Media en HLS y transición de píxeles).
-Faltan el reproductor, el formulario, el panel y el despliegue definitivo.
+archive y barra de noticias), la 3 (vídeo de Media en HLS y transición de píxeles) y
+la 4 (reproductor de mixes). Faltan el formulario, el panel y el despliegue definitivo.
 
 Versión provisional: <https://paumartinezgarcia2001-tech.github.io/Portfolio/>
 (GitHub Pages, ver [más abajo](#despliegue-provisional-github-pages)).
@@ -34,23 +34,28 @@ con un aviso: la capa de datos nunca rompe la página.
 | `npm run preview:pages` | Sirve esa versión en `http://localhost:4321/Portfolio/` |
 | `npm run typecheck` | Genera los tipos de Cloudflare y ejecuta `astro check` |
 | `npm run lint` | ESLint |
-| `npm test` | Tests unitarios (Vitest) |
+| `npm test` | Tests unitarios y de componentes (Vitest) |
 | `npm run test:e2e` | Tests e2e (Playwright). La primera vez: `npx playwright install` |
 | `npm run test:rls` | Comprueba contra Supabase que nadie puede escribir con la clave pública |
 | `npm run media:hls -- "<vídeo>" --slug <nombre>` | Convierte un vídeo en HLS para Media (necesita ffmpeg) |
 | `npm run media:upload` | Sube `.media/` a R2 (necesita las claves `R2_*` en `.env`) |
 | `npm run media:serve` | Sirve `.media/` en `http://localhost:4322`, como si fuera R2 |
+| `npm run media:mix -- "<audio>" --title "…"` | Prepara un mix para el reproductor y crea su fila en Supabase (necesita ffmpeg) |
 
 Los e2e compilan la web y la sirven en el puerto 4321. Con `PW_ALL_BROWSERS=1` se
 prueban también Firefox y WebKit; las capturas quedan en `test-results/screenshots/`.
-Los de Media generan antes un vídeo de prueba con ffmpeg (en AV1, porque el Chromium
-de Playwright no trae H.264) y lo sirven en el puerto 4322; sin ffmpeg, se saltan.
+Los de Media y del reproductor generan antes un vídeo y tres mixes de prueba con ffmpeg
+(el vídeo en AV1, porque el Chromium de Playwright no trae H.264) y los sirven en el
+puerto 4322; sin ffmpeg, se saltan. Los navegadores de los e2e dejan sonar sin tocar la
+página (como Chrome en una web que ya conoce); el bloqueo de la primera visita se
+simula en los tests que lo necesitan.
 
 ## Datos (Supabase)
 
 - El esquema está en `supabase/migrations/` (`0001` tablas, `0002` RLS, `0003` mueve
-  `is_admin()` fuera de la API e indexa las claves ajenas). Se aplican con el MCP de
-  Supabase o con `npx supabase db push`.
+  `is_admin()` fuera de la API e indexa las claves ajenas, `0004` deja que `mixes`
+  guarde rutas relativas al bucket). Se aplican con el MCP de Supabase o con
+  `npx supabase db push`.
 - Los bolos se importaron de los `.xlsx` de `Raw_Files/WEB PAGE FILES/` con:
 
   ```sh
@@ -104,6 +109,46 @@ npx wrangler r2 bucket cors set travest15m0-media --file r2/cors.json
 `r2/cors.json` permite `GET` y `HEAD` desde GitHub Pages y `localhost:4321`. Cuando
 haya dominio, añade `https://<dominio>` a `origins` y vuelve a ejecutar el comando.
 
+## Reproductor de mixes
+
+La sexta fila del menú: solo tres botones en el centro, **anterior · reproducir/pausar ·
+siguiente** (canción anterior o siguiente). La música **empieza sola al abrir la web**; si
+el navegador no lo deja (lo normal en la primera visita: Chrome, Firefox y Safari piden
+que la persona haya tocado la página), empieza con su primer clic, toque o tecla. En
+móvil, dentro de una sección, los mismos botones van en una mini-barra fija abajo.
+
+- Los mixes salen de la tabla `mixes` de Supabase (solo los publicados) y se barajan en
+  cada visita. La música no se corta al cambiar de sección.
+- Los archivos están en el bucket de R2, igual que el vídeo: la tabla guarda la ruta
+  dentro del bucket (`mixes/<nombre>-<hash>.mp3`) y la web le pone delante
+  `PUBLIC_MEDIA_BASE_URL`. **Sin esa variable, el reproductor dice «reproductor —
+  próximamente»** (es lo que se ve ahora en GitHub Pages).
+- Si la persona pausa la música, al recargar no vuelve a arrancar sola. Si en Media se
+  activa el sonido del vídeo, la música se pausa y vuelve al salir de Media.
+
+Para añadir un mix (necesita ffmpeg):
+
+```sh
+npm run media:mix -- "../Raw_Files/…/mix.wav" --title "Insulto Club · 2026"
+```
+
+Lo deja en MP3 a 320 kbps y a unos −14 LUFS en `.media/mixes/`, lo sube a R2 si hay
+claves en `.env` y crea su fila en `mixes` (con `SUPABASE_SECRET_KEY` en `.env`; si no,
+imprime el SQL para el SQL Editor). Opciones: `--subtitle`, `--artwork <imagen>`
+(carátula cuadrada), `--draft` (sin publicar), `--copy` (no recodifica un MP3) y
+`--sql <archivo>`. Todo en `npm run media:mix -- --help`.
+
+Ahora hay tres **audios de prueba** publicados en la tabla. Sus MP3 ya preparados están
+en `../Claude outputs/fase4/media/mixes/`. Cuando exista el bucket:
+
+```sh
+npm run media:upload -- --root "../Claude outputs/fase4/media"
+```
+
+Para oírlos en local sin R2: copia esa carpeta `mixes/` dentro de `.media/`, arranca
+`npm run media:serve` y pon `PUBLIC_MEDIA_BASE_URL=http://localhost:4322` en `.env`. Para
+quitarlos cuando lleguen los mixes de verdad: bórralos (o despublícalos) en Supabase.
+
 ## Despliegue provisional (GitHub Pages)
 
 Hasta que la web esté en Cloudflare (fase 7), lo construido se publica como web
@@ -120,7 +165,8 @@ estática en <https://paumartinezgarcia2001-tech.github.io/Portfolio/>.
 - **Ajustes del repo** (una sola vez): *Settings → Pages → Source: GitHub Actions* y,
   en *Settings → Secrets and variables → Actions → Variables*,
   `PUBLIC_SUPABASE_URL` y `PUBLIC_SUPABASE_PUBLISHABLE_KEY`. Cuando exista el bucket de
-  R2, añade también `PUBLIC_MEDIA_BASE_URL` para que se vea el vídeo de Media.
+  R2, añade también `PUBLIC_MEDIA_BASE_URL` para que se vean el vídeo de Media y el
+  reproductor.
 - **Límites**: sin servidor, así que el formulario (fase 5) y el panel (fase 6) no
   funcionarán aquí. GitHub pausa los workflows programados tras 60 días sin actividad
   en el repo: si pasa, se reactiva en la pestaña *Actions*.
@@ -140,15 +186,16 @@ src/
   components/  piezas del layout (menú, barra de noticias, cursor, vídeo…)
   layouts/     BaseLayout
   pages/       una página por sección
-  scripts/     JS del navegador (navegación, móvil, cursor, vídeo, píxeles)
+  scripts/     JS del navegador (navegación, móvil, cursor, vídeo, reproductor, píxeles)
   styles/      reset, tokens, estilos globales y el rotulador (highlighter.css)
-  lib/         fechas, datos (Supabase o fixtures), SEO, rutas con base
+  lib/         fechas, datos (Supabase o fixtures), barajado, SEO, rutas con base
   middleware.ts  carga la barra de noticias y fija la caché
-scripts/       importación de bolos y pipeline de vídeo: HLS, subida a R2 y servidor local (Node)
+scripts/       importación de bolos, pipeline de vídeo y de mixes, subida a R2 y servidor local (Node)
 r2/            CORS del bucket
 supabase/      migraciones y pruebas de RLS
 tests/
   unit/        Vitest
+  components/  componentes .astro renderizados con la API de contenedor (Vitest)
   e2e/         Playwright
   rls/         permisos de Supabase (necesita .env)
 ```

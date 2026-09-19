@@ -2,6 +2,7 @@
  * Lógica pura de la capa de datos (sin módulos de Astro, para poder probarla).
  */
 import { formatEventDate } from '../dates';
+import { resolveMediaUrl } from '../media';
 import { TICKER_SEPARATOR, normalizeTickerText } from '../ticker';
 
 export interface Gig {
@@ -40,6 +41,53 @@ export interface GigRow {
 }
 
 export const GIG_COLUMNS = 'id, event_date, party_name, venue, city, lineup, ticket_url';
+
+/** Un mix del reproductor (C06), con las URLs ya completas. */
+export interface Mix {
+  id: string;
+  title: string;
+  subtitle: string | null;
+  /** URL del audio. */
+  src: string;
+  durationSeconds: number | null;
+  /** Carátula cuadrada, si la hay. */
+  artwork: string | null;
+}
+
+export interface MixRow {
+  id: string;
+  title: string;
+  subtitle: string | null;
+  /** Ruta dentro del bucket (`mixes/<slug>-<hash>.mp3`) o URL completa (D46). */
+  audio_url: string;
+  duration_seconds: number | null;
+  artwork_url: string | null;
+}
+
+export const MIX_COLUMNS = 'id, title, subtitle, audio_url, duration_seconds, artwork_url';
+
+/**
+ * Fila de `mixes` → mix para la web. Las rutas relativas se completan con la
+ * base del bucket (`PUBLIC_MEDIA_BASE_URL`); sin base, el mix no se puede
+ * reproducir y se descarta (`null`).
+ */
+export function toMix(row: MixRow, base: string | undefined | null): Mix | null {
+  const src = resolveMediaUrl(base, row.audio_url);
+  if (!src) return null;
+  return {
+    id: row.id,
+    title: row.title,
+    subtitle: row.subtitle,
+    src,
+    durationSeconds: row.duration_seconds,
+    artwork: row.artwork_url ? resolveMediaUrl(base, row.artwork_url) : null,
+  };
+}
+
+/** Las filas que se pueden reproducir, en su orden. */
+export function toMixes(rows: MixRow[], base: string | undefined | null): Mix[] {
+  return rows.map((row) => toMix(row, base)).filter((mix): mix is Mix => mix !== null);
+}
 
 /** Tiempo máximo de cada consulta (fase 2). */
 export const QUERY_TIMEOUT_MS = 2500;

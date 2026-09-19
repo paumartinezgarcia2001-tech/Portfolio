@@ -21,6 +21,11 @@ interface Props {
 const { section, tickerText } = Astro.props;
 ---
 
+{/*
+  transition:persist mantiene el mismo <audio> del reproductor entre páginas: la
+  música no se corta. Necesita Astro ≥ 7.2.5 (instalado: 7.3.3). Las 7.2.1–7.2.4
+  recreaban los <audio> persistidos: https://github.com/withastro/astro/issues/17749
+*/}
 <aside id="left" class="left" aria-label="Menú" transition:persist="left-column">
   <NewsTicker text={tickerText} />
   <div class="left__rows">

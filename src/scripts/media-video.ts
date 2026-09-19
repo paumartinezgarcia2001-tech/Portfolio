@@ -10,7 +10,8 @@
  * - Arranca con sonido (D42). Los navegadores solo lo dejan si la persona ya
  *   ha tocado la página (p. ej., ha llegado desde el menú); si no, arranca
  *   silenciado y «sonido» queda apagado. Si está sonando un mix, también
- *   arranca silenciado, para no cortarlo.
+ *   arranca silenciado, para no cortarlo. Si lo arranca la persona con
+ *   «reproducir», suena (y la música se pausa).
  * - Cuando empieza a sonar emite `media:sound-on` (el reproductor de mixes se
  *   pausa); `player:play` lo vuelve a silenciar.
  * - Se pausa fuera de la vista (IntersectionObserver), con la pestaña oculta
@@ -201,11 +202,11 @@ export class MediaVideoElement extends HTMLElement {
         if (this.#started) {
           // Ya estaba cargado (el navegador no dejó arrancar solo). Ahora hay
           // un clic: puede sonar.
-          this.#applyDefaultSound();
+          this.#applyDefaultSound(true);
           this.#setState('loading');
           this.#sync();
         } else {
-          void this.#start();
+          void this.#start(true);
         }
         // El botón desaparece: el foco pasa a «pausa» para no perderse.
         if (hadFocus) this.querySelector<HTMLElement>('[data-action="toggle"]')?.focus();
@@ -224,10 +225,11 @@ export class MediaVideoElement extends HTMLElement {
     }
   }
 
-  async #start(): Promise<void> {
+  /** `explicit`: lo ha pedido la persona con «reproducir». */
+  async #start(explicit = false): Promise<void> {
     if (this.#started || !this.#abort) return;
     this.#started = true;
-    this.#applyDefaultSound();
+    this.#applyDefaultSound(explicit);
     this.#setState('loading');
     const attached = await this.#attach();
     if (attached) this.#sync();
@@ -375,10 +377,14 @@ export class MediaVideoElement extends HTMLElement {
     );
   }
 
-  /** Sonido por defecto (D42): activado, salvo que esté sonando un mix. */
-  #applyDefaultSound(): void {
+  /**
+   * Sonido por defecto (D42): activado, salvo que esté sonando un mix. Si la
+   * persona ha pulsado «reproducir» (`explicit`), suena igualmente: ha elegido
+   * el vídeo, y la música se pausa al oír `media:sound-on`.
+   */
+  #applyDefaultSound(explicit = false): void {
     if (!this.#video) return;
-    this.#video.muted = isPlayerPlaying();
+    this.#video.muted = !explicit && isPlayerPlaying();
     this.#syncSoundButton();
   }
 

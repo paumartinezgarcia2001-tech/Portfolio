@@ -28,11 +28,16 @@ test.describe('Info por defecto', () => {
     await expect(page.locator('[data-ticker]')).toHaveCSS('background-color', 'rgb(255, 0, 255)');
 
     if (isMobile(testInfo)) {
-      // Móvil: se ve la página con su título y el botón atrás; el menú no.
-      await expect(page.getByRole('heading', { level: 1, name: 'info' })).toBeVisible();
+      // Móvil: arranca en el menú (D44), con «info» marcado y el botón × para
+      // ver la página.
+      await expect(page.locator('html')).toHaveAttribute('data-view', 'menu');
+      await expect(menu(page)).toBeInViewport({ ratio: 0.9 });
+      await expect(menuLink(page, 'info')).toHaveAttribute('aria-current', 'page');
+      await expect(menuLink(page, 'info')).toHaveCSS('color', 'rgb(255, 0, 255)');
       await expect(backButton(page)).toBeVisible();
-      await expect(backButton(page)).toHaveAttribute('aria-label', 'Volver al menú');
-      await expect(menu(page)).toBeHidden();
+      await expect(backButton(page)).toHaveAttribute('aria-label', 'Cerrar menú');
+      await expect(backButton(page)).toHaveAttribute('aria-expanded', 'true');
+      await expect(page.locator('#panel')).toBeHidden();
     } else {
       const info = menuLink(page, 'info');
       await expect(info).toHaveAttribute('aria-current', 'page');
@@ -64,9 +69,10 @@ test.describe('Menú (escritorio)', () => {
   test('el reproductor se pone violeta al pasar el ratón', async ({ page }) => {
     await page.goto('/');
     const player = page.getByRole('region', { name: 'Reproductor de mixes' });
-    await expect(player).toContainText('reproductor');
+    await expect(player.getByRole('button')).toHaveCount(3);
+    await expect(player.getByRole('button', { name: 'Mix siguiente' })).toHaveCSS('color', MENU_FG_RGB);
     await player.hover();
-    await expect(player.getByRole('button')).toHaveCSS('color', 'rgb(191, 0, 255)');
+    for (const button of await player.getByRole('button').all()) await expect(button).toHaveCSS('color', 'rgb(191, 0, 255)');
   });
 
   test('pulsar el ítem activo no navega', async ({ page }) => {
@@ -158,10 +164,29 @@ test.describe('Navegación entre secciones', () => {
 test.describe('Móvil', () => {
   test.skip(({ viewport }) => !isMobileViewport(viewport), 'Solo móvil');
 
-  test('atrás → menú → sección → página', async ({ page }) => {
+  test('cada sección abre en el menú (D44); el 404 abre la página', async ({ page }) => {
+    for (const section of SECTION_CASES) {
+      await page.goto(section.path);
+      await expect(page.locator('html')).toHaveAttribute('data-view', 'menu');
+      await expect(menu(page)).toBeInViewport({ ratio: 0.9 });
+      await expect(menuLink(page, section.label)).toHaveAttribute('aria-current', 'page');
+    }
+    await page.goto('/esto-no-existe');
+    await expect(page.locator('html')).toHaveAttribute('data-view', 'page');
+    await expect(page.getByText('Esta página no existe.')).toBeVisible();
+  });
+
+  test('menú → × → página → atrás → menú → sección → página', async ({ page }) => {
     await page.goto('/');
     const html = page.locator('html');
+    await expect(html).toHaveAttribute('data-view', 'menu');
+
+    // ×: se ve la página (info) con su título.
+    await backButton(page).click();
     await expect(html).toHaveAttribute('data-view', 'page');
+    await expect(page.getByRole('heading', { level: 1, name: 'info' })).toBeVisible();
+    await expect(menu(page)).toBeHidden();
+    await expect(backButton(page)).toHaveAttribute('aria-label', 'Volver al menú');
 
     // Atrás: se abre el menú y el foco va al primer enlace.
     await backButton(page).click();
@@ -187,6 +212,10 @@ test.describe('Móvil', () => {
 
   test('el menú entra y sale deslizándose (300 ms)', async ({ page }) => {
     await page.goto('/');
+    // Arranca en el menú (D44): primero se cierra para verlo entrar.
+    await backButton(page).click();
+    await expect(page.locator('html')).toHaveAttribute('data-view', 'page');
+    await expect(menu(page)).toBeHidden();
     // Cada vez que cambia data-view se anota si la capa del menú arranca una
     // transición de `left` (y cuánto dura). No depende de la velocidad de la
     // máquina: getAnimations() crea la transición en ese mismo instante.
@@ -240,6 +269,16 @@ test.describe('Móvil', () => {
     await expect(page.locator('html')).toHaveAttribute('data-view', 'page');
     await expect(page).toHaveURL(/\/media\/?$/);
     await expect(page.getByRole('heading', { level: 1, name: 'media' })).toBeVisible();
+  });
+
+  test('«Saltar al contenido» desde el menú lleva a la página', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.locator('html')).toHaveAttribute('data-view', 'menu');
+    await page.keyboard.press('Tab');
+    await expect(page.getByRole('link', { name: 'Saltar al contenido' })).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(page.locator('html')).toHaveAttribute('data-view', 'page');
+    await expect(page.locator('#panel')).toBeFocused();
   });
 
   test('el botón atrás tiene un área táctil de al menos 48 × 48 px dentro de la pantalla', async ({ page }) => {

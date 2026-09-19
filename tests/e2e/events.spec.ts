@@ -76,19 +76,27 @@ test.describe('Next dates', () => {
 });
 
 test.describe('Archive', () => {
-  test('ordena de la más reciente a la más antigua y resalta la fecha y el nombre', async ({ page }) => {
+  test('ordena de la más reciente a la más antigua y solo resalta el nombre de la fiesta (D45)', async ({ page }) => {
     await page.goto('/archive');
     const iso = await dates(page).evaluateAll((els) => els.map((el) => el.getAttribute('datetime') ?? ''));
     expect(iso.length).toBeGreaterThan(1);
     expect([...iso]).toEqual([...iso].sort().reverse());
 
-    const name = page.locator('.event__name .hl').first();
-    expect(await highlighter(name)).toEqual({ ink: 'rgb(0, 255, 0)', texture: true, layers: 5 });
-    expect((await highlighter(dates(page).first().locator('.hl'))).ink).toBe('rgb(0, 255, 0)');
+    // Cada nombre, con el rotulador verde de una pasada.
+    const names = page.locator('.event__name');
+    await expect(names.locator('.hl')).toHaveCount(await names.count());
+    expect(await highlighter(names.first().locator('.hl'))).toEqual({ ink: 'rgb(0, 255, 0)', texture: true, layers: 5 });
+
+    // La fecha, sin rotulador: ni la marca ni fondo.
+    await expect(page.locator('.event__date .hl')).toHaveCount(0);
+    const date = dates(page).first();
+    await expect(date).toHaveText(/^\d{2} [A-ZÁÉÍÓÚ]+ \d{4}$/);
+    await expect(date).toHaveCSS('background-image', 'none');
+    await expect(date).toHaveCSS('text-decoration-line', 'none');
 
     // Dos trazos seguidos no son iguales.
     const strokes = await page
-      .locator('.event__date .hl')
+      .locator('.event__name .hl')
       .evaluateAll((els) => els.slice(0, 3).map((el) => el.getAttribute('data-hl')));
     expect(new Set(strokes).size).toBe(3);
   });

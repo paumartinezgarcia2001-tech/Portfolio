@@ -29,10 +29,12 @@ interface Props {
 const { section, title, description, noindex, heading = title, headingLang } = Astro.props;
 // Lo carga src/middleware.ts; si no está (p. ej. en el 404 de un recurso), se usa el texto por defecto.
 const tickerText = Astro.locals.tickerText;
+// Móvil: las secciones abren en el menú (D44); el 404 y las legales, en la página.
+const startView = section === 'none' ? 'page' : MOBILE_START_VIEW;
 ---
 
 <!doctype html>
-<html lang={SITE.lang} data-section={section} data-view={MOBILE_START_VIEW} transition:animate="none">
+<html lang={SITE.lang} data-section={section} data-view={startView} transition:animate="none">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />

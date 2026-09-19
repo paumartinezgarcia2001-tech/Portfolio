@@ -21,7 +21,8 @@
     "test:rls": "vitest run --config vitest.rls.config.ts",
     "media:hls": "node scripts/video-to-hls.mjs",
     "media:upload": "node scripts/upload-to-r2.mjs",
-    "media:serve": "node scripts/serve-media.mjs"
+    "media:serve": "node scripts/serve-media.mjs",
+    "media:mix": "node scripts/add-mix.mjs"
   },
   "dependencies": {
     "@astrojs/cloudflare": "^14.3.2",

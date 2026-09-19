@@ -30,7 +30,20 @@ const allBrowsers = process.env.PW_ALL_BROWSERS === '1';
 const DESKTOP_VIEWPORT = { width: 1440, height: 900 };
 const MOBILE_VIEWPORT = { width: 375, height: 812 };
 
-const chromiumLaunch = chromiumExecutable ? { launchOptions: { executablePath: chromiumExecutable } } : {};
+/**
+ * Autoplay (D43): Chrome y Firefox no dejan sonar sin tocar la página la
+ * primera vez, pero sí en una web que ya se conoce. Los e2e arrancan como en
+ * ese segundo caso, para que la música suene sola al abrir; el primero (hay
+ * que tocar la página) se simula en cada test con blockSoundWithoutInteraction
+ * (tests/e2e/helpers.ts).
+ */
+const chromiumLaunch = {
+  launchOptions: {
+    args: ['--autoplay-policy=no-user-gesture-required'],
+    ...(chromiumExecutable ? { executablePath: chromiumExecutable } : {}),
+  },
+};
+const firefoxLaunch = { launchOptions: { firefoxUserPrefs: { 'media.autoplay.default': 0 } } };
 
 const projects: PlaywrightTestProject[] = [
   {
@@ -52,9 +65,12 @@ const projects: PlaywrightTestProject[] = [
 
 if (allBrowsers) {
   projects.push(
-    { name: 'firefox-desktop', use: { ...devices['Desktop Firefox'], viewport: DESKTOP_VIEWPORT } },
+    { name: 'firefox-desktop', use: { ...devices['Desktop Firefox'], ...firefoxLaunch, viewport: DESKTOP_VIEWPORT } },
     // Firefox no admite `isMobile`: basta con el ancho para la vista móvil.
-    { name: 'firefox-mobile', use: { ...devices['Desktop Firefox'], viewport: MOBILE_VIEWPORT, hasTouch: true } },
+    {
+      name: 'firefox-mobile',
+      use: { ...devices['Desktop Firefox'], ...firefoxLaunch, viewport: MOBILE_VIEWPORT, hasTouch: true },
+    },
     { name: 'webkit-desktop', use: { ...devices['Desktop Safari'], viewport: DESKTOP_VIEWPORT } },
     {
       name: 'webkit-mobile',

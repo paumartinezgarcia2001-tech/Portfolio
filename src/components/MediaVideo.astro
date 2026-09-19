@@ -103,7 +103,7 @@ const { main, narrow, narrowQuery } = video;
 <style>
   @layer components {
     .media-video {
-      /* Fase 4: en móvil, el alto de la mini-barra del reproductor. */
+      /* En móvil, el alto de la mini-barra del reproductor (abajo). */
       --media-inset-bottom: 0px;
 
       position: absolute;
@@ -111,6 +111,14 @@ const { main, narrow, narrowQuery } = video;
       display: block;
       overflow: hidden;
       background: var(--c-menu-bg);
+    }
+
+    /* Móvil, en la página: todo el viewport menos la mini-barra (C06, C15). */
+    @media (max-width: 1023.98px) {
+      :global(html[data-view='page']:has(mix-player:not([data-state='empty']))) .media-video {
+        --media-inset-bottom: calc(var(--mini-player-h) + var(--safe-bottom));
+        --media-controls-safe: 0px;
+      }
     }
 
     .media-video__poster,
@@ -143,7 +151,8 @@ const { main, narrow, narrowQuery } = video;
     .media-video__controls {
       position: absolute;
       left: calc(var(--pad) + var(--safe-left));
-      bottom: calc(var(--pad) + var(--safe-bottom));
+      /* Con la mini-barra debajo, la zona segura ya queda fuera del vídeo. */
+      bottom: calc(var(--pad) + var(--media-controls-safe, var(--safe-bottom)));
       z-index: 1;
       display: none;
       flex-wrap: wrap;

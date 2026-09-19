@@ -31,7 +31,8 @@ async function measureRows(page: Page): Promise<{ rows: RowMetrics[]; viewportHe
     const column = document.getElementById('left')!.getBoundingClientRect();
     const targets = [
       ...document.querySelectorAll<HTMLElement>('[data-menu-link]'),
-      document.querySelector<HTMLElement>('.player__idle')!,
+      // Reproductor (D43): los tres botones del centro.
+      document.querySelector<HTMLElement>('mix-player .player__controls')!,
     ];
     const rows = targets.map((el) => {
       const range = document.createRange();
@@ -40,7 +41,7 @@ async function measureRows(page: Page): Promise<{ rows: RowMetrics[]; viewportHe
       const box = el.getBoundingClientRect();
       const row = (el.closest('li, mix-player') as HTMLElement).getBoundingClientRect();
       return {
-        name: el.textContent?.trim() ?? '',
+        name: el.textContent?.trim() || 'reproductor',
         textWidth: text.width,
         textHeight: text.height,
         boxWidth: box.width,

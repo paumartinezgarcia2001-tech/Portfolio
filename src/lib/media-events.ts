@@ -5,11 +5,11 @@
 
 /**
  * El vídeo empieza a sonar (arranca con sonido o se lo activan) → el
- * reproductor se pausa (lo escucha la fase 4).
+ * reproductor se pausa (src/scripts/mix-player.ts).
  */
 export const MEDIA_SOUND_ON = 'media:sound-on';
 
-/** El reproductor empieza a sonar → el vídeo se silencia (lo emite la fase 4). */
+/** El reproductor empieza a sonar → el vídeo se silencia (src/scripts/mix-player.ts). */
 export const PLAYER_PLAY = 'player:play';
 
 export interface MediaSoundOnDetail {
@@ -18,14 +18,20 @@ export interface MediaSoundOnDetail {
 }
 
 /**
- * Reproductor sonando: `<mix-player>` lleva `data-state="playing"` mientras
- * suena un mix (fase 4). Está en la columna izquierda, que persiste al navegar.
+ * Reproductor sonando o a punto de sonar: `<mix-player>` lleva
+ * `data-state="playing"` mientras suena un mix y `"loading"` mientras arranca.
+ * Antes de que se cargue su script, `data-autoplay` indica que va a arrancar
+ * solo (D43). Está en la columna izquierda, que persiste al navegar.
  */
-export const PLAYER_PLAYING_SELECTOR = 'mix-player[data-state="playing"]';
+export const PLAYER_PLAYING_SELECTOR = [
+  'mix-player[data-state="playing"]',
+  'mix-player[data-state="loading"]',
+  'mix-player[data-autoplay]:not(:defined)',
+].join(', ');
 
 /**
- * ¿Está sonando un mix? El vídeo arranca con sonido (D42) salvo en ese caso,
- * para no cortar lo que la persona ya está escuchando.
+ * ¿Está sonando (o arrancando) un mix? El vídeo arranca con sonido (D42) salvo
+ * en ese caso, para no cortar lo que la persona ya está escuchando.
  */
 export function isPlayerPlaying(root: ParentNode = document): boolean {
   return root.querySelector(PLAYER_PLAYING_SELECTOR) !== null;

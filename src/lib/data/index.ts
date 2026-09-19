@@ -18,6 +18,7 @@ import { createSupabasePublicClient, isSupabaseConfigured } from '../supabase/se
 import {
   DEFAULT_SETTINGS,
   GIG_COLUMNS,
+  MIX_COLUMNS,
   QUERY_TIMEOUT_MS,
   buildTickerText,
   runQuery,
@@ -25,14 +26,17 @@ import {
   sortUpcoming,
   splitByCutoff,
   toGig,
+  toMixes,
   type DataResult,
   type Gig,
   type GigRow,
+  type Mix,
+  type MixRow,
   type SiteSettings,
 } from './core';
-import { FIXTURE_GIGS, FIXTURE_SETTINGS, FIXTURE_VIDEO } from './fixtures';
+import { FIXTURE_GIGS, FIXTURE_MIXES, FIXTURE_SETTINGS, FIXTURE_VIDEO } from './fixtures';
 
-export type { DataResult, Gig, SiteSettings } from './core';
+export type { DataResult, Gig, Mix, SiteSettings } from './core';
 
 interface SettingsRow {
   ticker_text: string;
@@ -178,6 +182,33 @@ export async function getTickerText(now: Date = new Date()): Promise<DataResult<
   const ok = settings.ok && nextGig.ok;
   const base = settings.ok ? settings.data : { ...settings.data, tickerText: SITE.tickerText };
   return { data: buildTickerText(base, nextGig.data, SITE.tickerText), ok };
+}
+
+/**
+ * Mixes publicados del reproductor (C06), en su orden (`sort_order`); el
+ * barajado se hace en el navegador. Los que no se pueden reproducir (ruta
+ * relativa sin `PUBLIC_MEDIA_BASE_URL`) no salen: sin ninguno, la fila dice
+ * «reproductor — próximamente».
+ */
+export async function getPublishedMixes(): Promise<DataResult<Mix[]>> {
+  if (useFixtures) return { data: toMixes(FIXTURE_MIXES, PUBLIC_MEDIA_BASE_URL), ok: true };
+  if (!isSupabaseConfigured()) return notConfigured<Mix[]>([]);
+
+  const supabase = createSupabasePublicClient();
+  const result = await runQuery<MixRow[]>(
+    (signal) =>
+      supabase
+        .from('mixes')
+        .select(MIX_COLUMNS)
+        .eq('published', true)
+        .order('sort_order', { ascending: true })
+        .order('created_at', { ascending: true })
+        .limit(500)
+        .abortSignal(signal),
+    [],
+    { label: 'mixes', timeoutMs },
+  );
+  return checked({ data: toMixes(result.data, PUBLIC_MEDIA_BASE_URL), ok: result.ok }, 'mixes');
 }
 
 /** Consulta mínima para /api/health (keep-alive de Supabase). */

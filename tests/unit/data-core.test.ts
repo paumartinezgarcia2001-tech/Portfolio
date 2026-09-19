@@ -7,7 +7,10 @@ import {
   sortUpcoming,
   splitByCutoff,
   toGig,
+  toMix,
+  toMixes,
   type Gig,
+  type MixRow,
 } from '../../src/lib/data/core';
 
 const gig = (eventDate: string, extra: Partial<Gig> = {}): Gig => ({
@@ -147,5 +150,39 @@ describe('runQuery', () => {
       throw new Error('red caída');
     }, null, options);
     expect(result).toEqual({ data: null, ok: false });
+  });
+});
+
+describe('toMix (D46)', () => {
+  const row: MixRow = {
+    id: 'm1',
+    title: 'bodyfavorspau2',
+    subtitle: 'audio de prueba',
+    audio_url: 'mixes/bodyfavorspau2-1a2b3c4d.mp3',
+    duration_seconds: 176,
+    artwork_url: 'mixes/bodyfavorspau2-1a2b3c4d.jpg',
+  };
+
+  it('completa las rutas relativas con la base del bucket', () => {
+    expect(toMix(row, 'https://media.example/')).toEqual({
+      id: 'm1',
+      title: 'bodyfavorspau2',
+      subtitle: 'audio de prueba',
+      src: 'https://media.example/mixes/bodyfavorspau2-1a2b3c4d.mp3',
+      durationSeconds: 176,
+      artwork: 'https://media.example/mixes/bodyfavorspau2-1a2b3c4d.jpg',
+    });
+  });
+
+  it('respeta las URLs completas', () => {
+    const absolute = { ...row, audio_url: 'https://otro.example/a.mp3', artwork_url: null };
+    expect(toMix(absolute, undefined)).toMatchObject({ src: 'https://otro.example/a.mp3', artwork: null });
+  });
+
+  it('sin base (falta PUBLIC_MEDIA_BASE_URL) no se puede reproducir: se descarta', () => {
+    expect(toMix(row, undefined)).toBeNull();
+    expect(toMixes([row, { ...row, id: 'm2', audio_url: 'https://otro.example/b.mp3' }], null).map((m) => m.id)).toEqual([
+      'm2',
+    ]);
   });
 });

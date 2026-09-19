@@ -1,5 +1,5 @@
 import { test } from '@playwright/test';
-import { SECTION_CASES, isMobile, openMobileMenu } from './helpers';
+import { SECTION_CASES, isMobile, openMobileMenu, showMobilePage } from './helpers';
 
 /**
  * Capturas para revisión visual (sin comparación estricta).
@@ -11,6 +11,9 @@ test.describe('Capturas', () => {
   for (const section of SECTION_CASES) {
     test(`captura de ${section.label}`, async ({ page }, testInfo) => {
       await page.goto(section.path);
+      // En móvil las secciones abren en el menú (D44): aquí, la página, con la
+      // mini-barra del reproductor. El menú tiene su propia captura.
+      await showMobilePage(page);
       await page.evaluate(() => document.fonts.ready);
       await page.screenshot({
         path: `test-results/screenshots/${testInfo.project.name}/${section.key}.png`,

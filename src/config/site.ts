@@ -22,10 +22,12 @@ export const SITE = {
 export type MobileView = 'page' | 'menu';
 
 /**
- * Qué se ve al abrir la web en móvil (C02). `'page'` = la sección con el botón
- * atrás (lo que pide el brief); `'menu'` = el menú a pantalla completa.
+ * Qué se ve al abrir la web en móvil (C02). `'menu'` = el menú a pantalla
+ * completa (D44, Luna, 19-09-2026); `'page'` = la sección con el botón atrás.
+ * El 404 y las páginas legales siempre abren la página. Navegar deja siempre
+ * a la vista la página (src/scripts/app.ts).
  */
-export const MOBILE_START_VIEW: MobileView = 'page';
+export const MOBILE_START_VIEW: MobileView = 'menu';
 
 /** Anchura a partir de la cual la web se divide en dos mitades (§4.3). */
 export const DESKTOP_MIN_WIDTH = 1024;

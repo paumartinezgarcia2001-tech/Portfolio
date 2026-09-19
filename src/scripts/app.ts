@@ -66,6 +66,8 @@ function onClick(event: MouseEvent): void {
   // saltos dentro de la página, así que se hace aquí.
   if (target.closest('[data-skip-link]')) {
     event.preventDefault();
+    // En móvil se arranca en el menú (D44): primero, a la página.
+    if (!desktop.matches && currentView() === 'menu') setView('page');
     focusWithoutScroll(document.getElementById('panel'));
     return;
   }
@@ -107,12 +109,11 @@ function onBeforeSwap(event: TransitionBeforeSwapEvent): void {
   // ¿Se navega desde el menú abierto en móvil? Entonces hay que animar su salida.
   closingMenu = !desktop.matches && currentView() === 'menu';
   pendingTransition = event.viewTransition;
-  if (closingMenu) {
-    // El ClientRouter copia los atributos del <html> nuevo y mueve la columna
-    // persistente; si en ese momento el menú ya figura cerrado, el navegador
-    // no anima su salida. Se mantiene abierto durante el cambio.
-    event.newDocument.documentElement.dataset.view = 'menu';
-  }
+  // El ClientRouter copia los atributos del <html> nuevo, que trae la vista de
+  // arranque (el menú en móvil, D44). Navegar deja a la vista la página (§6);
+  // si se sale del menú abierto, se mantiene abierto durante el cambio y
+  // luego se cierra con su animación (si no, el navegador no la anima).
+  event.newDocument.documentElement.dataset.view = closingMenu ? 'menu' : 'page';
   runPageCleanups();
 }
 

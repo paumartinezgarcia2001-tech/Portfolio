@@ -76,6 +76,12 @@ const { section, heading, headingLang } = Astro.props;
         padding-top: 0;
       }
 
+      /* La mini-barra del reproductor (C06) queda fija abajo: que no tape el
+         final del contenido. Media deja el hueco en el propio vídeo. */
+      :global(html:has(mix-player:not([data-state='empty']))) .panel:not([data-panel='media']) {
+        padding-bottom: calc(var(--pad) + var(--mini-player-h) + var(--safe-bottom));
+      }
+
       .panel[data-panel='media'] .panel__title {
         position: absolute;
         top: calc(var(--pad) + 3.5rem + var(--safe-top));

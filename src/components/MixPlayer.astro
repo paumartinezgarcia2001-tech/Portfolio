@@ -1,66 +1,226 @@
 ---
 /**
  * C06 · MixPlayer — sexta fila del menú.
- * Fase 1: solo maquetado (estado inicial «▶ reproductor», sin audio).
- * Fase 4: `<mix-player>` completo con un único <audio>, barajado y mini-barra.
+ *
+ * Solo tres botones en el centro: anterior · reproducir/pausar · siguiente
+ * (D43). La música empieza sola al abrir la web; si el navegador no lo deja,
+ * con el primer toque, clic o tecla. La lógica está en src/scripts/mix-player.ts.
+ *
+ * - Un único <audio> para la fila y para la mini-barra de móvil: solo cambia
+ *   el CSS según `html[data-view]` (fila en el menú, barra fija abajo en la
+ *   página).
+ * - Los mixes van en JSON dentro del componente y se barajan en el navegador
+ *   (el HTML cacheado es el mismo para todo el mundo). Solo se leen la primera
+ *   vez: la columna izquierda persiste al navegar.
+ * - Sin mixes que se puedan reproducir (p. ej., sin PUBLIC_MEDIA_BASE_URL):
+ *   botones apagados y «reproductor — próximamente».
  */
+import { PLAYER } from '../config/player';
+import { getPublishedMixes, type Mix } from '../lib/data';
+
+// Los carga el middleware; en las páginas que no pasan por él, se piden aquí.
+const mixes: Mix[] = Astro.locals.mixes ?? (await getPublishedMixes()).data;
+const empty = mixes.length === 0;
+// JSON dentro de <script>: sin «<» para que nada pueda cerrar la etiqueta.
+const payload = JSON.stringify(
+  mixes.map(({ id, title, subtitle, src, artwork }) => ({ id, title, subtitle, src, artwork })),
+).replace(/</g, '\\u003c');
+const { labels } = PLAYER;
 ---
 
-<mix-player class="player" role="region" aria-label="Reproductor de mixes" data-state="idle">
-  <button type="button" class="player__idle" aria-disabled="true" aria-describedby="player-status">
-    <svg class="player__icon" viewBox="0 0 10 12" aria-hidden="true" focusable="false">
-      <path d="M0 0 10 6 0 12Z"></path>
-    </svg>
-    <span class="player__label">reproductor</span>
-  </button>
-  <p id="player-status" class="visually-hidden">Todavía no hay mixes.</p>
+<mix-player
+  class="player"
+  role="region"
+  aria-label="Reproductor de mixes"
+  data-state={empty ? 'empty' : 'idle'}
+  data-autoplay={!empty && PLAYER.autoplay ? '' : undefined}
+>
+  {
+    !empty && (
+      <>
+        <script type="application/json" is:inline data-mixes set:html={payload} />
+        <audio data-audio preload="none" crossorigin="anonymous" />
+      </>
+    )
+  }
+  <div class="player__controls">
+    <button type="button" class="player__button" data-action="previous" aria-label={labels.previous} disabled={empty}>
+      <svg class="player__icon player__icon--skip" viewBox="0 0 12 12" aria-hidden="true" focusable="false">
+        <path d="M0 0h2v12H0zM12 0 3 6l9 6z"></path>
+      </svg>
+    </button>
+    <button
+      type="button"
+      class="player__button player__button--main"
+      data-action="toggle"
+      aria-label={labels.play}
+      disabled={empty}
+    >
+      <svg class="player__icon player__icon--play" viewBox="0 0 10 12" aria-hidden="true" focusable="false">
+        <path d="M0 0 10 6 0 12Z"></path>
+      </svg>
+      <svg class="player__icon player__icon--pause" viewBox="0 0 10 12" aria-hidden="true" focusable="false">
+        <path d="M0 0h3.5v12H0zM6.5 0H10v12H6.5z"></path>
+      </svg>
+    </button>
+    <button type="button" class="player__button" data-action="next" aria-label={labels.next} disabled={empty}>
+      <svg class="player__icon player__icon--skip" viewBox="0 0 12 12" aria-hidden="true" focusable="false">
+        <path d="M10 0h2v12h-2zM0 0l9 6-9 6z"></path>
+      </svg>
+    </button>
+  </div>
+  {empty ? <p class="player__note">{labels.empty}</p> : <p class="visually-hidden" aria-live="polite" data-live />}
 </mix-player>
+
+<script>
+  import '../scripts/mix-player';
+</script>
 
 <style>
   @layer components {
     .player {
-      /* El cursor (C10) se vuelve violeta sobre el reproductor. */
+      /* El cursor (C10) se vuelve violeta sobre el reproductor (D32). */
       --cursor-over: var(--c-player);
+      /* Iconos a la altura de las mayúsculas del menú (Helvetica Bold ≈ 0,72 em). */
+      --player-icon: calc(var(--fs-menu) * 0.72);
+      --player-icon-side: calc(var(--player-icon) * 0.6);
+      --player-gap: calc(var(--player-icon) * 0.42);
 
-      display: block;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
       height: var(--row-h);
       border-block: var(--rule-w) solid var(--c-rule);
       color: var(--c-menu-fg);
     }
 
-    .player__idle {
+    .player__controls {
       display: flex;
       align-items: center;
-      gap: 0.25em;
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
+      justify-content: center;
+      gap: var(--player-gap);
+    }
+
+    .player__button {
+      display: grid;
+      place-items: center;
+      /* Zona táctil de al menos 44 × 44 px (§10). */
+      min-width: 44px;
+      min-height: 44px;
+      padding: 0.15rem;
       color: inherit;
-      font-size: var(--fs-player);
-      font-weight: var(--fw-bold);
-      line-height: var(--lh-tight);
-      text-align: left;
-      white-space: nowrap;
+      touch-action: manipulation;
       transition: color var(--dur-hover) linear;
     }
 
+    .player__button:disabled {
+      cursor: default;
+    }
+
     .player__icon {
-      flex: none;
-      width: 0.62em;
-      height: 0.74em;
+      grid-area: 1 / 1;
+      width: var(--player-icon-side);
+      height: var(--player-icon-side);
+      max-width: none;
       fill: currentColor;
     }
 
-    /* Hover y foco en violeta, coherente con el menú (C05). */
-    .player:hover,
-    .player:focus-within {
-      color: var(--c-player);
+    .player__button--main .player__icon {
+      width: calc(var(--player-icon) * 10 / 12);
+      height: var(--player-icon);
     }
 
-    .player__idle:focus-visible {
+    /* El triángulo pesa a la izquierda: se centra a ojo. */
+    .player__icon--play {
+      translate: 8% 0;
+    }
+
+    /* Reproducir o pausar según el estado (lo pone src/scripts/mix-player.ts). */
+    .player__icon--pause,
+    .player:is([data-state='playing'], [data-state='loading']) .player__icon--play {
+      visibility: hidden;
+    }
+
+    .player:is([data-state='playing'], [data-state='loading']) .player__icon--pause {
+      visibility: visible;
+    }
+
+    /* Cargando: el botón principal late. */
+    .player[data-state='loading'] .player__button--main {
+      animation: player-pulse 0.9s ease-in-out infinite alternate;
+    }
+
+    @keyframes player-pulse {
+      to {
+        opacity: 0.35;
+      }
+    }
+
+    /* Hover y foco en violeta, coherente con el menú (C05). */
+    @media (hover: hover) {
+      .player:not([data-state='empty']):hover {
+        color: var(--c-player);
+      }
+    }
+
+    .player__button:focus-visible {
+      color: var(--c-player);
       outline: var(--focus-w) solid var(--c-player);
-      outline-offset: calc(var(--focus-w) * -1);
+      outline-offset: 0;
       box-shadow: none;
+    }
+
+    /* Sin mixes: botones apagados y el aviso debajo. */
+    .player[data-state='empty'] .player__controls {
+      opacity: 0.35;
+    }
+
+    .player__note {
+      font-size: var(--fs-label);
+      font-weight: var(--fw-regular);
+      line-height: var(--lh-tight);
+      white-space: nowrap;
+    }
+
+    /* Móvil, en la página: mini-barra fija abajo con los mismos botones y el
+       mismo <audio> (C06). En el menú se ve como la fila de escritorio. */
+    @media (max-width: 1023.98px) {
+      :global(html[data-view='page']) .player {
+        --player-icon: 1.5rem;
+        --player-icon-side: 1rem;
+        --player-gap: 1.5rem;
+
+        position: fixed;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        z-index: var(--z-mini-player);
+        height: calc(var(--mini-player-h) + var(--safe-bottom));
+        padding: 0 var(--safe-right) var(--safe-bottom) var(--safe-left);
+        border: 0;
+        background: var(--c-menu-bg);
+        /* La columna está oculta en la página; la barra no. */
+        visibility: visible;
+      }
+
+      :global(html[data-view='page']) .player[data-state='empty'] {
+        display: none;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .player[data-state='loading'] .player__button--main {
+        animation: none;
+        opacity: 0.6;
+      }
+    }
+
+    @media (forced-colors: active) {
+      .player__icon {
+        fill: ButtonText;
+      }
     }
   }
 </style>
