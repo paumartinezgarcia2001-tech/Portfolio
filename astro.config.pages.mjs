@@ -22,8 +22,11 @@
  * - SITE_NOINDEX: la versión provisional no aparece en los buscadores.
  * - Sin /api/health: es un endpoint de servidor (keep-alive en Cloudflare).
  *   Aquí la propia compilación diaria mantiene despierto a Supabase.
- * - Lo que necesita servidor (formulario de la fase 5, panel de la fase 6) no
- *   funciona en GitHub Pages.
+ * - Sin Actions (fase 5): el formulario de contacto necesita servidor, así que
+ *   STATIC_BUILD hace que /contact muestre «formulario — próximamente» (con
+ *   las redes y el pie legal), y withoutActions() quita las Actions del build.
+ *   `cloudflare:workers` (bindings del Worker) se sustituye por un módulo
+ *   vacío. El panel de la fase 6 tampoco funcionará aquí.
  *
  * En local: `npm run build:pages` y `npm run preview:pages`
  * (http://localhost:4321/Portfolio/).
@@ -35,6 +38,7 @@ import sharedConfig from './astro.config.mjs';
 // pueden sobrescribir desde fuera, p. ej. SITE_NOINDEX=false).
 process.env.DATA_STRICT ??= 'true';
 process.env.SITE_NOINDEX ??= 'true';
+process.env.STATIC_BUILD ??= 'true';
 
 // El workflow pasa la dirección real que da actions/configure-pages (si algún
 // día se usa un dominio propio, el base pasa a ser '' sin tocar nada).
@@ -57,7 +61,8 @@ const config = {
   base,
   output: 'static',
   build: { ...shared.build, format: 'file' },
-  integrations: [...(shared.integrations ?? []), markdownBaseLinks(base), withoutServerEndpoints()],
+  integrations: [...(shared.integrations ?? []), markdownBaseLinks(base), withoutServerEndpoints(), withoutActions()],
+  vite: { ...shared.vite, plugins: [...(shared.vite?.plugins ?? []), cloudflareWorkersStub()] },
 };
 
 export default config;
@@ -115,5 +120,42 @@ function withoutServerEndpoints() {
         logger.info('Quitado /api (solo tiene sentido con servidor).');
       },
     },
+  };
+}
+
+/**
+ * Quita las Actions (src/actions/, fase 5) de este build: Astro no deja
+ * compilar una web estática sin adaptador si hay Actions, y aquí no hay
+ * servidor que las atienda. La integración `astro:actions` la añade Astro al
+ * final de la lista, así que esta se ejecuta antes y la saca.
+ * @returns {import('astro').AstroIntegration}
+ */
+function withoutActions() {
+  return {
+    name: 'github-pages:without-actions',
+    hooks: {
+      'astro:config:setup': ({ config, logger }) => {
+        const index = config.integrations.findIndex((integration) => integration.name === 'astro:actions');
+        if (index === -1) return;
+        config.integrations.splice(index, 1);
+        logger.info('Sin Actions: el formulario de contacto necesita servidor (Cloudflare).');
+      },
+    },
+  };
+}
+
+/**
+ * `cloudflare:workers` solo existe dentro del Worker. En este build (Node) se
+ * sustituye por un módulo con `env` vacío: sin bindings, el formulario no se
+ * usa aquí.
+ * @returns {import('vite').Plugin}
+ */
+function cloudflareWorkersStub() {
+  const id = '\0github-pages:cloudflare-workers';
+  return {
+    name: 'github-pages:cloudflare-workers-stub',
+    enforce: 'pre',
+    resolveId: (source) => (source === 'cloudflare:workers' ? id : undefined),
+    load: (source) => (source === id ? 'export const env = {};' : undefined),
   };
 }

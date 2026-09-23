@@ -46,13 +46,23 @@
       opacity: 1;
     }
 
+    /* Sobre un iframe (el widget de Turnstile, C17) el navegador ya no manda
+       eventos de ratón a esta página: el círculo se quedaría clavado en el
+       borde. Con `:has()` se oculta mientras el puntero esté encima. */
+    :global(html.has-cursor:has(:is(iframe, [data-native-cursor]):hover)) .cursor[data-visible] {
+      opacity: 0;
+    }
+
     /* El cursor nativo se oculta, salvo en los campos de texto. */
     :global(html.has-cursor),
     :global(html.has-cursor *) {
       cursor: none;
     }
 
-    :global(html.has-cursor) :global(:is(input, textarea, select, [contenteditable], iframe)) {
+    /* `data-native-cursor`: zonas de terceros donde manda su propio cursor
+       (el widget de Turnstile, C17), incluido lo que hay dentro. */
+    :global(html.has-cursor) :global(:is(input, textarea, select, [contenteditable], iframe, [data-native-cursor])),
+    :global(html.has-cursor) :global([data-native-cursor] *) {
       cursor: auto;
     }
   }

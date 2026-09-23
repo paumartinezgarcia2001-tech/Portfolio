@@ -10,7 +10,17 @@
 	},
 	"observability": {
 		"enabled": true
-	}
+	},
+	// Límite del formulario de contacto (fase 5): 5 envíos por hora por IP,
+	// guardados en Workers KV (src/lib/contact/rate-limit.ts). Sin "id", el
+	// primer `wrangler deploy` crea el namespace y lo reutiliza después; también
+	// se puede crear a mano (`npx wrangler kv namespace create CONTACT_RATE_LIMIT`)
+	// y pegar aquí su "id". En local (dev, preview y tests) lo simula wrangler.
+	"kv_namespaces": [
+		{
+			"binding": "CONTACT_RATE_LIMIT"
+		}
+	]
 	// Variables públicas: en "vars" (o en el panel de Cloudflare).
 	// Secretos: `npx wrangler secret put NOMBRE` (ver .env.example).
 }

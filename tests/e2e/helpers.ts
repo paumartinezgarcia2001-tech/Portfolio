@@ -79,12 +79,29 @@ export async function readMark(page: Page, selector: string): Promise<string | u
 }
 
 /**
+ * Capa visible en móvil, ya quieta: tras navegar desde el menú abierto, la web
+ * lo cierra con su animación (C08), así que `data-view` cambia solo durante un
+ * momento. Se espera a que dos lecturas seguidas coincidan.
+ */
+export async function settledView(page: Page): Promise<string | null> {
+  const html = page.locator('html');
+  let previous = await html.getAttribute('data-view');
+  for (let i = 0; i < 10; i++) {
+    await page.waitForTimeout(150);
+    const current = await html.getAttribute('data-view');
+    if (current === previous) return current;
+    previous = current;
+  }
+  return previous;
+}
+
+/**
  * Abre el menú en móvil con el botón atrás. Si ya está abierto (las secciones
  * abren en el menú en móvil, D44), no hace nada.
  */
 export async function openMobileMenu(page: Page): Promise<void> {
   const html = page.locator('html');
-  if ((await html.getAttribute('data-view')) !== 'menu') await backButton(page).click();
+  if ((await settledView(page)) !== 'menu') await backButton(page).click();
   await expect(html).toHaveAttribute('data-view', 'menu');
   await expect(menu(page)).toBeVisible();
 }
@@ -96,7 +113,7 @@ export async function openMobileMenu(page: Page): Promise<void> {
 export async function showMobilePage(page: Page): Promise<void> {
   if (!isMobileViewport(page.viewportSize())) return;
   const html = page.locator('html');
-  if ((await html.getAttribute('data-view')) === 'menu') await backButton(page).click();
+  if ((await settledView(page)) === 'menu') await backButton(page).click();
   await expect(html).toHaveAttribute('data-view', 'page');
 }
 

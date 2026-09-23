@@ -43,8 +43,15 @@ function syncBackButton(): void {
   button.setAttribute('aria-label', menuOpen ? LABEL_CLOSE_MENU : LABEL_OPEN_MENU);
 }
 
-/** Cambia la capa visible en móvil. No toca `history` (lo usa el ClientRouter). */
+/**
+ * Cambia la capa visible en móvil. No toca `history` (lo usa el ClientRouter).
+ * `viewChanges` cuenta los cambios: si la persona pulsa el botón mientras el
+ * menú se está cerrando solo, su acción cancela ese cierre pendiente.
+ */
+let viewChanges = 0;
+
 function setView(view: MobileView): void {
+  viewChanges += 1;
   root.dataset.view = view;
   syncBackButton();
 }
@@ -137,11 +144,13 @@ function onAfterSwap(): void {
   // Móvil: el menú sigue abierto tras el cambio; se cierra (con animación)
   // cuando la página nueva ya está pintada (C08).
   setView('menu');
+  const pending = viewChanges;
   const transition = pendingTransition;
   void (transition ? transition.ready.catch(() => undefined) : Promise.resolve())
     .then(nextFrames)
     .then(() => {
-      if (root.dataset.view !== 'menu') return;
+      // Si la persona ha tocado el botón mientras el menú salía, manda ella.
+      if (pending !== viewChanges || root.dataset.view !== 'menu') return;
       setView('page');
       focusHeading();
     });

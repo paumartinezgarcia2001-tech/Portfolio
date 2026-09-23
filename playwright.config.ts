@@ -17,11 +17,22 @@ import { defineConfig, devices, type PlaywrightTestProject } from '@playwright/t
  * Media (fase 3): `tests/e2e/global-setup.ts` genera un vídeo de prueba con
  * ffmpeg en `.media/` y `scripts/serve-media.mjs` lo sirve en el puerto 4322
  * como si fuera R2. Sin ffmpeg, esos tests se saltan.
+ *
+ * Contacto (fase 5): `tests/e2e/mock-services.mjs` (puerto 4323) imita
+ * Turnstile y Resend, así que no se envían emails de verdad ni hace falta
+ * salida a internet; `tests/e2e/dev-vars.mjs` deja las claves de prueba en
+ * `dist/server/.dev.vars` para el preview. Con `E2E_TURNSTILE=real` los tests
+ * usan Cloudflare de verdad con sus claves de prueba.
  */
 
 const PORT = Number(process.env.E2E_PORT ?? 4321);
 const MEDIA_PORT = Number(process.env.E2E_MEDIA_PORT ?? 4322);
+const SERVICES_PORT = Number(process.env.E2E_SERVICES_PORT ?? 4323);
 const mediaBaseURL = `http://localhost:${MEDIA_PORT}`;
+const servicesURL = `http://127.0.0.1:${SERVICES_PORT}`;
+/** Claves de prueba de Turnstile (Cloudflare): la pública «siempre pasa». */
+const TURNSTILE_TEST_SITE_KEY = '1x00000000000000000000AA';
+const realTurnstile = process.env.E2E_TURNSTILE === 'real';
 const externalBaseURL = process.env.E2E_BASE_URL;
 const baseURL = externalBaseURL ?? `http://localhost:${PORT}`;
 const chromiumExecutable = process.env.PW_CHROMIUM_EXECUTABLE || undefined;
@@ -102,11 +113,28 @@ export default defineConfig({
         {
           // `--ignore-lock`: Astro 7 lanza el preview en segundo plano si detecta un
           // agente (p. ej. una sesión de Claude) y Playwright lo daría por caído.
-          command: `npm run build && npx astro preview --port ${PORT} --ignore-lock`,
+          // `dev-vars.mjs` pone las claves de prueba del formulario (fase 5)
+          // entre la compilación y el preview.
+          command: `npm run build && node tests/e2e/dev-vars.mjs && npx astro preview --port ${PORT} --ignore-lock`,
           url: baseURL,
           reuseExistingServer: !process.env.CI,
           timeout: 180_000,
-          env: { DATA_SOURCE: 'fixtures', PUBLIC_MEDIA_BASE_URL: mediaBaseURL },
+          env: {
+            DATA_SOURCE: 'fixtures',
+            PUBLIC_MEDIA_BASE_URL: mediaBaseURL,
+            PUBLIC_TURNSTILE_SITE_KEY: TURNSTILE_TEST_SITE_KEY,
+            // Servidores simulados (fase 5). Con E2E_TURNSTILE=real, Turnstile
+            // se verifica contra Cloudflare; Resend sigue simulado.
+            ...(realTurnstile ? {} : { TURNSTILE_VERIFY_URL: `${servicesURL}/turnstile/v0/siteverify` }),
+            RESEND_API_URL: `${servicesURL}/emails`,
+          },
+        },
+        {
+          // Turnstile y Resend simulados (fase 5).
+          command: `node tests/e2e/mock-services.mjs --port ${SERVICES_PORT}`,
+          url: `${servicesURL}/__e2e/health`,
+          reuseExistingServer: !process.env.CI,
+          timeout: 30_000,
         },
         {
           // Hace de R2 para el vídeo de prueba (CORS, Range y Content-Type).

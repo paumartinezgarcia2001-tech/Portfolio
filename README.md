@@ -4,8 +4,9 @@ Web de **travest15m0**, DJ y productora de eventos afincada en Madrid.
 
 Astro 7 sobre Cloudflare Workers, sin React ni Tailwind. En construcción por fases:
 hechas la 1 (estructura, navegación e Info), la 2 (bolos desde Supabase: next dates,
-archive y barra de noticias), la 3 (vídeo de Media en HLS y transición de píxeles) y
-la 4 (reproductor de mixes). Faltan el formulario, el panel y el despliegue definitivo.
+archive y barra de noticias), la 3 (vídeo de Media en HLS y transición de píxeles),
+la 4 (reproductor de mixes) y la 5 (formulario de contacto, redes y páginas legales).
+Faltan el panel oculto y el despliegue definitivo.
 
 Versión provisional: <https://paumartinezgarcia2001-tech.github.io/Portfolio/>
 (GitHub Pages, ver [más abajo](#despliegue-provisional-github-pages)).
@@ -41,6 +42,10 @@ con un aviso: la capa de datos nunca rompe la página.
 | `npm run media:upload` | Sube `.media/` a R2 (necesita las claves `R2_*` en `.env`) |
 | `npm run media:serve` | Sirve `.media/` en `http://localhost:4322`, como si fuera R2 |
 | `npm run media:mix -- "<audio>" --title "…"` | Prepara un mix para el reproductor y crea su fila en Supabase (necesita ffmpeg) |
+
+Los e2e del formulario no envían emails ni llaman a Cloudflare: `tests/e2e/mock-services.mjs`
+imita Turnstile (con el comportamiento de sus claves de prueba) y Resend en el puerto
+4323. Con `E2E_TURNSTILE=real` se usa Turnstile de verdad, con sus claves de prueba.
 
 Los e2e compilan la web y la sirven en el puerto 4321. Con `PW_ALL_BROWSERS=1` se
 prueban también Firefox y WebKit; las capturas quedan en `test-results/screenshots/`.
@@ -149,6 +154,56 @@ Para oírlos en local sin R2: copia esa carpeta `mixes/` dentro de `.media/`, ar
 `npm run media:serve` y pon `PUBLIC_MEDIA_BASE_URL=http://localhost:4322` en `.env`. Para
 quitarlos cuando lleguen los mixes de verdad: bórralos (o despublícalos) en Supabase.
 
+## Formulario de contacto
+
+`/contact` tiene el formulario (Astro Action `contact.send`), los enlaces a SoundCloud e
+Instagram y el pie con las páginas legales. El mensaje **no se guarda en ninguna base de
+datos**: se envía por email con Resend y llega al buzón de Pau, con «responder» apuntando
+a quien escribe.
+
+Para que funcione hacen falta cuatro cosas (hasta entonces, en su lugar aparece
+«formulario — próximamente» y quedan las redes):
+
+1. **Resend** (<https://resend.com>): verificar el dominio (SPF y DKIM) y crear una clave
+   de API. Plan gratuito: 100 emails al día.
+2. **Turnstile** (panel de Cloudflare): un widget para el dominio y para `localhost`.
+   Da una clave pública (`PUBLIC_TURNSTILE_SITE_KEY`) y una secreta
+   (`TURNSTILE_SECRET_KEY`).
+3. **Secrets en Cloudflare** (`npx wrangler secret put NOMBRE`): `RESEND_API_KEY`,
+   `CONTACT_TO_EMAIL` (el email de Pau; nunca aparece en la web), `CONTACT_FROM_EMAIL`
+   (por ejemplo `web@<dominio>`, verificado en Resend) y `TURNSTILE_SECRET_KEY`. En local
+   van en `.env`.
+4. **Un namespace de KV** para el límite de envíos: está declarado en `wrangler.jsonc`
+   sin `id`, así que el primer `npx wrangler deploy` lo crea (o se crea a mano con
+   `npx wrangler kv namespace create CONTACT_RATE_LIMIT` y se pega su `id`). En local lo
+   simula wrangler, sin configurar nada.
+
+Cómo se protege de los envíos automáticos, en este orden:
+
+- un campo oculto (*honeypot*): si llega relleno, el mensaje se descarta y se responde
+  como si se hubiera enviado;
+- **5 envíos por hora y por IP**, en KV; del sexto en adelante, «Has enviado demasiados
+  mensajes. Prueba más tarde.». No se guarda la IP, sino un código derivado de ella que
+  caduca a la hora;
+- **Turnstile**, verificado en el servidor con la IP de quien envía. Si Cloudflare no
+  responde, el mensaje no se envía (nunca se deja pasar sin comprobar);
+- si Resend falla con un error suyo (5xx), se reintenta **una vez** con la misma clave de
+  idempotencia, así que no puede llegar dos veces.
+
+El formulario funciona sin JavaScript (POST normal y redirección con el resultado), pero
+**Turnstile necesita JavaScript**: con el JS desactivado aparece un aviso que lo explica.
+
+Los textos y los límites están en `src/config/contact.ts`; la lógica del servidor, en
+`src/lib/contact/` y `src/lib/email.ts`.
+
+### Páginas legales
+
+`/aviso-legal` y `/privacidad` están **sin terminar a propósito**: son plantillas con los
+apartados que pide la ley y con `TODO` a la vista donde faltan los datos de Pau (nombre,
+NIF, domicilio, dirección de contacto, plazos de conservación…). La parte técnica sí es
+exacta: describe lo que hace la web hoy. Hay que completarlas y revisarlas antes de
+publicar la web en su dominio; esto no es asesoramiento legal.
+
 ## Despliegue provisional (GitHub Pages)
 
 Hasta que la web esté en Cloudflare (fase 7), lo construido se publica como web
@@ -167,8 +222,9 @@ estática en <https://paumartinezgarcia2001-tech.github.io/Portfolio/>.
   `PUBLIC_SUPABASE_URL` y `PUBLIC_SUPABASE_PUBLISHABLE_KEY`. Cuando exista el bucket de
   R2, añade también `PUBLIC_MEDIA_BASE_URL` para que se vean el vídeo de Media y el
   reproductor.
-- **Límites**: sin servidor, así que el formulario (fase 5) y el panel (fase 6) no
-  funcionarán aquí. GitHub pausa los workflows programados tras 60 días sin actividad
+- **Límites**: sin servidor, así que el formulario de contacto no funciona (muestra
+  «formulario — próximamente», con las redes y las páginas legales) y el panel (fase 6)
+  tampoco funcionará. GitHub pausa los workflows programados tras 60 días sin actividad
   en el repo: si pasa, se reactiva en la pestaña *Actions*.
 - **Al pasar a Cloudflare**: borra `astro.config.pages.mjs` y el workflow, y desactiva
   Pages.
@@ -186,10 +242,12 @@ src/
   components/  piezas del layout (menú, barra de noticias, cursor, vídeo…)
   layouts/     BaseLayout
   pages/       una página por sección
-  scripts/     JS del navegador (navegación, móvil, cursor, vídeo, reproductor, píxeles)
+  scripts/     JS del navegador (navegación, móvil, cursor, vídeo, reproductor, píxeles, formulario)
   styles/      reset, tokens, estilos globales y el rotulador (highlighter.css)
-  lib/         fechas, datos (Supabase o fixtures), barajado, SEO, rutas con base
-  middleware.ts  carga la barra de noticias y fija la caché
+  lib/         fechas, datos (Supabase o fixtures), barajado, SEO, rutas con base,
+               contacto (esquema, Turnstile, límite y envío) y cabeceras de seguridad
+  actions/     Astro Actions del servidor (contact.send)
+  middleware.ts  datos de la columna izquierda, caché y cabeceras de seguridad
 scripts/       importación de bolos, pipeline de vídeo y de mixes, subida a R2 y servidor local (Node)
 r2/            CORS del bucket
 supabase/      migraciones y pruebas de RLS

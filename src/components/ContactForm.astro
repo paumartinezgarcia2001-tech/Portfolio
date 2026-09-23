@@ -1,0 +1,478 @@
+---
+/**
+ * C17 · ContactForm — formulario de contacto (fase 5).
+ *
+ * Progresivo:
+ * - sin JavaScript hace un POST normal a la Action `contact.send`; si sale
+ *   bien, la página redirige a `/contact?enviado=1` y, si falla, se vuelve a
+ *   pintar con los errores y lo ya escrito;
+ * - con JavaScript (src/scripts/contact-form.ts) envía sin recargar y muestra
+ *   los estados. Ojo: Turnstile necesita JavaScript, así que sin él aparece el
+ *   aviso del <noscript>.
+ *
+ * La fecha del evento solo se ve con el motivo «booking»: lo hace el CSS con
+ * `:has()`, sin JavaScript.
+ */
+import { actions } from 'astro:actions';
+import {
+  CONTACT_FIELDS as FIELD,
+  CONTACT_LIMITS as LIMITS,
+  CONTACT_REASONS,
+  CONTACT_TEXT as TEXT,
+  DEFAULT_REASON,
+  contactErrorText,
+} from '../config/contact';
+import type { ContactValues } from '../lib/contact/values';
+import { withBase } from '../lib/url';
+
+interface Props {
+  /** PUBLIC_TURNSTILE_SITE_KEY. */
+  siteKey: string;
+  /** Lo escrito en el envío anterior (solo sin JavaScript). */
+  values?: ContactValues | undefined;
+  /** Errores por campo que devuelve la Action. */
+  fieldErrors?: Record<string, string[] | undefined> | undefined;
+  /** Código de error general (límite, Turnstile, envío…). */
+  errorCode?: string | undefined;
+}
+
+const { siteKey, values = {}, fieldErrors, errorCode } = Astro.props;
+
+const errorOf = (field: string): string | undefined => fieldErrors?.[field]?.[0];
+const describedBy = (field: string, hint?: string) =>
+  [errorOf(field) ? `contact-${field}-error` : undefined, hint].filter(Boolean).join(' ') || undefined;
+const invalid = (field: string) => (errorOf(field) ? 'true' : undefined);
+/** El primer campo con error recibe el foco al recargar (sin JavaScript). */
+const firstInvalid = [FIELD.name, FIELD.email, FIELD.reason, FIELD.date, FIELD.place, FIELD.message, FIELD.privacy].find(
+  (field) => errorOf(field),
+);
+const reason = values.motivo ?? DEFAULT_REASON;
+---
+
+<form
+  class="contact-form"
+  method="post"
+  action={actions.contact.send}
+  data-contact-form
+  data-state="idle"
+>
+  <div class="field" data-field={FIELD.name} data-invalid={invalid(FIELD.name)}>
+    <label class="field__label" for={`contact-${FIELD.name}`}>{TEXT.labels.name}</label>
+    <input
+      class="field__input"
+      id={`contact-${FIELD.name}`}
+      name={FIELD.name}
+      type="text"
+      autocomplete="name"
+      required
+      maxlength={LIMITS.nameMax}
+      value={values.nombre}
+      aria-invalid={invalid(FIELD.name)}
+      aria-describedby={describedBy(FIELD.name)}
+      autofocus={firstInvalid === FIELD.name || undefined}
+    />
+    <p class="field__error" id={`contact-${FIELD.name}-error`} data-error-for={FIELD.name} hidden={!errorOf(FIELD.name)}>
+      {errorOf(FIELD.name)}
+    </p>
+  </div>
+
+  <div class="field" data-field={FIELD.email} data-invalid={invalid(FIELD.email)}>
+    <label class="field__label" for={`contact-${FIELD.email}`}>{TEXT.labels.email}</label>
+    <input
+      class="field__input"
+      id={`contact-${FIELD.email}`}
+      name={FIELD.email}
+      type="email"
+      inputmode="email"
+      autocomplete="email"
+      spellcheck="false"
+      required
+      maxlength={LIMITS.emailMax}
+      value={values.email}
+      aria-invalid={invalid(FIELD.email)}
+      aria-describedby={describedBy(FIELD.email)}
+      autofocus={firstInvalid === FIELD.email || undefined}
+    />
+    <p
+      class="field__error"
+      id={`contact-${FIELD.email}-error`}
+      data-error-for={FIELD.email}
+      hidden={!errorOf(FIELD.email)}
+    >
+      {errorOf(FIELD.email)}
+    </p>
+  </div>
+
+  <div class="field" data-field={FIELD.reason} data-invalid={invalid(FIELD.reason)}>
+    <label class="field__label" for={`contact-${FIELD.reason}`}>{TEXT.labels.reason}</label>
+    <div class="field__select">
+      <select
+        class="field__input"
+        id={`contact-${FIELD.reason}`}
+        name={FIELD.reason}
+        required
+        aria-invalid={invalid(FIELD.reason)}
+        aria-describedby={describedBy(FIELD.reason)}
+        autofocus={firstInvalid === FIELD.reason || undefined}
+      >
+        {
+          CONTACT_REASONS.map((option) => (
+            <option value={option.value} selected={option.value === reason}>
+              {option.label}
+            </option>
+          ))
+        }
+      </select>
+      <span class="field__arrow" aria-hidden="true">▾</span>
+    </div>
+    <p
+      class="field__error"
+      id={`contact-${FIELD.reason}-error`}
+      data-error-for={FIELD.reason}
+      hidden={!errorOf(FIELD.reason)}
+    >
+      {errorOf(FIELD.reason)}
+    </p>
+  </div>
+
+  {/* Solo con el motivo «booking» (CSS `:has()`, más abajo). */}
+  <div class="field field--date" data-field={FIELD.date} data-invalid={invalid(FIELD.date)}>
+    <label class="field__label" for={`contact-${FIELD.date}`}>
+      {TEXT.labels.date} <span class="field__optional">{TEXT.optional}</span>
+    </label>
+    <input
+      class="field__input"
+      id={`contact-${FIELD.date}`}
+      name={FIELD.date}
+      type="date"
+      value={values.fecha}
+      aria-invalid={invalid(FIELD.date)}
+      aria-describedby={describedBy(FIELD.date)}
+      autofocus={firstInvalid === FIELD.date || undefined}
+    />
+    <p class="field__error" id={`contact-${FIELD.date}-error`} data-error-for={FIELD.date} hidden={!errorOf(FIELD.date)}>
+      {errorOf(FIELD.date)}
+    </p>
+  </div>
+
+  <div class="field" data-field={FIELD.place} data-invalid={invalid(FIELD.place)}>
+    <label class="field__label" for={`contact-${FIELD.place}`}>
+      {TEXT.labels.place} <span class="field__optional">{TEXT.optional}</span>
+    </label>
+    <input
+      class="field__input"
+      id={`contact-${FIELD.place}`}
+      name={FIELD.place}
+      type="text"
+      autocomplete="off"
+      maxlength={LIMITS.placeMax}
+      value={values.lugar}
+      aria-invalid={invalid(FIELD.place)}
+      aria-describedby={describedBy(FIELD.place)}
+      autofocus={firstInvalid === FIELD.place || undefined}
+    />
+    <p
+      class="field__error"
+      id={`contact-${FIELD.place}-error`}
+      data-error-for={FIELD.place}
+      hidden={!errorOf(FIELD.place)}
+    >
+      {errorOf(FIELD.place)}
+    </p>
+  </div>
+
+  <div class="field" data-field={FIELD.message} data-invalid={invalid(FIELD.message)}>
+    <label class="field__label" for={`contact-${FIELD.message}`}>{TEXT.labels.message}</label>
+    <textarea
+      class="field__input field__textarea"
+      id={`contact-${FIELD.message}`}
+      name={FIELD.message}
+      rows="5"
+      required
+      minlength={LIMITS.messageMin}
+      maxlength={LIMITS.messageMax}
+      aria-invalid={invalid(FIELD.message)}
+      aria-describedby={describedBy(FIELD.message)}
+      autofocus={firstInvalid === FIELD.message || undefined}>{values.mensaje}</textarea
+    >
+    <p
+      class="field__error"
+      id={`contact-${FIELD.message}-error`}
+      data-error-for={FIELD.message}
+      hidden={!errorOf(FIELD.message)}
+    >
+      {errorOf(FIELD.message)}
+    </p>
+  </div>
+
+  <div class="field field--check" data-field={FIELD.privacy} data-invalid={invalid(FIELD.privacy)}>
+    <div class="check">
+      <input
+        class="check__box"
+        id={`contact-${FIELD.privacy}`}
+        name={FIELD.privacy}
+        type="checkbox"
+        required
+        checked={values.privacidad}
+        aria-invalid={invalid(FIELD.privacy)}
+        aria-describedby={describedBy(FIELD.privacy)}
+        autofocus={firstInvalid === FIELD.privacy || undefined}
+      />
+      <label class="check__label" for={`contact-${FIELD.privacy}`}>
+        {TEXT.labels.privacyBefore}{' '}
+        <a class="hl" href={withBase('/privacidad')}>{TEXT.labels.privacyLink}</a>.
+      </label>
+    </div>
+    <p
+      class="field__error"
+      id={`contact-${FIELD.privacy}-error`}
+      data-error-for={FIELD.privacy}
+      hidden={!errorOf(FIELD.privacy)}
+    >
+      {errorOf(FIELD.privacy)}
+    </p>
+  </div>
+
+  {/* Honeypot: fuera del foco y del lector de pantalla. Si llega relleno, el mensaje se descarta. */}
+  <div class="contact-form__honeypot" aria-hidden="true" inert>
+    <label for={`contact-${FIELD.honeypot}`}>{TEXT.labels.honeypot}</label>
+    <input id={`contact-${FIELD.honeypot}`} name={FIELD.honeypot} type="text" tabindex="-1" autocomplete="off" />
+  </div>
+
+  {/* Widget de Turnstile (lo pinta el script). El cursor propio se oculta encima (C10). */}
+  <div class="field">
+    <span class="field__label" id="contact-turnstile-label">{TEXT.labels.turnstile}</span>
+    <div
+      class="contact-form__turnstile"
+      data-turnstile
+      data-sitekey={siteKey}
+      data-native-cursor
+      aria-labelledby="contact-turnstile-label"
+    >
+    </div>
+    <noscript>
+      <p class="contact-form__noscript">{TEXT.noscript}</p>
+    </noscript>
+  </div>
+
+  {/* Error general (límite, Turnstile, envío). Sin JavaScript llega ya pintado;
+      con JavaScript lo rellena el script. «reintentar» es un submit más, así
+      que también funciona sin JavaScript. */}
+  <div class="contact-form__alert" id="contact-form-error" role="alert" tabindex="-1" data-form-error hidden={!errorCode}>
+    <p class="contact-form__alert-text" data-form-error-text>{errorCode ? contactErrorText(errorCode) : ''}</p>
+    <button class="contact-form__retry" type="submit">{TEXT.retry}</button>
+  </div>
+
+  <div class="contact-form__actions">
+    <button class="contact-form__submit" type="submit" data-submit>{TEXT.submit}</button>
+    <p class="visually-hidden" id="contact-form-status" role="status" aria-live="polite" data-status></p>
+  </div>
+</form>
+
+<script>
+  import '../scripts/contact-form';
+</script>
+
+<style>
+  @layer components {
+    .contact-form {
+      display: grid;
+      gap: var(--pad);
+      max-width: 40rem;
+      margin: 0 0 calc(var(--pad) * 2);
+    }
+
+    /* Al enviarse bien, el script lo oculta (`hidden`): las reglas de esta capa
+       ganan a la del navegador, así que hay que decirlo aquí. */
+    .contact-form[hidden] {
+      display: none;
+    }
+
+    .field {
+      display: grid;
+      gap: 0.35rem;
+    }
+
+    .field__label,
+    .check__label {
+      font-size: var(--fs-label);
+      line-height: var(--lh-paragraph);
+    }
+
+    .field__label {
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .field__optional {
+      text-transform: none;
+      letter-spacing: 0;
+    }
+
+    .field__input {
+      width: 100%;
+      padding: 0.1em 0.1em 0.15em;
+      border: 0;
+      border-bottom: var(--rule-w) solid var(--c-panel-fg);
+      border-radius: 0;
+      background: none;
+      font-size: var(--fs-paragraph);
+      line-height: var(--lh-paragraph);
+      appearance: none;
+    }
+
+    .field__textarea {
+      min-height: 6em;
+      resize: vertical;
+      field-sizing: content;
+    }
+
+    /* Foco: contorno oscuro con halo naranja (global) sin recorte. */
+    .field__input:focus-visible {
+      outline-offset: 2px;
+    }
+
+    /* Campo con error: además del texto, el borde se dobla. Se queda oscuro a
+       propósito: el naranja sobre el panel claro no llega a 3:1 (§4.1) y el
+       borde es lo que delimita el campo. */
+    .field[data-invalid] .field__input {
+      border-bottom-width: calc(var(--rule-w) * 2);
+    }
+
+    .field__error {
+      font-size: var(--fs-small);
+      line-height: var(--lh-paragraph);
+    }
+
+    .field__error[hidden] {
+      display: none;
+    }
+
+    .field__select {
+      position: relative;
+      display: grid;
+    }
+
+    .field__select .field__input {
+      padding-right: 1.5em;
+    }
+
+    .field__arrow {
+      position: absolute;
+      right: 0.1em;
+      bottom: 0.15em;
+      pointer-events: none;
+      font-size: var(--fs-paragraph);
+      line-height: var(--lh-paragraph);
+    }
+
+    /* La fecha del evento solo se pide para booking (DATE_REASON en
+       src/config/contact.ts: si cambia, cambia también este selector). Sin
+       JavaScript también: `:has()` mira la opción marcada del desplegable. */
+    .contact-form:not(:has(select[name='motivo'] option[value='booking']:checked)) .field--date {
+      display: none;
+    }
+
+    .check {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    .check__box {
+      width: 1.75rem;
+      height: 1.75rem;
+      margin: 0;
+      accent-color: var(--c-panel-fg);
+    }
+
+    /* Pulsar la etiqueta también marca la casilla: entre las dos, la zona
+       táctil pasa de 44 px de alto (§10). */
+    .check__label {
+      display: flex;
+      align-items: center;
+      min-height: 44px;
+    }
+
+    .field--check[data-invalid] .check__box {
+      outline: var(--rule-w) solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    .contact-form__honeypot {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+
+    .contact-form__turnstile {
+      /* Hueco del widget (300 × 65): así no salta el contenido al aparecer. */
+      min-height: 65px;
+    }
+
+    .contact-form__noscript {
+      max-width: 34rem;
+      font-size: var(--fs-small);
+      line-height: var(--lh-paragraph);
+    }
+
+    .contact-form__alert {
+      display: grid;
+      gap: 0.5rem;
+      justify-items: start;
+      padding: 0.75rem;
+      border: var(--rule-w) solid var(--c-panel-fg);
+      font-size: var(--fs-small);
+      line-height: var(--lh-paragraph);
+    }
+
+    .contact-form__alert[hidden] {
+      display: none;
+    }
+
+    .contact-form__actions {
+      display: flex;
+      align-items: center;
+      gap: var(--pad);
+    }
+
+    .contact-form__submit,
+    .contact-form__retry {
+      padding: 0.1em 0.25em;
+      border: var(--rule-w) solid var(--c-panel-fg);
+      color: inherit;
+      line-height: var(--lh-paragraph);
+      /* Zona táctil mínima de 44 px (§10). */
+      min-height: 44px;
+    }
+
+    .contact-form__submit {
+      font-size: calc(var(--fs-paragraph) * 1.4);
+    }
+
+    .contact-form__retry {
+      font-size: var(--fs-small);
+    }
+
+    /* Resaltado naranja al pasar el ratón (rotulador de D39). */
+    .contact-form__submit:where(:hover, :focus-visible),
+    .contact-form__retry:where(:hover, :focus-visible) {
+      background: var(--accent);
+      --cursor-over: var(--c-panel-fg);
+    }
+
+    /* Mientras envía: el botón queda desactivado. */
+    .contact-form__submit[disabled] {
+      cursor: default;
+      opacity: 0.6;
+    }
+
+    .contact-form[data-state='sending'] .contact-form__submit {
+      background: none;
+    }
+  }
+</style>

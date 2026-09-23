@@ -1,0 +1,97 @@
+---
+/**
+ * C18 · Política de privacidad — plantilla con TODO (RGPD y LOPDGDD).
+ * Prerenderizada y fuera del menú; se enlaza desde el formulario y el pie.
+ *
+ * Lo que describe la web de verdad (qué pide el formulario, qué servicios
+ * intervienen, qué se guarda y cuánto) está escrito tal como está programado
+ * en la fase 5. Lo que depende de Pau va marcado como TODO. Esto no es
+ * asesoramiento legal.
+ */
+import { CONTACT_RATE_LIMIT } from '../config/contact';
+import LegalPage from '../components/LegalPage.astro';
+import { withBase } from '../lib/url';
+
+export const prerender = true;
+---
+
+<LegalPage title="privacidad" description="Política de privacidad de la web de travest15m0.">
+  <h2>Plantilla sin terminar</h2>
+  <p>
+    <mark class="todo">TODO</mark> Esta página está sin completar: faltan los datos de Pau y una revisión antes de
+    publicar la web en su dominio. Lo que sí es exacto es la parte técnica: describe lo que hace la web hoy.
+  </p>
+
+  <h2>Quién trata tus datos</h2>
+  <ul>
+    <li>Responsable: <mark class="todo">TODO</mark> (nombre y apellidos o razón social)</li>
+    <li>NIF: <mark class="todo">TODO</mark></li>
+    <li>Domicilio: <mark class="todo">TODO</mark></li>
+    <li>Contacto: <mark class="todo">TODO</mark> (una dirección del dominio de la web, no la personal)</li>
+  </ul>
+
+  <h2>Qué datos se recogen y para qué</h2>
+  <p>
+    Solo los que escribes en el formulario de contacto: nombre, email, motivo del mensaje, fecha del evento (si es una
+    propuesta de booking), sala o ciudad y el mensaje. Sirven para leer tu mensaje y responderte, y para nada más: la
+    web no hace perfiles, ni publicidad, ni envía boletines.
+  </p>
+  <p><mark class="todo">TODO</mark> Base jurídica del tratamiento (por ejemplo, tu consentimiento al enviar el formulario).</p>
+
+  <h2>Cuánto tiempo se guardan</h2>
+  <p>
+    La web no guarda los mensajes en ninguna base de datos: se envían por correo y quedan en el buzón de Pau.
+    <mark class="todo">TODO</mark> Cuánto tiempo se conservan esos correos.
+  </p>
+
+  <h2>Quién más los ve</h2>
+  <p>Para que la web funcione intervienen estos servicios, cada uno con su propia política de privacidad:</p>
+  <ul>
+    <li>
+      <span lang="en">Cloudflare</span>: alojamiento de la web, archivos de audio y vídeo, y la comprobación anti-spam
+      (<span lang="en">Turnstile</span>).
+    </li>
+    <li><span lang="en">Resend</span>: el envío del correo con tu mensaje.</li>
+    <li>
+      <span lang="en">Supabase</span>: la base de datos de la web (fechas, mixes y textos). No guarda los mensajes del
+      formulario.
+    </li>
+  </ul>
+  <p>
+    <mark class="todo">TODO</mark> Contratos de encargado del tratamiento y transferencias internacionales de datos
+    (son empresas con servidores fuera de la Unión Europea).
+  </p>
+
+  <h2>Anti-spam y límite de envíos</h2>
+  <p>
+    Antes de enviar tu mensaje, <span lang="en">Cloudflare Turnstile</span> comprueba que quien lo envía no es un robot;
+    para eso trata datos técnicos de tu navegador y tu dirección IP. Para evitar abusos, la web guarda como máximo una
+    hora un código derivado de tu IP (no la IP en claro) y no acepta más de {CONTACT_RATE_LIMIT.max} mensajes por hora
+    desde la misma conexión.
+  </p>
+  <p>
+    <mark class="todo">TODO</mark> Confirmar en la política de privacidad de <span lang="en">Cloudflare</span> qué datos
+    trata <span lang="en">Turnstile</span> (según su documentación no usa cookies de seguimiento).
+  </p>
+
+  <h2>Cookies y datos en tu navegador</h2>
+  <p>
+    La web no usa cookies de seguimiento ni analítica. El reproductor de mixes guarda en tu propio navegador
+    (<span lang="en">sessionStorage</span>) qué mix suena y por qué segundo va, para seguir donde estabas si recargas;
+    se borra al cerrar la pestaña. Nada de eso sale de tu navegador.
+  </p>
+
+  <h2>Tus derechos</h2>
+  <p>
+    Puedes pedir acceso a tus datos, rectificarlos, suprimirlos, limitar u oponerte a su tratamiento y pedir que te los
+    devuelvan en un archivo. También puedes reclamar ante la Agencia Española de Protección de Datos
+    (<a class="hl" href="https://www.aepd.es" target="_blank" rel="noopener">aepd.es<span aria-hidden="true"> ↗</span></a>).
+  </p>
+  <p><mark class="todo">TODO</mark> Dirección a la que escribir para ejercer esos derechos y qué hace falta para acreditarse.</p>
+
+  <h2>Cambios</h2>
+  <p>
+    <mark class="todo">TODO</mark> Fecha de la última actualización y qué pasa si esta política cambia. Ver también el
+    <a class="hl" href={withBase('/aviso-legal')}>aviso legal</a>.
+  </p>
+</LegalPage>

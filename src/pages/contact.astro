@@ -1,10 +1,43 @@
 ---
 /**
- * C17 · Contact — marcador de la fase 1. La fase 5 añade el formulario
- * (Actions + Resend + Turnstile), las redes y el pie legal.
+ * C17 · Contact — formulario, redes y pie legal (fase 5).
+ *
+ * El formulario envía a la Action `contact.send`:
+ * - con JavaScript, sin recargar (src/scripts/contact-form.ts);
+ * - sin JavaScript, con un POST normal. Si sale bien, se redirige aquí con
+ *   `?enviado=1` (así recargar no reenvía); si falla, la página se vuelve a
+ *   pintar con los errores y lo ya escrito.
+ *
+ * Sin servidor (GitHub Pages, STATIC_BUILD) o sin la clave de Turnstile, en
+ * lugar del formulario aparece «formulario — próximamente» y quedan las redes.
  */
-import PhasePlaceholder from '../components/PhasePlaceholder.astro';
+import { actions, isInputError } from 'astro:actions';
+import { PUBLIC_TURNSTILE_SITE_KEY } from 'astro:env/client';
+import { STATIC_BUILD } from 'astro:env/server';
+import ContactForm from '../components/ContactForm.astro';
+import SocialLinks from '../components/SocialLinks.astro';
+import { CONTACT_SENT_PARAM, CONTACT_TEXT as TEXT, warnMissingTurnstileSiteKey } from '../config/contact';
 import BaseLayout from '../layouts/BaseLayout.astro';
+import { readContactValues } from '../lib/contact/values';
+import { withBase } from '../lib/url';
+
+const result = Astro.getActionResult(actions.contact.send);
+// POST → redirección → GET (C17): recargar la página no reenvía el mensaje.
+if (result && !result.error) {
+  return Astro.redirect(`${withBase('/contact')}?${CONTACT_SENT_PARAM}=1`, 303);
+}
+
+const sent = Astro.url.searchParams.has(CONTACT_SENT_PARAM);
+const error = result?.error;
+const fieldErrors = error && isInputError(error) ? error.fields : undefined;
+const errorCode = error && !isInputError(error) ? error.message : undefined;
+// Sin JavaScript: se devuelve lo escrito para no perderlo.
+const values = error ? await readContactValues(Astro.request) : undefined;
+if (error) Astro.response.status = error.status;
+
+const siteKey = PUBLIC_TURNSTILE_SITE_KEY;
+const formAvailable = !STATIC_BUILD && Boolean(siteKey);
+if (!STATIC_BUILD && !siteKey) warnMissingTurnstileSiteKey();
 ---
 
 <BaseLayout
@@ -13,5 +46,61 @@ import BaseLayout from '../layouts/BaseLayout.astro';
   headingLang="en"
   description="Booking, prensa y colaboraciones con travest15m0."
 >
-  <PhasePlaceholder phase={5} what="Formulario de contacto, SoundCloud e Instagram." />
+  <div class="contact">
+    <p class="contact__intro">{TEXT.intro}</p>
+
+    <p class="contact__sent" role="status" tabindex="-1" data-contact-sent hidden={!sent}>{TEXT.success}</p>
+
+    {formAvailable && !sent && (
+      <ContactForm siteKey={siteKey ?? ''} values={values} fieldErrors={fieldErrors} errorCode={errorCode} />
+    )}
+    {!formAvailable && <p class="contact__unavailable">{TEXT.unavailable}</p>}
+
+    <SocialLinks />
+
+    <p class="contact__legal">
+      <a class="contact__legal-link hl" href={withBase('/aviso-legal')}>aviso legal</a><span aria-hidden="true"> · </span
+      ><a class="contact__legal-link hl" href={withBase('/privacidad')}>privacidad</a>
+    </p>
+  </div>
 </BaseLayout>
+
+<style>
+  @layer components {
+    .contact {
+      display: grid;
+      justify-items: start;
+      gap: var(--pad);
+      max-width: 44rem;
+    }
+
+    .contact__intro,
+    .contact__unavailable,
+    .contact__legal {
+      font-size: var(--fs-small);
+      line-height: var(--lh-paragraph);
+    }
+
+    .contact__sent {
+      font-size: var(--fs-paragraph);
+      line-height: var(--lh-paragraph);
+    }
+
+    .contact__sent[hidden] {
+      display: none;
+    }
+
+    .contact__sent:focus-visible {
+      outline-offset: 0.1em;
+    }
+
+    .contact__legal {
+      margin-top: var(--pad);
+    }
+
+    /* Pie discreto: el rotulador (D39) solo al pasar el ratón o con el foco. */
+    .contact__legal-link:not(:hover, :focus-visible) {
+      background: none;
+    }
+  }
+</style>

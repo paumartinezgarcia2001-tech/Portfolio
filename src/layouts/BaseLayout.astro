@@ -49,6 +49,43 @@ const startView = section === 'none' ? 'page' : MOBILE_START_VIEW;
     <meta name="color-scheme" content="only light" />
     <link rel="icon" href={withBase('/favicon.svg')} type="image/svg+xml" />
     <ClientRouter />
+    {/* Sin JavaScript, en móvil no se puede cambiar de capa (D44: la web abre
+        en el menú): el menú y la página se apilan y todo queda a la vista,
+        incluido el formulario de contacto (C17). Va en <noscript> para que no
+        parpadee mientras carga el script. Sin capa, gana a los componentes. */}
+    <noscript>
+      <style is:inline>
+        @media (max-width: 1023.98px) {
+          html,
+          body {
+            height: auto;
+            overflow: visible;
+          }
+
+          .shell {
+            height: auto;
+            overflow: visible;
+          }
+
+          #left {
+            position: relative;
+            left: 0;
+            visibility: visible;
+          }
+
+          #panel {
+            height: auto;
+            min-height: 100dvh;
+            visibility: visible;
+            padding-top: calc(var(--pad) + var(--safe-top));
+          }
+
+          [data-back-button] {
+            display: none;
+          }
+        }
+      </style>
+    </noscript>
   </head>
   <body>
     <a class="skip-link" href="#panel" data-skip-link>Saltar al contenido</a>

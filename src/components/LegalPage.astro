@@ -1,0 +1,76 @@
+---
+/**
+ * C18 · Plantilla de las páginas legales (aviso legal y privacidad, fase 5).
+ *
+ * Fuera del menú, con el acento rosa (`section="none"`) y prerenderizadas.
+ * Los textos están **sin terminar a propósito**: los `TODO` marcan lo que
+ * tiene que rellenar Pau (§14, Q08). Esto no es asesoramiento legal.
+ */
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { withBase } from '../lib/url';
+
+interface Props {
+  /** Título de la página, en minúsculas como el resto de la web. */
+  title: string;
+  description: string;
+}
+
+const { title, description } = Astro.props;
+---
+
+<BaseLayout section="none" title={title} description={description}>
+  <article class="legal">
+    <slot />
+    <p class="legal__back"><a class="hl" href={withBase('/contact')}>volver a contact</a></p>
+  </article>
+</BaseLayout>
+
+<style>
+  @layer components {
+    .legal {
+      max-width: 44rem;
+      font-size: var(--fs-small);
+      line-height: var(--lh-paragraph);
+    }
+
+    /* Bloques con titulillo en mayúsculas y separador, como en Info (C12). */
+    .legal :global(h2) {
+      margin: 2rem 0 0.6rem;
+      padding-top: 0.5rem;
+      border-top: var(--rule-w) solid var(--c-panel-fg);
+      font-size: var(--fs-label);
+      font-weight: var(--fw-regular);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .legal :global(h2:first-child) {
+      margin-top: 0;
+    }
+
+    .legal :global(p),
+    .legal :global(ul) {
+      margin: 0 0 0.8em;
+    }
+
+    .legal :global(ul) {
+      padding-left: 1.2em;
+    }
+
+    .legal :global(li) {
+      margin-bottom: 0.2em;
+    }
+
+    /* Lo que falta, a la vista (§0: «lo que falte se deja como TODO visible»). */
+    .legal :global(.todo) {
+      padding: 0 0.2em;
+      background: var(--accent);
+      color: var(--c-panel-fg);
+      --cursor-over: var(--c-panel-fg);
+    }
+
+    .legal__back {
+      margin: 2rem 0 0;
+    }
+  }
+</style>

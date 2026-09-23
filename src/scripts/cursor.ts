@@ -4,7 +4,8 @@
  *   detiene cuando el ratón está quieto.
  * - Sobre enlaces y botones crece (×1,6); sobre un ítem del menú toma su
  *   color; al pulsar se encoge (×0,8); se oculta al salir de la ventana.
- * - En campos de texto e iframes (Turnstile) se oculta y vuelve el nativo.
+ * - En campos de texto, iframes y zonas marcadas con `data-native-cursor`
+ *   (el widget de Turnstile, C17) se oculta y vuelve el cursor del sistema.
  * - Cualquier elemento puede pedir otro color con la custom property
  *   `--cursor-over` (se hereda). La usan los ítems del menú (su color), el
  *   reproductor (violeta) y las zonas con fondo de acento (oscuro), para que
@@ -14,7 +15,8 @@
 const FINE_POINTER = window.matchMedia('(hover: hover) and (pointer: fine)');
 const REDUCED_MOTION = window.matchMedia('(prefers-reduced-motion: reduce)');
 
-const NATIVE_CURSOR_SELECTOR = 'input, textarea, select, [contenteditable]:not([contenteditable="false"]), iframe';
+const NATIVE_CURSOR_SELECTOR =
+  'input, textarea, select, [contenteditable]:not([contenteditable="false"]), iframe, [data-native-cursor]';
 const INTERACTIVE_SELECTOR = 'a[href], button, [role="button"], label, summary, [data-cursor-grow]';
 
 const LERP = 0.5;

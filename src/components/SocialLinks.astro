@@ -1,0 +1,44 @@
+---
+/**
+ * C17 · SocialLinks — los dos enlaces grandes de contact (fase 5).
+ * Sin el email ni el teléfono de Pau: solo SoundCloud e Instagram.
+ */
+import { SITE } from '../config/site';
+
+const LINKS = [
+  { label: 'SoundCloud', href: SITE.social.soundcloud },
+  { label: 'Instagram', href: SITE.social.instagram },
+] as const;
+---
+
+<ul class="social" role="list">
+  {
+    LINKS.map((link) => (
+      <li>
+        <a class="social__link hl" href={link.href} target="_blank" rel="noopener">
+          {link.label}<span aria-hidden="true"> ↗</span><span class="visually-hidden"> (se abre en otra pestaña)</span>
+        </a>
+      </li>
+    ))
+  }
+</ul>
+
+<style>
+  @layer components {
+    .social {
+      display: grid;
+      justify-items: start;
+      gap: 0.2em;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      font-size: calc(var(--fs-paragraph) * 1.4);
+      line-height: var(--lh-paragraph);
+    }
+
+    /* El rotulador (D39) solo al pasar el ratón o con el foco. */
+    .social__link:not(:hover, :focus-visible) {
+      background: none;
+    }
+  }
+</style>

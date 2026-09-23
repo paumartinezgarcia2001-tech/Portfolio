@@ -1,0 +1,56 @@
+---
+/**
+ * C18 · Aviso legal — plantilla con TODO (LSSI-CE, Ley 34/2002 art. 10).
+ * Prerenderizada y fuera del menú; se enlaza desde el pie de contact.
+ * Pau tiene que completar sus datos y revisarla. Esto no es asesoramiento legal.
+ */
+import LegalPage from '../components/LegalPage.astro';
+import { withBase } from '../lib/url';
+
+export const prerender = true;
+---
+
+<LegalPage title="aviso legal" description="Aviso legal de la web de travest15m0.">
+  <h2>Plantilla sin terminar</h2>
+  <p>
+    <mark class="todo">TODO</mark> Esta página está sin completar: faltan los datos de Pau y una revisión antes de
+    publicar la web en su dominio. Lo que hay debajo es la estructura que pide la Ley 34/2002 (LSSI-CE) para una web
+    con actividad profesional.
+  </p>
+
+  <h2>Titular de la web</h2>
+  <ul>
+    <li>Nombre y apellidos o razón social: <mark class="todo">TODO</mark></li>
+    <li>NIF: <mark class="todo">TODO</mark></li>
+    <li>Domicilio: <mark class="todo">TODO</mark></li>
+    <li>
+      Correo de contacto: <mark class="todo">TODO</mark> — la ley pide una dirección para comunicarse de forma directa;
+      usa una del dominio de la web (por ejemplo <span lang="en">hola@</span>el dominio), no el correo personal.
+    </li>
+    <li>Actividad: <mark class="todo">TODO</mark> (DJ, productora de eventos y técnica de sonido).</li>
+  </ul>
+
+  <h2>Condiciones de uso</h2>
+  <p><mark class="todo">TODO</mark> Qué se puede hacer en la web y qué no, y qué pasa si se usa mal.</p>
+
+  <h2>Propiedad intelectual</h2>
+  <p>
+    <mark class="todo">TODO</mark> De quién son los textos, las imágenes, el vídeo y los mixes, y qué se puede hacer con
+    ellos. Hay que revisar también el material de terceros que aparezca en la web (vídeos y música de otras personas).
+  </p>
+
+  <h2>Responsabilidad y enlaces</h2>
+  <p>
+    <mark class="todo">TODO</mark> La web enlaza a SoundCloud y a Instagram, que tienen sus propias condiciones y
+    políticas.
+  </p>
+
+  <h2>Datos personales</h2>
+  <p>
+    Lo que ocurre con los datos del formulario de contacto está en la <a class="hl" href={withBase('/privacidad')}>política de
+    privacidad</a>.
+  </p>
+
+  <h2>Legislación y jurisdicción</h2>
+  <p><mark class="todo">TODO</mark> Legislación aplicable y tribunales competentes.</p>
+</LegalPage>
