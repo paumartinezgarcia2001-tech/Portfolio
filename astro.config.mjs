@@ -80,6 +80,10 @@ export default defineConfig({
       PUBLIC_TURNSTILE_SITE_KEY: envField.string({ context: 'client', access: 'public', optional: true }),
       // --- Secretas (solo servidor; secrets de Cloudflare) ---
       ADMIN_PATH: envField.string({ context: 'server', access: 'secret', optional: true }),
+      // Alias para entrar en el panel sin escribir el email (fase 6, opcional):
+      // ADMIN_USERNAME → ADMIN_EMAIL (la cuenta de Supabase Auth). Solo servidor.
+      ADMIN_USERNAME: envField.string({ context: 'server', access: 'secret', optional: true }),
+      ADMIN_EMAIL: envField.string({ context: 'server', access: 'secret', optional: true }),
       RESEND_API_KEY: envField.string({ context: 'server', access: 'secret', optional: true }),
       CONTACT_TO_EMAIL: envField.string({ context: 'server', access: 'secret', optional: true }),
       CONTACT_FROM_EMAIL: envField.string({ context: 'server', access: 'secret', optional: true }),

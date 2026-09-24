@@ -25,6 +25,12 @@ export interface SecurityHeadersOptions {
   mediaBaseUrl?: string | undefined;
   /** PUBLIC_SUPABASE_URL (por si el navegador llega a hablar con Supabase). */
   supabaseUrl?: string | undefined;
+  /**
+   * Orígenes extra para `connect-src`. Solo el panel (fase 6, sin
+   * ClientRouter, así que puede tener su propia CSP): la subida directa de
+   * mixes al endpoint S3 de R2.
+   */
+  connectSources?: Array<string | undefined> | undefined;
 }
 
 /** Origen (`https://host[:puerto]`) de una URL, o `undefined` si no es válida. */
@@ -50,7 +56,7 @@ export function buildContentSecurityPolicy(options: SecurityHeadersOptions = {})
     ['font-src', ["'self'"]],
     // hls.js reproduce desde `blob:` (Media Source Extensions).
     ['media-src', ["'self'", 'blob:', media]],
-    ['connect-src', ["'self'", media, supabase]],
+    ['connect-src', ["'self'", media, supabase, ...(options.connectSources ?? []).map(originOf)]],
     ['frame-src', [TURNSTILE_ORIGIN]],
     ['manifest-src', ["'self'"]],
     ['object-src', ["'none'"]],

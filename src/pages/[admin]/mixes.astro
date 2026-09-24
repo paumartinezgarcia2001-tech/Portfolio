@@ -1,0 +1,226 @@
+---
+/**
+ * C19 · P2 · Mixes del reproductor (C06): subir uno nuevo directamente a R2
+ * (URL firmada por el Worker) y editar título, orden, carátula y si se publica.
+ *
+ * La subida no normaliza el volumen: para dejarlo a −14 LUFS (§7.5) se sigue
+ * usando `npm run media:mix` en el ordenador y aquí solo se publica.
+ */
+import { PUBLIC_MEDIA_BASE_URL } from 'astro:env/client';
+import { R2_ACCESS_KEY_ID, R2_ACCOUNT_ID, R2_BUCKET, R2_SECRET_ACCESS_KEY } from 'astro:env/server';
+import { ADMIN_LIMITS, ADMIN_TEXT, MIX_ARTWORK_TYPES, MIX_AUDIO_TYPES } from '../../config/admin';
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import LoginScreen from '../../components/admin/LoginScreen.astro';
+import { getAdminMixes } from '../../lib/admin/data';
+import { adminPage } from '../../lib/admin/page';
+import { resolveMediaUrl } from '../../lib/media';
+
+export const prerender = false;
+
+const page = adminPage(Astro);
+if (page.redirect) return page.redirect;
+
+const loaded = page.signedIn && page.supabase ? await getAdminMixes(page.supabase) : null;
+const mixes = loaded?.data ?? [];
+const uploadsReady = Boolean(R2_ACCOUNT_ID && R2_ACCESS_KEY_ID && R2_SECRET_ACCESS_KEY && R2_BUCKET);
+const audioAccept = Object.keys(MIX_AUDIO_TYPES).join(',');
+const artworkAccept = Object.keys(MIX_ARTWORK_TYPES).join(',');
+const maxMb = Math.round(ADMIN_LIMITS.mixMaxBytes / 1024 / 1024);
+const duration = (seconds: number | null) =>
+  seconds ? `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}` : '';
+---
+
+{
+  !page.signedIn ? (
+    <AdminLayout title="entrar">
+      <LoginScreen error={page.error} />
+    </AdminLayout>
+  ) : (
+    <AdminLayout title="mixes" current="mixes">
+      <main class="a-main" id="main">
+        <h1 class="a-title">mixes</h1>
+        <p class="a-lead">
+          El reproductor los baraja en cada visita. Solo suenan los publicados.
+          {!PUBLIC_MEDIA_BASE_URL && ' Mientras falte PUBLIC_MEDIA_BASE_URL, la web dice «reproductor — próximamente».'}
+        </p>
+
+        <section class="a-section" aria-labelledby="mix-new-title">
+          <h2 class="a-section__title" id="mix-new-title">
+            subir un mix
+          </h2>
+          {!uploadsReady ? (
+            <p class="a-alert">
+              Falta configurar R2 en el servidor (R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY y R2_BUCKET).
+              Mientras tanto, los mixes se añaden con <code>npm run media:mix</code>.
+            </p>
+          ) : (
+            <form method="post" class="a-form" data-mix-upload data-refresh="mixes" novalidate>
+              <div class="a-field" data-field="audio">
+                <label class="a-label" for="mix-file">
+                  archivo de audio * <span class="a-label__note">(MP3 o M4A, hasta {maxMb} MB)</span>
+                </label>
+                <input class="a-input" id="mix-file" name="archivo" type="file" accept={audioAccept} required />
+                <p class="a-field__hint">
+                  Mejor ya normalizado a −14 LUFS con <code>npm run media:mix</code> (así todos suenan igual de alto).
+                </p>
+                <p class="a-field__error" data-error-for="audio" hidden />
+              </div>
+              <div class="a-field" data-field="titulo">
+                <label class="a-label" for="mix-titulo">
+                  título *
+                </label>
+                <input class="a-input" id="mix-titulo" name="titulo" type="text" required maxlength={ADMIN_LIMITS.mixTitleMax} />
+                <p class="a-field__error" data-error-for="titulo" hidden />
+              </div>
+              <div class="a-field" data-field="subtitulo">
+                <label class="a-label" for="mix-subtitulo">
+                  subtítulo <span class="a-label__note">(opcional: sale como «álbum» en el móvil)</span>
+                </label>
+                <input
+                  class="a-input"
+                  id="mix-subtitulo"
+                  name="subtitulo"
+                  type="text"
+                  maxlength={ADMIN_LIMITS.mixSubtitleMax}
+                />
+                <p class="a-field__error" data-error-for="subtitulo" hidden />
+              </div>
+              <div class="a-field" data-field="caratula">
+                <label class="a-label" for="mix-artwork">
+                  carátula <span class="a-label__note">(opcional: cuadrada, JPG/WebP/PNG, hasta 5 MB)</span>
+                </label>
+                <input class="a-input" id="mix-artwork" name="imagen" type="file" accept={artworkAccept} />
+                <p class="a-field__error" data-error-for="caratula" hidden />
+              </div>
+              <div class="a-field" data-field="orden">
+                <label class="a-label" for="mix-orden">
+                  orden <span class="a-label__note">(opcional; solo cuenta si algún día se quita el barajado)</span>
+                </label>
+                <input class="a-input" id="mix-orden" name="orden" type="number" inputmode="numeric" step="1" value="0" />
+                <p class="a-field__error" data-error-for="orden" hidden />
+              </div>
+              <label class="a-check">
+                <input type="checkbox" name="publicado" checked />
+                publicado (suena en la web)
+              </label>
+              <progress class="a-progress" max="100" value="0" data-upload-progress hidden />
+              <p class="a-help" data-upload-status aria-live="polite" />
+              <p class="a-alert" role="alert" data-form-error hidden />
+              <div class="a-actions">
+                <button class="a-btn" type="submit" data-submit>
+                  subir y guardar
+                </button>
+              </div>
+            </form>
+          )}
+        </section>
+
+        <section class="a-section" aria-labelledby="mix-list-title" data-region="mixes">
+          <h2 class="a-section__title" id="mix-list-title">
+            {mixes.length} {mixes.length === 1 ? 'mix' : 'mixes'}
+          </h2>
+          {loaded && !loaded.ok && <p class="a-alert">{ADMIN_TEXT.loadFailed}</p>}
+          {mixes.length === 0 ? (
+            <p class="a-empty">Todavía no hay mixes.</p>
+          ) : (
+            <ul class="a-list">
+              {mixes.map((mix) => {
+                const src = resolveMediaUrl(PUBLIC_MEDIA_BASE_URL, mix.audio_url);
+                const id = `mix-${mix.id.slice(0, 8)}`;
+                return (
+                  <li class="a-item" style="grid-template-columns: 1fr">
+                    <form method="post" class="a-form" data-admin-form="updateMix" data-refresh="mixes" novalidate>
+                      <input type="hidden" name="id" value={mix.id} />
+                      <p class="a-item__date">
+                        {mix.published ? 'publicado' : <span class="a-badge">sin publicar</span>}
+                        {mix.duration_seconds && <> · {duration(mix.duration_seconds)}</>}
+                      </p>
+                      <p class="a-item__meta">
+                        <code>{mix.audio_url}</code>
+                      </p>
+                      {src && <audio class="a-audio" controls preload="none" src={src} />}
+                      <div class="a-grid a-grid--2">
+                        <div class="a-field" data-field="titulo">
+                          <label class="a-label" for={`${id}-titulo`}>
+                            título
+                          </label>
+                          <input
+                            class="a-input"
+                            id={`${id}-titulo`}
+                            name="titulo"
+                            type="text"
+                            required
+                            maxlength={ADMIN_LIMITS.mixTitleMax}
+                            value={mix.title}
+                          />
+                          <p class="a-field__error" data-error-for="titulo" hidden />
+                        </div>
+                        <div class="a-field" data-field="subtitulo">
+                          <label class="a-label" for={`${id}-subtitulo`}>
+                            subtítulo
+                          </label>
+                          <input
+                            class="a-input"
+                            id={`${id}-subtitulo`}
+                            name="subtitulo"
+                            type="text"
+                            maxlength={ADMIN_LIMITS.mixSubtitleMax}
+                            value={mix.subtitle ?? ''}
+                          />
+                          <p class="a-field__error" data-error-for="subtitulo" hidden />
+                        </div>
+                        <div class="a-field" data-field="orden">
+                          <label class="a-label" for={`${id}-orden`}>
+                            orden
+                          </label>
+                          <input
+                            class="a-input"
+                            id={`${id}-orden`}
+                            name="orden"
+                            type="number"
+                            inputmode="numeric"
+                            step="1"
+                            value={mix.sort_order}
+                          />
+                          <p class="a-field__error" data-error-for="orden" hidden />
+                        </div>
+                      </div>
+                      {mix.artwork_url && (
+                        <label class="a-check">
+                          <input type="checkbox" name="quitarCaratula" />
+                          quitar la carátula
+                        </label>
+                      )}
+                      <label class="a-check">
+                        <input type="checkbox" name="publicado" checked={mix.published} />
+                        publicado (suena en la web)
+                      </label>
+                      <div class="a-actions">
+                        <button class="a-btn a-btn--small" type="submit" data-submit>
+                          guardar
+                        </button>
+                      </div>
+                    </form>
+                    <form
+                      method="post"
+                      data-admin-form="deleteMix"
+                      data-refresh="mixes"
+                      data-confirm={`¿Borrar «${mix.title}»? Se borra también el archivo de R2 si se subió desde aquí o con media:mix.`}
+                      data-confirm-label="borrar"
+                    >
+                      <input type="hidden" name="id" value={mix.id} />
+                      <input type="hidden" name="borrarArchivos" value="true" />
+                      <button class="a-btn a-btn--ghost a-btn--small" type="submit" aria-label={`Borrar ${mix.title}`}>
+                        borrar
+                      </button>
+                    </form>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
+      </main>
+    </AdminLayout>
+  )
+}

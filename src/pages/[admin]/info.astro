@@ -1,0 +1,116 @@
+---
+/**
+ * C19 · P2 · Texto de Info (C12) desde el panel.
+ *
+ * Se guarda en `site_settings.info_markdown`. Mientras esté vacío, la web usa
+ * src/content/info.md (el texto de Pau, D36), que es también el punto de
+ * partida del editor. Markdown sencillo y seguro (src/lib/markdown.ts).
+ */
+import { getEntry } from 'astro:content';
+import { ADMIN_LIMITS, ADMIN_TEXT } from '../../config/admin';
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import LoginScreen from '../../components/admin/LoginScreen.astro';
+import { getAdminSettings } from '../../lib/admin/data';
+import { adminPage } from '../../lib/admin/page';
+import { infoSourceToMarkdown, renderInfoMarkdown } from '../../lib/markdown';
+
+export const prerender = false;
+
+const page = adminPage(Astro);
+if (page.redirect) return page.redirect;
+
+const settings = page.signedIn && page.supabase ? await getAdminSettings(page.supabase) : null;
+const entry = await getEntry('pages', 'info');
+const fromRepo = infoSourceToMarkdown(entry?.body ?? '');
+const saved = settings?.data?.info_markdown?.trim() || null;
+const markdown = saved ?? fromRepo;
+const max = ADMIN_LIMITS.infoMax;
+---
+
+{
+  !page.signedIn ? (
+    <AdminLayout title="entrar">
+      <LoginScreen error={page.error} />
+    </AdminLayout>
+  ) : (
+    <AdminLayout title="info" current="info">
+      <main class="a-main" id="main">
+        <h1 class="a-title">info</h1>
+        {settings && !settings.ok && <p class="a-alert">{ADMIN_TEXT.loadFailed}</p>}
+        <p class="a-lead">
+          {saved
+            ? 'La web muestra el texto guardado desde aquí.'
+            : 'La web muestra el texto original (el del repo). Al guardar, pasa a mostrar el de aquí.'}
+        </p>
+
+        <section class="a-section" aria-labelledby="info-editor-title">
+          <h2 class="a-section__title" id="info-editor-title">
+            texto
+          </h2>
+          <form method="post" class="a-form" data-admin-form="updateInfo" data-info-editor novalidate>
+            <div class="a-field" data-field="markdown">
+              <label class="a-label" for="info-markdown">
+                texto de info
+              </label>
+              <textarea
+                class="a-input"
+                id="info-markdown"
+                name="markdown"
+                rows="16"
+                aria-describedby="info-markdown-hint"
+                data-count-max={max}
+                data-count-raw
+              >{markdown}</textarea>
+              <p class="a-counter" data-counter aria-live="off">
+                {markdown.length} / {max}
+              </p>
+              <div class="a-help" id="info-markdown-hint">
+                <p>
+                  Una línea en blanco separa los párrafos. <code>## Booking</code> hace un titulillo. Los enlaces se
+                  escriben <code>[texto](https://…)</code>, o <code>[contact](/contact)</code> para una sección de la web.
+                  No hace falta nada más: la web le pone su estilo.
+                </p>
+              </div>
+              <p class="a-field__error" data-error-for="markdown" hidden />
+            </div>
+
+            <div class="a-field">
+              <p class="a-label" id="info-preview-label">
+                vista previa
+              </p>
+              <div class="a-preview" aria-labelledby="info-preview-label">
+                <article class="prose" data-info-preview set:html={renderInfoMarkdown(markdown)} />
+              </div>
+            </div>
+
+            <div class="a-actions">
+              <button class="a-btn" type="submit" data-submit>
+                guardar
+              </button>
+            </div>
+          </form>
+        </section>
+
+        {saved && (
+          <section class="a-section" aria-labelledby="info-restore-title">
+            <h2 class="a-section__title" id="info-restore-title">
+              volver al original
+            </h2>
+            <form
+              method="post"
+              data-admin-form="updateInfo"
+              data-redirect={Astro.url.pathname}
+              data-confirm="¿Volver al texto original? Se pierde el texto guardado desde el panel."
+              data-confirm-label="volver al original"
+            >
+              <input type="hidden" name="restaurar" value="true" />
+              <button class="a-btn a-btn--ghost" type="submit">
+                usar el texto original
+              </button>
+            </form>
+          </section>
+        )}
+      </main>
+    </AdminLayout>
+  )
+}

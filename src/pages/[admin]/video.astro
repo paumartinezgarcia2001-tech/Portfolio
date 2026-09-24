@@ -1,0 +1,183 @@
+---
+/**
+ * C19 · P2 · Vídeo de Media (C15) desde el panel: título (lectores de
+ * pantalla), punto focal, enlace «ver set completo» y, en «avanzado», el
+ * bloque que imprime scripts/video-to-hls.mjs al preparar un vídeo nuevo.
+ *
+ * Se guarda en `site_settings.video`. Mientras esté vacío, la web usa el vídeo
+ * de src/config/media.ts. Sin pixelado (D40): no hay tamaño de píxel.
+ */
+import { PUBLIC_MEDIA_BASE_URL } from 'astro:env/client';
+import { ADMIN_TEXT } from '../../config/admin';
+import { MEDIA_VIDEO } from '../../config/media';
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import LoginScreen from '../../components/admin/LoginScreen.astro';
+import { getAdminSettings } from '../../lib/admin/data';
+import { adminPage } from '../../lib/admin/page';
+import { parseStoredVideo } from '../../lib/admin/video';
+import { resolveMediaUrl } from '../../lib/media';
+
+export const prerender = false;
+
+const page = adminPage(Astro);
+if (page.redirect) return page.redirect;
+
+const settings = page.signedIn && page.supabase ? await getAdminSettings(page.supabase) : null;
+const stored = parseStoredVideo(settings?.data?.video);
+const video = stored ?? MEDIA_VIDEO;
+const poster = resolveMediaUrl(PUBLIC_MEDIA_BASE_URL, video.poster.jpg);
+const focusX = Math.round(video.focusX * 1000) / 10;
+const focusY = Math.round(video.focusY * 1000) / 10;
+---
+
+{
+  !page.signedIn ? (
+    <AdminLayout title="entrar">
+      <LoginScreen error={page.error} />
+    </AdminLayout>
+  ) : (
+    <AdminLayout title="vídeo" current="video">
+      <main class="a-main" id="main">
+        <h1 class="a-title">vídeo</h1>
+        {settings && !settings.ok && <p class="a-alert">{ADMIN_TEXT.loadFailed}</p>}
+        <p class="a-lead">
+          {stored
+            ? 'Media usa el vídeo configurado desde aquí.'
+            : 'Media usa el vídeo del código (src/config/media.ts). Al guardar, pasa a usar lo de aquí.'}{' '}
+          Ahora: <strong>{video.slug}</strong>.
+        </p>
+
+        <form method="post" class="a-form" data-admin-form="updateVideo" data-redirect={Astro.url.pathname} data-video-editor novalidate>
+          <section class="a-section" aria-labelledby="video-focus-title">
+            <h2 class="a-section__title" id="video-focus-title">
+              punto focal
+            </h2>
+            <p class="a-help">
+              El vídeo se recorta para llenar el panel: este punto siempre se queda a la vista. Toca la imagen o mueve
+              las barras.
+            </p>
+            <div class="a-focus" data-focus-preview style={`--fx: ${focusX}%; --fy: ${focusY}%`}>
+              {poster ? (
+                <img src={poster} alt="Póster del vídeo" style={`object-position: ${focusX}% ${focusY}%`} data-focus-image />
+              ) : (
+                <p class="a-help" style="color: var(--c-menu-fg); padding: 1rem">
+                  Sin PUBLIC_MEDIA_BASE_URL no se puede ver el póster.
+                </p>
+              )}
+              <span class="a-focus__dot" style={`left: ${focusX}%; top: ${focusY}%`} data-focus-dot aria-hidden="true" />
+            </div>
+            <div class="a-grid a-grid--2">
+              <div class="a-field" data-field="focoX">
+                <label class="a-label" for="video-focox">
+                  horizontal (<output data-focus-output="focoX">{focusX}</output> %)
+                </label>
+                <input class="a-range" id="video-focox" name="focoX" type="range" min="0" max="100" step="1" value={focusX} />
+                <p class="a-field__error" data-error-for="focoX" hidden />
+              </div>
+              <div class="a-field" data-field="focoY">
+                <label class="a-label" for="video-focoy">
+                  vertical (<output data-focus-output="focoY">{focusY}</output> %)
+                </label>
+                <input class="a-range" id="video-focoy" name="focoY" type="range" min="0" max="100" step="1" value={focusY} />
+                <p class="a-field__error" data-error-for="focoY" hidden />
+              </div>
+            </div>
+          </section>
+
+          <section class="a-section" aria-labelledby="video-text-title">
+            <h2 class="a-section__title" id="video-text-title">
+              textos
+            </h2>
+            <div class="a-field" data-field="titulo">
+              <label class="a-label" for="video-titulo">
+                título <span class="a-label__note">(no se ve: lo leen los lectores de pantalla)</span>
+              </label>
+              <input class="a-input" id="video-titulo" name="titulo" type="text" required maxlength="120" value={video.title} />
+              <p class="a-field__error" data-error-for="titulo" hidden />
+            </div>
+            <label class="a-check">
+              <input type="checkbox" name="setCompleto" checked={Boolean(video.fullSet)} data-fullset-toggle />
+              enlace «ver set completo ↗»
+            </label>
+            <div class="a-grid a-grid--2" data-fullset-fields hidden={!video.fullSet}>
+              <div class="a-field" data-field="setUrl">
+                <label class="a-label" for="video-seturl">
+                  enlace
+                </label>
+                <input
+                  class="a-input"
+                  id="video-seturl"
+                  name="setUrl"
+                  type="url"
+                  inputmode="url"
+                  placeholder="https://"
+                  value={video.fullSet?.href ?? ''}
+                />
+                <p class="a-field__error" data-error-for="setUrl" hidden />
+              </div>
+              <div class="a-field" data-field="setTexto">
+                <label class="a-label" for="video-settexto">
+                  texto del enlace
+                </label>
+                <input
+                  class="a-input"
+                  id="video-settexto"
+                  name="setTexto"
+                  type="text"
+                  maxlength="60"
+                  value={video.fullSet?.label ?? 'ver set completo'}
+                />
+                <p class="a-field__error" data-error-for="setTexto" hidden />
+              </div>
+            </div>
+          </section>
+
+          <details class="a-section">
+            <summary class="a-section__title a-link">avanzado: cambiar de vídeo</summary>
+            <div class="a-field" data-field="bloque">
+              <label class="a-label" for="video-bloque">
+                bloque de video-to-hls
+              </label>
+              <textarea class="a-input a-input--code" id="video-bloque" name="bloque" rows="10" spellcheck="false" />
+              <p class="a-help">
+                Primero se prepara y se sube el vídeo con <code>npm run media:hls</code> y <code>npm run media:upload</code>{' '}
+                (ver README). Al terminar, el script imprime un bloque de <code>slug</code> a <code>mobile</code>: pégalo
+                aquí tal cual. Vacío = se queda el vídeo de ahora.
+              </p>
+              <p class="a-field__error" data-error-for="bloque" hidden />
+            </div>
+          </details>
+
+          <div class="a-actions">
+            <button class="a-btn" type="submit" data-submit>
+              guardar
+            </button>
+          </div>
+        </form>
+
+        {stored && (
+          <section class="a-section" aria-labelledby="video-restore-title">
+            <h2 class="a-section__title" id="video-restore-title">
+              volver al del código
+            </h2>
+            <form
+              method="post"
+              data-admin-form="updateVideo"
+              data-redirect={Astro.url.pathname}
+              data-confirm="¿Volver al vídeo de src/config/media.ts? Se pierden los ajustes guardados aquí."
+              data-confirm-label="volver al del código"
+            >
+              <input type="hidden" name="restaurar" value="true" />
+              <input type="hidden" name="titulo" value={video.title} />
+              <input type="hidden" name="focoX" value={focusX} />
+              <input type="hidden" name="focoY" value={focusY} />
+              <button class="a-btn a-btn--ghost" type="submit">
+                usar el vídeo del código
+              </button>
+            </form>
+          </section>
+        )}
+      </main>
+    </AdminLayout>
+  )
+}

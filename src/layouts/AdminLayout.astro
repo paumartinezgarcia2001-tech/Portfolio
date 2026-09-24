@@ -1,0 +1,92 @@
+---
+/**
+ * C19 · AdminLayout — documento del panel oculto (fase 6).
+ *
+ * Independiente de BaseLayout: sin rejilla pixelada, sin cursor propio y sin
+ * ClientRouter (cada página del panel se carga entera). Mismos tokens, una
+ * columna legible y `noindex` (además de la cabecera X-Robots-Tag que pone
+ * src/middleware.ts). Nunca se enlaza desde la web pública.
+ */
+import '../styles/admin.css';
+import { ADMIN_PAGES, ADMIN_TEXT, adminHref, type AdminPageKey } from '../config/admin';
+import { SITE } from '../config/site';
+import { withBase } from '../lib/url';
+
+interface Props {
+  /** Título de la pestaña (se completa con « — panel»). */
+  title: string;
+  /** Página actual del menú; sin él, no hay menú (login, segundo paso). */
+  current?: AdminPageKey | undefined;
+}
+
+const { title, current } = Astro.props;
+const slug = Astro.locals.admin?.slug ?? '';
+const signedIn = Astro.locals.admin?.state.kind === 'admin' && !Astro.locals.admin.state.session.needsMfa;
+---
+
+<!doctype html>
+<html lang={SITE.lang} data-admin>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="robots" content="noindex,nofollow" />
+    <meta name="referrer" content="same-origin" />
+    <meta name="theme-color" content="#27272B" />
+    <meta name="color-scheme" content="only light" />
+    <title>{`${title} — panel`}</title>
+    <link rel="icon" href={withBase('/favicon.svg')} type="image/svg+xml" />
+  </head>
+  <body>
+    <header class="a-bar">
+      <p class="a-bar__title">
+        <a class="a-bar__site" href={withBase('/')}>{SITE.name}</a> · panel
+      </p>
+      {
+        signedIn && current && (
+          <nav class="a-nav" aria-label="Panel">
+            <ul>
+              {ADMIN_PAGES.map((page) => (
+                <li>
+                  <a href={adminHref(slug, page.path)} aria-current={page.key === current ? 'page' : undefined}>
+                    {page.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        )
+      }
+      {
+        signedIn && (
+          <form class="a-logout" method="post" data-admin-logout>
+            <button type="submit">cerrar sesión</button>
+          </form>
+        )
+      }
+    </header>
+
+    <slot />
+
+    <noscript>
+      <p class="a-alert" style="margin: var(--pad)">{ADMIN_TEXT.noScript}</p>
+    </noscript>
+
+    <p class="a-toast" role="status" aria-live="polite" data-admin-toast></p>
+
+    {/* Confirmaciones (borrar, duplicados): un <dialog>, nunca confirm() (C19). */}
+    <dialog class="a-dialog" data-admin-dialog aria-labelledby="a-dialog-title">
+      <form method="dialog" class="a-dialog__body">
+        <p class="a-dialog__title" id="a-dialog-title" data-dialog-text></p>
+        <ul class="a-dialog__list" data-dialog-list hidden></ul>
+        <div class="a-actions">
+          <button class="a-btn" value="confirm" data-dialog-confirm>aceptar</button>
+          <button class="a-btn a-btn--ghost" value="cancel" autofocus>cancelar</button>
+        </div>
+      </form>
+    </dialog>
+
+    <script>
+      import '../scripts/admin/index';
+    </script>
+  </body>
+</html>

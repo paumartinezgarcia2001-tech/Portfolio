@@ -1,0 +1,75 @@
+---
+/**
+ * C19 · Editar un bolo (próximo o del archivo) y borrarlo.
+ */
+import { ADMIN_TEXT, adminHref } from '../../../config/admin';
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import GigForm from '../../../components/admin/GigForm.astro';
+import LoginScreen from '../../../components/admin/LoginScreen.astro';
+import { getAdminGig } from '../../../lib/admin/data';
+import { adminPage } from '../../../lib/admin/page';
+import { formatEventDate } from '../../../lib/dates';
+
+export const prerender = false;
+
+const page = adminPage(Astro);
+if (page.redirect) return page.redirect;
+
+// Solo se vuelve a páginas del propio panel.
+const root = adminHref(page.slug);
+const requested = Astro.url.searchParams.get('volver') ?? '';
+const returnTo = requested === root || requested.startsWith(`${root}/`) || requested.startsWith(`${root}?`) ? requested : root;
+
+const loaded = page.signedIn && page.supabase ? await getAdminGig(page.supabase, Astro.params.id ?? '') : null;
+const gig = loaded?.data ?? null;
+if (page.signedIn && loaded?.ok && !gig) Astro.response.status = 404;
+---
+
+{
+  !page.signedIn ? (
+    <AdminLayout title="entrar">
+      <LoginScreen error={page.error} />
+    </AdminLayout>
+  ) : (
+    <AdminLayout title="editar bolo" current={returnTo.includes('/archivo') ? 'archive' : 'home'}>
+      <main class="a-main" id="main">
+        <p>
+          <a class="a-link" href={returnTo}>
+            ← volver
+          </a>
+        </p>
+        <h1 class="a-title">editar bolo</h1>
+        {!loaded?.ok && <p class="a-alert">{ADMIN_TEXT.loadFailed}</p>}
+        {loaded?.ok && !gig && <p class="a-alert">Ese bolo no existe (quizá ya se ha borrado).</p>}
+        {gig && (
+          <>
+            <p class="a-lead">
+              {formatEventDate(gig.event_date)} · {gig.party_name || 'TBA'} · {gig.venue}, {gig.city}
+            </p>
+            <section class="a-section" aria-label="Datos del bolo">
+              <GigForm gig={gig} returnTo={returnTo} />
+            </section>
+            <section class="a-section" aria-labelledby="delete-title">
+              <h2 class="a-section__title" id="delete-title">
+                borrar
+              </h2>
+              <form
+                method="post"
+                data-admin-form="deleteGig"
+                data-redirect={returnTo}
+                data-confirm={`¿Borrar ${gig.party_name || 'TBA'} del ${formatEventDate(gig.event_date)} en ${gig.venue}? No se puede deshacer.`}
+                data-confirm-label="borrar"
+              >
+                <input type="hidden" name="id" value={gig.id} />
+                <button class="a-btn a-btn--ghost" type="submit">
+                  borrar este bolo
+                </button>
+              </form>
+              <p class="a-help">Si solo quieres que no se vea en la web, desmarca «publicado» y guarda.</p>
+            </section>
+          </>
+        )}
+      </main>
+    </AdminLayout>
+  )
+}

@@ -1,0 +1,72 @@
+---
+/**
+ * C19.3 · Lista de bolos del panel (próximos y archivo) con editar y borrar.
+ * Borrar pide confirmación con un <dialog> (nunca `confirm()`), que abre
+ * src/scripts/admin/forms.ts.
+ */
+import { adminHref } from '../../config/admin';
+import type { AdminGig } from '../../lib/admin/data';
+import { formatEventDate } from '../../lib/dates';
+
+interface Props {
+  gigs: AdminGig[];
+  slug: string;
+  /** Región que se recarga tras borrar. */
+  region: string;
+  empty: string;
+  /** Página a la que vuelve la edición. */
+  returnTo: string;
+}
+
+const { gigs, slug, region, empty, returnTo } = Astro.props;
+const back = encodeURIComponent(returnTo);
+---
+
+{
+  gigs.length === 0 ? (
+    <p class="a-empty">{empty}</p>
+  ) : (
+    <ul class="a-list" data-gig-list>
+      {gigs.map((gig) => {
+        const date = formatEventDate(gig.event_date);
+        const name = gig.party_name || 'TBA';
+        return (
+          <li class="a-item" data-gig-id={gig.id}>
+            <div class="a-item__main">
+              <p class="a-item__date">
+                <time datetime={gig.event_date}>{date}</time>
+                {!gig.published && <span class="a-badge">sin publicar</span>}
+              </p>
+              <p class="a-item__name">{name}</p>
+              <p class="a-item__meta">
+                {gig.venue}, {gig.city}
+                {gig.lineup.length > 0 && <> · {gig.lineup.join(', ')}</>}
+              </p>
+            </div>
+            <div class="a-item__tools">
+              <a
+                class="a-btn a-btn--ghost a-btn--small"
+                href={`${adminHref(slug, `bolos/${gig.id}`)}?volver=${back}`}
+                aria-label={`Editar ${name}, ${date}`}
+              >
+                editar
+              </a>
+              <form
+                method="post"
+                data-admin-form="deleteGig"
+                data-refresh={region}
+                data-confirm={`¿Borrar ${name} del ${date} en ${gig.venue}? No se puede deshacer.`}
+                data-confirm-label="borrar"
+              >
+                <input type="hidden" name="id" value={gig.id} />
+                <button class="a-btn a-btn--ghost a-btn--small" type="submit" aria-label={`Borrar ${name}, ${date}`}>
+                  borrar
+                </button>
+              </form>
+            </div>
+          </li>
+        );
+      })}
+    </ul>
+  )
+}

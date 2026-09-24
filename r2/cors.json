@@ -12,6 +12,15 @@
       },
       "exposeHeaders": ["Content-Length", "Content-Range", "Accept-Ranges", "ETag"],
       "maxAgeSeconds": 86400
+    },
+    {
+      "allowed": {
+        "origins": ["http://localhost:4321", "http://127.0.0.1:4321"],
+        "methods": ["PUT"],
+        "headers": ["Content-Type", "Cache-Control"]
+      },
+      "exposeHeaders": ["ETag"],
+      "maxAgeSeconds": 3600
     }
   ]
 }

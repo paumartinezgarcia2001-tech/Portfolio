@@ -1,0 +1,111 @@
+---
+/**
+ * C19 · Seguridad: verificación en dos pasos (TOTP, recomendada en C19).
+ *
+ * Con TOTP activado, después de la contraseña el panel pide el código de la
+ * app (Google Authenticator, 1Password, Aegis…). Si se pierde el móvil, se
+ * quita el factor desde el dashboard de Supabase (Authentication → Users).
+ */
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import LoginScreen from '../../components/admin/LoginScreen.astro';
+import { adminPage } from '../../lib/admin/page';
+
+export const prerender = false;
+
+const page = adminPage(Astro);
+if (page.redirect) return page.redirect;
+const hasMfa = page.session?.hasMfa ?? false;
+---
+
+{
+  !page.signedIn ? (
+    <AdminLayout title="entrar">
+      <LoginScreen error={page.error} />
+    </AdminLayout>
+  ) : (
+    <AdminLayout title="seguridad" current="security">
+      <main class="a-main" id="main">
+        <h1 class="a-title">seguridad</h1>
+        <section class="a-section" aria-labelledby="mfa-title">
+          <h2 class="a-section__title" id="mfa-title">
+            verificación en dos pasos
+          </h2>
+          {hasMfa ? (
+            <>
+              <p class="a-lead">Activada: al entrar, el panel pide también el código de la app.</p>
+              <form
+                method="post"
+                data-admin-form="mfaRemove"
+                data-redirect={Astro.url.pathname}
+                data-confirm="¿Desactivar la verificación en dos pasos? El panel quedará protegido solo con la contraseña."
+                data-confirm-label="desactivar"
+              >
+                <button class="a-btn a-btn--ghost" type="submit">
+                  desactivar
+                </button>
+              </form>
+            </>
+          ) : (
+            <>
+              <p class="a-lead">
+                Desactivada. Con ella, además de la contraseña hace falta un código de seis cifras que da una app del
+                móvil (Google Authenticator, 1Password, Aegis…). Muy recomendable.
+              </p>
+              <form method="post" class="a-form" data-mfa-start>
+                <p class="a-alert" role="alert" data-form-error hidden />
+                <div class="a-actions">
+                  <button class="a-btn" type="submit" data-submit>
+                    activar
+                  </button>
+                </div>
+              </form>
+              <form method="post" class="a-form" data-mfa-confirm hidden novalidate>
+                <p class="a-help">
+                  1. Escanea este código con la app (o escribe la clave a mano). 2. Escribe el código de seis cifras que
+                  te dé.
+                </p>
+                <img class="a-qr" alt="Código QR para la app de autenticación" data-mfa-qr />
+                <p class="a-help">
+                  Clave: <span class="a-secret" data-mfa-secret />
+                </p>
+                <input type="hidden" name="factorId" />
+                <div class="a-field" data-field="codigo">
+                  <label class="a-label" for="mfa-new-codigo">
+                    código
+                  </label>
+                  <input
+                    class="a-input"
+                    id="mfa-new-codigo"
+                    name="codigo"
+                    type="text"
+                    inputmode="numeric"
+                    autocomplete="one-time-code"
+                    maxlength="7"
+                    required
+                  />
+                  <p class="a-field__error" data-error-for="codigo" hidden />
+                </div>
+                <p class="a-alert" role="alert" data-form-error hidden />
+                <div class="a-actions">
+                  <button class="a-btn" type="submit" data-submit>
+                    confirmar
+                  </button>
+                </div>
+              </form>
+            </>
+          )}
+        </section>
+
+        <section class="a-section" aria-labelledby="password-title">
+          <h2 class="a-section__title" id="password-title">
+            contraseña
+          </h2>
+          <p class="a-help">
+            No hay «olvidé mi contraseña» público (C19): si hace falta cambiarla, se hace desde el dashboard de Supabase
+            (Authentication → Users → la cuenta → «Send password recovery» o «Reset password»).
+          </p>
+        </section>
+      </main>
+    </AdminLayout>
+  )
+}

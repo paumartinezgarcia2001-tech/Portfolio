@@ -26,12 +26,17 @@
  *   STATIC_BUILD hace que /contact muestre «formulario — próximamente» (con
  *   las redes y el pie legal), y withoutActions() quita las Actions del build.
  *   `cloudflare:workers` (bindings del Worker) se sustituye por un módulo
- *   vacío. El panel de la fase 6 tampoco funcionará aquí.
+ *   vacío.
+ * - Sin panel (fase 6): sus páginas (src/pages/[admin]/) necesitan servidor.
+ *   withoutAdminPanel() las compila como estáticas sin ninguna ruta, así que
+ *   no generan nada.
  *
  * En local: `npm run build:pages` y `npm run preview:pages`
  * (http://localhost:4321/Portfolio/).
  */
-import { rm } from 'node:fs/promises';
+import { readFile, readdir, rm } from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import sharedConfig from './astro.config.mjs';
 
 // Valores por defecto de las variables de astro:env para este build (se
@@ -61,8 +66,8 @@ const config = {
   base,
   output: 'static',
   build: { ...shared.build, format: 'file' },
-  integrations: [...(shared.integrations ?? []), markdownBaseLinks(base), withoutServerEndpoints(), withoutActions()],
-  vite: { ...shared.vite, plugins: [...(shared.vite?.plugins ?? []), cloudflareWorkersStub()] },
+  integrations: [...(shared.integrations ?? []), markdownBaseLinks(base), withoutServerEndpoints(), withoutActions(), withoutAdminPanel()],
+  vite: { ...shared.vite, plugins: [...(shared.vite?.plugins ?? []), cloudflareWorkersStub(), adminPagesWithoutPaths()] },
 };
 
 export default config;
@@ -157,5 +162,88 @@ function cloudflareWorkersStub() {
     enforce: 'pre',
     resolveId: (source) => (source === 'cloudflare:workers' ? id : undefined),
     load: (source) => (source === id ? 'export const env = {};' : undefined),
+  };
+}
+
+/** Páginas del panel oculto (fase 6): src/pages/[admin]/… */
+const ADMIN_PAGES_DIR = /[\\/]src[\\/]pages[\\/]\[admin\][\\/]/;
+
+/**
+ * El panel (fase 6) solo funciona con servidor. En una web estática sin
+ * adaptador, Astro no deja compilar páginas bajo demanda, así que aquí se
+ * marcan como prerenderizadas y (con adminPagesWithoutPaths) sin ninguna ruta
+ * que generar: no sale ningún archivo del panel en la web de GitHub Pages.
+ * @returns {import('astro').AstroIntegration}
+ */
+function withoutAdminPanel() {
+  return {
+    name: 'github-pages:without-admin-panel',
+    hooks: {
+      'astro:route:setup': ({ route }) => {
+        if (ADMIN_PAGES_DIR.test(`/${route.component}`)) route.prerender = true;
+      },
+      // Vite compila igualmente el script y los estilos del panel, aunque
+      // ninguna página los use: se borran los archivos de _astro/ a los que no
+      // apunta nada, para que la web estática no lleve ni rastro del panel.
+      'astro:build:done': async ({ dir, logger }) => {
+        const removed = await removeUnreferencedAssets(dir);
+        if (removed.length > 0) logger.info(`Quitados ${removed.length} archivos sin usar (panel): ${removed.join(', ')}`);
+      },
+    },
+  };
+}
+
+/**
+ * Borra de `_astro/` los archivos que no nombra ningún otro archivo de la
+ * salida (HTML, JS o CSS), hasta que no queda ninguno.
+ * @param {URL} dir
+ * @returns {Promise<string[]>}
+ */
+async function removeUnreferencedAssets(dir) {
+  const root = fileURLToPath(dir);
+  const assetsDir = path.join(root, '_astro');
+  /** @type {string[]} */
+  const removed = [];
+  const walk = async (/** @type {string} */ folder) => {
+    const entries = await readdir(folder, { withFileTypes: true });
+    /** @type {string[]} */
+    const files = [];
+    for (const entry of entries) {
+      const full = path.join(folder, entry.name);
+      if (entry.isDirectory()) files.push(...(await walk(full)));
+      else if (/\.(html|js|mjs|css|json|xml|txt)$/.test(entry.name)) files.push(full);
+    }
+    return files;
+  };
+  for (;;) {
+    const texts = new Map();
+    for (const file of await walk(root)) texts.set(file, await readFile(file, 'utf8'));
+    const assets = (await readdir(assetsDir).catch(() => [])).filter((name) => /\.(js|css)$/.test(name));
+    const unused = assets.filter((name) => {
+      const full = path.join(assetsDir, name);
+      for (const [file, text] of texts) if (file !== full && text.includes(name)) return false;
+      return true;
+    });
+    if (unused.length === 0) return removed;
+    for (const name of unused) {
+      await rm(path.join(assetsDir, name));
+      removed.push(name);
+    }
+  }
+}
+
+/**
+ * Añade `getStaticPaths()` vacío a las páginas del panel en este build (ver
+ * withoutAdminPanel): una ruta dinámica prerenderizada lo necesita.
+ * @returns {import('vite').Plugin}
+ */
+function adminPagesWithoutPaths() {
+  return {
+    name: 'github-pages:admin-pages-without-paths',
+    enforce: 'post',
+    transform(code, id) {
+      if (!ADMIN_PAGES_DIR.test(id) || !id.endsWith('.astro')) return undefined;
+      return { code: `${code}\nexport const getStaticPaths = () => [];\n`, map: null };
+    },
   };
 }

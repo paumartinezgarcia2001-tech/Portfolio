@@ -1,0 +1,75 @@
+---
+/**
+ * C19.1 · Texto de la barra de noticias (C04): `textarea` de 500 caracteres
+ * como máximo, contador, vista previa en vivo con el mismo componente de la
+ * web (NewsTicker) e interruptor «añadir la próxima fecha automáticamente».
+ * La vista previa la actualiza src/scripts/admin/ticker.ts.
+ */
+import { ADMIN_LIMITS } from '../../config/admin';
+import { SITE } from '../../config/site';
+import { buildTickerText, formatNextGig, type Gig } from '../../lib/data/core';
+import { charLength } from '../../lib/ticker';
+import NewsTicker from '../NewsTicker.astro';
+
+interface Props {
+  text: string;
+  appendNextGig: boolean;
+  nextGig: Gig | null;
+}
+
+const { text, appendNextGig, nextGig } = Astro.props;
+const nextGigText = nextGig ? formatNextGig(nextGig) : '';
+const preview = buildTickerText({ tickerText: text, tickerAppendNextGig: appendNextGig }, nextGig, SITE.tickerText);
+const max = ADMIN_LIMITS.tickerMax;
+---
+
+<section class="a-section" aria-labelledby="ticker-title">
+  <h2 class="a-section__title" id="ticker-title">barra de noticias</h2>
+  <form
+    method="post"
+    class="a-form"
+    data-admin-form="updateTicker"
+    data-ticker-editor
+    data-next-gig={nextGigText}
+    data-fallback={SITE.tickerText}
+    novalidate
+  >
+    <div class="a-field" data-field="texto">
+      <label class="a-label" for="ticker-texto">texto</label>
+      <textarea
+        class="a-input"
+        id="ticker-texto"
+        name="texto"
+        rows="3"
+        aria-describedby="ticker-texto-count ticker-texto-hint"
+        data-count-max={max}>{text}</textarea
+      >
+      <p class="a-counter" id="ticker-texto-count" data-counter aria-live="polite">
+        {charLength(text)} / {max}
+      </p>
+      <p class="a-field__hint" id="ticker-texto-hint">
+        Se respetan las mayúsculas tal como las escribas. Si lo dejas vacío, sale «{SITE.tickerText}».
+      </p>
+      <p class="a-field__error" data-error-for="texto" hidden></p>
+    </div>
+
+    <label class="a-check">
+      <input type="checkbox" name="proximaFecha" checked={appendNextGig} />
+      añadir la próxima fecha automáticamente
+    </label>
+    <p class="a-help">
+      {nextGigText ? <>Ahora mismo: «{nextGigText}».</> : 'Ahora mismo no hay ninguna fecha próxima publicada.'}
+    </p>
+
+    <div class="a-field">
+      <p class="a-label" id="ticker-preview-label">vista previa</p>
+      <div class="a-ticker-preview" aria-labelledby="ticker-preview-label" data-ticker-preview>
+        <NewsTicker text={preview} />
+      </div>
+    </div>
+
+    <div class="a-actions">
+      <button class="a-btn" type="submit" data-submit>guardar</button>
+    </div>
+  </form>
+</section>

@@ -5,8 +5,9 @@ Web de **travest15m0**, DJ y productora de eventos afincada en Madrid.
 Astro 7 sobre Cloudflare Workers, sin React ni Tailwind. En construcción por fases:
 hechas la 1 (estructura, navegación e Info), la 2 (bolos desde Supabase: next dates,
 archive y barra de noticias), la 3 (vídeo de Media en HLS y transición de píxeles),
-la 4 (reproductor de mixes) y la 5 (formulario de contacto, redes y páginas legales).
-Faltan el panel oculto y el despliegue definitivo.
+la 4 (reproductor de mixes), la 5 (formulario de contacto, redes y páginas legales) y la
+6 (panel oculto para cambiar la barra de noticias, los bolos, los mixes, Info y el vídeo
+sin tocar código). Falta el despliegue definitivo.
 
 Versión provisional: <https://paumartinezgarcia2001-tech.github.io/Portfolio/>
 (GitHub Pages, ver [más abajo](#despliegue-provisional-github-pages)).
@@ -37,6 +38,7 @@ con un aviso: la capa de datos nunca rompe la página.
 | `npm run lint` | ESLint |
 | `npm test` | Tests unitarios y de componentes (Vitest) |
 | `npm run test:e2e` | Tests e2e (Playwright). La primera vez: `npx playwright install` |
+| `npm run test:e2e:admin` | Tests e2e del panel, con Supabase simulado (ver [Panel oculto](#panel-oculto)) |
 | `npm run test:rls` | Comprueba contra Supabase que nadie puede escribir con la clave pública |
 | `npm run media:hls -- "<vídeo>" --slug <nombre>` | Convierte un vídeo en HLS para Media (necesita ffmpeg) |
 | `npm run media:upload` | Sube `.media/` a R2 (necesita las claves `R2_*` en `.env`) |
@@ -111,8 +113,9 @@ de escritura en el bucket (sus datos van en `.env`, ver `.env.example`) y config
 npx wrangler r2 bucket cors set travest15m0-media --file r2/cors.json
 ```
 
-`r2/cors.json` permite `GET` y `HEAD` desde GitHub Pages y `localhost:4321`. Cuando
-haya dominio, añade `https://<dominio>` a `origins` y vuelve a ejecutar el comando.
+`r2/cors.json` permite `GET` y `HEAD` desde GitHub Pages y `localhost:4321`, y `PUT`
+(la subida de mixes desde el panel, fase 6) desde `localhost:4321`. Cuando haya dominio,
+añade `https://<dominio>` a los `origins` de las dos reglas y vuelve a ejecutar el comando.
 
 ## Reproductor de mixes
 
@@ -204,6 +207,74 @@ NIF, domicilio, dirección de contacto, plazos de conservación…). La parte t�
 exacta: describe lo que hace la web hoy. Hay que completarlas y revisarlas antes de
 publicar la web en su dominio; esto no es asesoramiento legal.
 
+## Panel oculto
+
+Una página con usuario y contraseña desde la que Pau cambia, sin tocar código:
+
+- el **texto de la barra de noticias** (con vista previa en vivo y la opción de añadir
+  sola la próxima fecha);
+- los **bolos**: añadir uno o **varias fechas** de la misma fiesta y sala (residencias),
+  editar, borrar (con confirmación) y despublicar; aviso si ya hay un bolo en esa fecha y
+  sala; el **archivo** en páginas de 50 para corregir erratas;
+- los **mixes**: subir el audio (y la carátula) directamente a R2, publicar, ordenar,
+  borrar;
+- el **texto de Info** (Markdown sencillo: `## titulillo`, párrafos y
+  `[enlaces](https://…)`), con vista previa y botón para volver al de `src/content/info.md`;
+- el **vídeo de Media**: punto focal, enlace «ver set completo» y, al preparar un vídeo
+  nuevo, el bloque que imprime `npm run media:hls`;
+- la **verificación en dos pasos** (TOTP) de su cuenta.
+
+Al guardar, la web pública se actualiza al momento (se purga la caché de Cloudflare por
+etiquetas; como mucho, en 60 s).
+
+**Dónde está.** En `https://<dominio>/<ADMIN_PATH>`. El nombre es el secreto
+`ADMIN_PATH`, que **no se escribe en ningún archivo del repo** (es público): la ruta es
+dinámica (`src/pages/[admin]/`) y el middleware compara el primer tramo de la URL con el
+secreto; si no coincide, responde la misma 404 que cualquier otra ruta. No se enlaza
+desde ningún sitio, no está en `robots.txt` ni en el sitemap, y lleva `noindex`,
+`X-Robots-Tag` y `Cache-Control: no-store`. Solo funciona con servidor (Cloudflare): en
+GitHub Pages no existe.
+
+**Puesta en marcha** (una vez, en el dashboard de Supabase y en Cloudflare):
+
+1. Aplicar la migración `supabase/migrations/0005_admin_panel.sql` (quién guarda cada
+   cambio, límites de Info y vídeo, y TOTP obligatorio para escribir si la cuenta lo
+   tiene).
+2. *Authentication → Sign In / Providers*: **desactivar** «Allow new users to sign up».
+3. *Authentication → Attack Protection*: **CAPTCHA** con Cloudflare Turnstile, con la
+   clave secreta del mismo widget que el formulario de contacto.
+4. *Authentication → Users → Add user*: la cuenta de Pau (email y contraseña robusta,
+   «Auto Confirm User»). Luego, darle acceso con `supabase/snippets/add-admin.sql`
+   (cambiando el email; no lo guardes con el email real).
+5. Secrets del Worker (`npx wrangler secret put NOMBRE`; en local, `.env`): `ADMIN_PATH`
+   y, si se quiere entrar con un alias corto en vez del email, `ADMIN_USERNAME` y
+   `ADMIN_EMAIL`. Para subir mixes desde el panel, también `R2_ACCOUNT_ID`,
+   `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` y `R2_BUCKET` (un token de R2 limitado al
+   bucket, «Object Read & Write»).
+6. CORS del bucket (`r2/cors.json`): añadir el dominio de la web a la regla de `PUT`
+   para que el navegador pueda subir los mixes.
+7. Recomendado: que Pau active la **verificación en dos pasos** en *seguridad*.
+
+**Seguridad.** Sin sistema de usuarios propio: Supabase Auth con cookies `httpOnly`,
+`secure` y `sameSite=lax` (`@supabase/ssr`), el JWT validado con `getClaims()` y la
+pertenencia a `admins` comprobada en cada petición. Errores genéricos («Usuario o
+contraseña incorrectos.»), CAPTCHA y el límite de intentos de Supabase, protección CSRF
+de Astro (`security.checkOrigin`) y todas las escrituras con la sesión de Pau y la clave
+publicable: las políticas RLS son la última barrera, y la clave secreta de Supabase no
+está en el Worker. No hay «olvidé mi contraseña» público: se cambia desde el dashboard.
+
+**Tests.** `npm run test:e2e:admin` compila la web leyendo de un Supabase simulado
+(`tests/e2e-admin/mock-supabase.mjs`, con las mismas reglas que las políticas RLS) y
+prueba el login, los errores, la 404, las cabeceras, la barra, los bolos (y que aparecen
+en la web), los duplicados, las varias fechas, el archivo, Info, el vídeo, la subida de
+mixes (R2 interceptado en el navegador), el TOTP y el uso a 375 px. Las migraciones y
+`supabase/tests/rls.sql` se prueban en un Postgres de verdad sin red (PGlite) dentro de
+`npm test` (`tests/unit/rls-sql.test.ts`).
+
+El código: `src/pages/[admin]/`, `src/layouts/AdminLayout.astro`,
+`src/components/admin/`, `src/actions/admin.ts`, `src/lib/admin/`,
+`src/scripts/admin/` y `src/styles/admin.css`; textos y límites en `src/config/admin.ts`.
+
 ## Despliegue provisional (GitHub Pages)
 
 Hasta que la web esté en Cloudflare (fase 7), lo construido se publica como web
@@ -224,7 +295,7 @@ estática en <https://paumartinezgarcia2001-tech.github.io/Portfolio/>.
   reproductor.
 - **Límites**: sin servidor, así que el formulario de contacto no funciona (muestra
   «formulario — próximamente», con las redes y las páginas legales) y el panel (fase 6)
-  tampoco funcionará. GitHub pausa los workflows programados tras 60 días sin actividad
+  no existe (sus páginas no se compilan). GitHub pausa los workflows programados tras 60 días sin actividad
   en el repo: si pasa, se reactiva en la pestaña *Actions*.
 - **Al pasar a Cloudflare**: borra `astro.config.pages.mjs` y el workflow, y desactiva
   Pages.
@@ -240,21 +311,24 @@ src/
   config/      datos de la web, secciones, vídeo de Media y ajustes del filtro pixelado
   content/     textos en Markdown (info.md)
   components/  piezas del layout (menú, barra de noticias, cursor, vídeo…)
-  layouts/     BaseLayout
-  pages/       una página por sección
+  layouts/     BaseLayout y AdminLayout (panel)
+  pages/       una página por sección; [admin]/ es el panel oculto
   scripts/     JS del navegador (navegación, móvil, cursor, vídeo, reproductor, píxeles, formulario)
   styles/      reset, tokens, estilos globales y el rotulador (highlighter.css)
   lib/         fechas, datos (Supabase o fixtures), barajado, SEO, rutas con base,
-               contacto (esquema, Turnstile, límite y envío) y cabeceras de seguridad
-  actions/     Astro Actions del servidor (contact.send)
-  middleware.ts  datos de la columna izquierda, caché y cabeceras de seguridad
+               contacto (esquema, Turnstile, límite y envío), cabeceras de seguridad
+               y el panel (admin/: sesión, esquemas, firma de R2, vídeo)
+  actions/     Astro Actions del servidor (contact.send y admin.*)
+  middleware.ts  datos de la columna izquierda, caché, cabeceras de seguridad y
+               acceso al panel
 scripts/       importación de bolos, pipeline de vídeo y de mixes, subida a R2 y servidor local (Node)
 r2/            CORS del bucket
-supabase/      migraciones y pruebas de RLS
+supabase/      migraciones, pruebas de RLS y SQL de ayuda (snippets/)
 tests/
   unit/        Vitest
   components/  componentes .astro renderizados con la API de contenedor (Vitest)
   e2e/         Playwright
+  e2e-admin/   Playwright del panel, con Supabase simulado
   rls/         permisos de Supabase (necesita .env)
 ```
 

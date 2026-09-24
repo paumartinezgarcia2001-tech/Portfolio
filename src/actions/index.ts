@@ -1,6 +1,8 @@
 /**
  * Astro Actions de la web.
  *
+ * `admin.*` (C19, fase 6): las del panel oculto, en src/actions/admin.ts.
+ *
  * `contact.send` (C17, fase 5): el formulario de contacto. Acepta FormData, así
  * que funciona igual desde el script del formulario (fetch, sin recargar) y
  * sin JavaScript (POST del propio formulario; src/pages/contact.astro redirige
@@ -21,6 +23,7 @@ import {
 import { getRateLimitStore } from '../lib/contact/bindings';
 import { contactOutcomeError, handleContact } from '../lib/contact/handler';
 import { contactSchema } from '../lib/contact/schema';
+import { admin } from './admin';
 
 /** IP de quien envía (cabecera `CF-Connecting-IP` en Cloudflare). */
 function clientIp(context: { clientAddress: string }): string | undefined {
@@ -32,6 +35,7 @@ function clientIp(context: { clientAddress: string }): string | undefined {
 }
 
 export const server = {
+  admin,
   contact: {
     send: defineAction({
       accept: 'form',

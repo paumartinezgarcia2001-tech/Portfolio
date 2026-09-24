@@ -1,0 +1,130 @@
+---
+/**
+ * C19.2 · Alta y edición de bolos.
+ *
+ * - Alta: una fecha o, con «añadir varias fechas», la misma fiesta y sala en
+ *   varias fechas (residencias como LA MARI). El script cambia la Action
+ *   (`createGig` ↔ `createGigsBulk`) y activa los campos de cada modo.
+ * - Edición (`gig`): los datos del bolo y la Action `updateGig`.
+ * - Si ya hay un bolo en esa fecha y sala, el servidor avisa y el panel
+ *   pregunta si se guarda igualmente (src/scripts/admin/forms.ts).
+ */
+import { ADMIN_LIMITS as LIMITS } from '../../config/admin';
+import type { AdminGig } from '../../lib/admin/data';
+import { formatLineup } from '../../lib/admin/schemas';
+
+interface Props {
+  gig?: AdminGig | undefined;
+  /** Adónde volver al guardar (edición). */
+  returnTo?: string | undefined;
+  /** Regiones de la página que se recargan al guardar (alta). */
+  refresh?: string | undefined;
+}
+
+const { gig, returnTo, refresh } = Astro.props;
+const editing = Boolean(gig);
+const id = editing ? `gig-${gig!.id.slice(0, 8)}` : 'gig-new';
+const action = editing ? 'updateGig' : 'createGig';
+---
+
+<form
+  method="post"
+  class="a-form"
+  data-admin-form={action}
+  data-gig-form
+  data-mode={editing ? 'edit' : 'single'}
+  data-reset={editing ? undefined : ''}
+  data-refresh={refresh}
+  data-redirect={returnTo}
+  novalidate
+>
+  {editing && <input type="hidden" name="id" value={gig!.id} />}
+
+  {
+    !editing && (
+      <fieldset class="a-field">
+        <legend class="a-label">fechas</legend>
+        <label class="a-check">
+          <input type="checkbox" data-bulk-toggle />
+          añadir varias fechas
+        </label>
+      </fieldset>
+    )
+  }
+
+  <div class="a-field" data-field="fecha" data-single-only>
+    <label class="a-label" for={`${id}-fecha`}>fecha *</label>
+    <input class="a-input" id={`${id}-fecha`} name="fecha" type="date" required value={gig?.event_date} min="2000-01-01" max="2100-12-31" />
+    <p class="a-field__error" data-error-for="fecha" hidden></p>
+  </div>
+
+  {
+    !editing && (
+      <div class="a-field" data-field="fechas" data-bulk-only hidden>
+        <p class="a-label" id={`${id}-fechas-label`}>
+          fechas *
+        </p>
+        <ul class="a-dates" data-date-list aria-labelledby={`${id}-fechas-label`}>
+          <li class="a-dates__row" data-date-row>
+            <input class="a-input" name="fechas" type="date" aria-label="Fecha" disabled min="2000-01-01" max="2100-12-31" />
+            <button class="a-btn a-btn--ghost a-btn--small" type="button" data-date-remove>
+              quitar
+            </button>
+          </li>
+        </ul>
+        <div class="a-actions">
+          <button class="a-btn a-btn--ghost a-btn--small" type="button" data-date-add>
+            + otra fecha
+          </button>
+          <button class="a-btn a-btn--ghost a-btn--small" type="button" data-date-weekly>
+            + la misma, una semana después
+          </button>
+        </div>
+        <p class="a-field__hint">Hasta {LIMITS.bulkMax} fechas. Se guardan todas con los mismos datos.</p>
+        <p class="a-field__error" data-error-for="fechas" hidden />
+      </div>
+    )
+  }
+
+  <div class="a-field" data-field="fiesta">
+    <label class="a-label" for={`${id}-fiesta`}>nombre de la fiesta <span class="a-label__note">(vacío = TBA)</span></label>
+    <input class="a-input" id={`${id}-fiesta`} name="fiesta" type="text" maxlength={LIMITS.partyMax} value={gig?.party_name ?? ''} autocomplete="off" />
+    <p class="a-field__error" data-error-for="fiesta" hidden></p>
+  </div>
+
+  <div class="a-grid a-grid--2">
+    <div class="a-field" data-field="sala">
+      <label class="a-label" for={`${id}-sala`}>sala *</label>
+      <input class="a-input" id={`${id}-sala`} name="sala" type="text" required maxlength={LIMITS.venueMax} value={gig?.venue ?? ''} autocomplete="off" />
+      <p class="a-field__error" data-error-for="sala" hidden></p>
+    </div>
+    <div class="a-field" data-field="ciudad">
+      <label class="a-label" for={`${id}-ciudad`}>ciudad *</label>
+      <input class="a-input" id={`${id}-ciudad`} name="ciudad" type="text" required maxlength={LIMITS.cityMax} value={gig?.city ?? ''} autocomplete="off" />
+      <p class="a-field__error" data-error-for="ciudad" hidden></p>
+    </div>
+  </div>
+
+  <div class="a-field" data-field="lineup">
+    <label class="a-label" for={`${id}-lineup`}>lineup <span class="a-label__note">(separado por comas)</span></label>
+    <textarea class="a-input" id={`${id}-lineup`} name="lineup" rows="2" aria-describedby={`${id}-lineup-hint`}>{gig ? formatLineup(gig.lineup) : ''}</textarea>
+    <p class="a-field__hint" id={`${id}-lineup-hint`}>Por ejemplo: MANUELAC0RE, TRAVEST15M0, NEGRACONDA. Vacío = TBA.</p>
+    <p class="a-field__error" data-error-for="lineup" hidden></p>
+  </div>
+
+  <div class="a-field" data-field="entradas">
+    <label class="a-label" for={`${id}-entradas`}>enlace de entradas <span class="a-label__note">(opcional)</span></label>
+    <input class="a-input" id={`${id}-entradas`} name="entradas" type="url" inputmode="url" placeholder="https://" maxlength={LIMITS.ticketUrlMax} value={gig?.ticket_url ?? ''} autocomplete="off" />
+    <p class="a-field__error" data-error-for="entradas" hidden></p>
+  </div>
+
+  <label class="a-check">
+    <input type="checkbox" name="publicado" checked={gig ? gig.published : true} />
+    publicado (se ve en la web)
+  </label>
+
+  <div class="a-actions">
+    <button class="a-btn" type="submit" data-submit>{editing ? 'guardar cambios' : 'añadir'}</button>
+    {returnTo && <a class="a-link" href={returnTo}>cancelar</a>}
+  </div>
+</form>

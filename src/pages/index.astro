@@ -1,19 +1,31 @@
 ---
 /**
- * C12 · Info — se abre por defecto. Texto en src/content/info.md.
+ * C12 · Info — se abre por defecto. Texto en src/content/info.md o, si se ha
+ * guardado desde el panel (P2, fase 6), el de `site_settings.info_markdown`.
  */
 import { getEntry, render } from 'astro:content';
 import BaseLayout from '../layouts/BaseLayout.astro';
+import { getInfoMarkdown } from '../lib/data';
+import { renderInfoMarkdown } from '../lib/markdown';
+import { withBase } from '../lib/url';
 
 const entry = await getEntry('pages', 'info');
 if (!entry) throw new Error('Falta src/content/info.md');
+const override = await getInfoMarkdown();
+const html = override.data ? renderInfoMarkdown(override.data, { resolveInternal: withBase }) : null;
 const { Content } = await render(entry);
 ---
 
 <BaseLayout section="info" title={entry.data.title} headingLang="en">
-  <article class="prose info">
-    <Content />
-  </article>
+  {
+    html ? (
+      <article class="prose info" data-info-source="panel" set:html={html} />
+    ) : (
+      <article class="prose info">
+        <Content />
+      </article>
+    )
+  }
 </BaseLayout>
 
 <style>

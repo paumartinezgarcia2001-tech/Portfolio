@@ -1,0 +1,78 @@
+---
+/**
+ * C19 · Archivo del panel: bolos pasados en páginas de 50, para corregir
+ * erratas (editar) o borrarlos.
+ */
+import { ADMIN_TEXT, ARCHIVE_PAGE_SIZE, adminHref } from '../../config/admin';
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import GigList from '../../components/admin/GigList.astro';
+import LoginScreen from '../../components/admin/LoginScreen.astro';
+import { getAdminArchive } from '../../lib/admin/data';
+import { adminPage } from '../../lib/admin/page';
+
+export const prerender = false;
+
+const page = adminPage(Astro);
+if (page.redirect) return page.redirect;
+
+const requested = Number.parseInt(Astro.url.searchParams.get('pagina') ?? '1', 10);
+const loaded = page.signedIn && page.supabase ? await getAdminArchive(page.supabase, requested) : null;
+const archive = loaded?.data;
+const base = adminHref(page.slug, 'archivo');
+const pageHref = (n: number) => (n <= 1 ? base : `${base}?pagina=${n}`);
+const here = pageHref(archive?.page ?? 1);
+const first = archive ? (archive.page - 1) * ARCHIVE_PAGE_SIZE + 1 : 0;
+const last = archive ? first + archive.gigs.length - 1 : 0;
+---
+
+{
+  !page.signedIn ? (
+    <AdminLayout title="entrar">
+      <LoginScreen error={page.error} />
+    </AdminLayout>
+  ) : (
+    <AdminLayout title="archivo" current="archive">
+      <main class="a-main" id="main">
+        <h1 class="a-title">archivo</h1>
+        <p class="a-lead">Bolos pasados, del más reciente al más antiguo. Pasan aquí solos a las 08:00 del día siguiente.</p>
+        {loaded && !loaded.ok && <p class="a-alert">{ADMIN_TEXT.loadFailed}</p>}
+        {archive && (
+          <section class="a-section" aria-labelledby="archive-title" data-region="archive">
+            <div class="a-section__head">
+              <h2 class="a-section__title" id="archive-title">
+                {archive.total} bolos
+              </h2>
+              {archive.gigs.length > 0 && (
+                <p class="a-help">
+                  {first}–{last} · página {archive.page} de {archive.pages}
+                </p>
+              )}
+            </div>
+            <GigList gigs={archive.gigs} slug={page.slug} region="archive" empty="No hay bolos en esta página." returnTo={here} />
+            {archive.pages > 1 && (
+              <nav class="a-pager" aria-label="Páginas del archivo">
+                {archive.page > 1 ? (
+                  <a class="a-btn a-btn--ghost a-btn--small" href={pageHref(archive.page - 1)} rel="prev">
+                    ← más recientes
+                  </a>
+                ) : (
+                  <span />
+                )}
+                <span>
+                  {archive.page} / {archive.pages}
+                </span>
+                {archive.page < archive.pages ? (
+                  <a class="a-btn a-btn--ghost a-btn--small" href={pageHref(archive.page + 1)} rel="next">
+                    más antiguos →
+                  </a>
+                ) : (
+                  <span />
+                )}
+              </nav>
+            )}
+          </section>
+        )}
+      </main>
+    </AdminLayout>
+  )
+}

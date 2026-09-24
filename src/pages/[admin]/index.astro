@@ -1,0 +1,80 @@
+---
+/**
+ * C19 · Panel oculto: barra de noticias y bolos.
+ *
+ * La ruta es dinámica para que el nombre del panel no esté en el repo (que es
+ * público): src/middleware.ts compara el parámetro con el secreto ADMIN_PATH
+ * y, si no coincide, devuelve la página 404 de verdad. Sin sesión de una
+ * administradora solo se ve el login: no se consulta ningún dato.
+ */
+import { adminHref } from '../../config/admin';
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import GigForm from '../../components/admin/GigForm.astro';
+import GigList from '../../components/admin/GigList.astro';
+import LoginScreen from '../../components/admin/LoginScreen.astro';
+import TickerEditor from '../../components/admin/TickerEditor.astro';
+import { getAdminSettings, getAdminUpcoming } from '../../lib/admin/data';
+import { adminPage } from '../../lib/admin/page';
+import { getNextGig } from '../../lib/data';
+import { ADMIN_TEXT } from '../../config/admin';
+import { SITE } from '../../config/site';
+
+export const prerender = false;
+
+const page = adminPage(Astro);
+if (page.redirect) return page.redirect;
+
+const here = adminHref(page.slug);
+const data =
+  page.signedIn && page.supabase
+    ? await Promise.all([getAdminSettings(page.supabase), getAdminUpcoming(page.supabase), getNextGig()])
+    : null;
+const [settings, upcoming, nextGig] = data ?? [];
+---
+
+{
+  !page.signedIn ? (
+    <AdminLayout title="entrar">
+      <LoginScreen error={page.error} />
+    </AdminLayout>
+  ) : (
+    <AdminLayout title="bolos y barra" current="home">
+      <main class="a-main" id="main">
+        <h1 class="a-title">bolos y barra</h1>
+
+        {settings && !settings.ok && <p class="a-alert">{ADMIN_TEXT.loadFailed}</p>}
+        <TickerEditor
+          text={settings?.data?.ticker_text ?? SITE.tickerText}
+          appendNextGig={settings?.data?.ticker_append_next_gig ?? true}
+          nextGig={nextGig?.data ?? null}
+        />
+
+        <section class="a-section" aria-labelledby="new-gig-title">
+          <h2 class="a-section__title" id="new-gig-title">
+            añadir bolo
+          </h2>
+          <GigForm refresh="upcoming" />
+        </section>
+
+        <section class="a-section" aria-labelledby="upcoming-title" data-region="upcoming">
+          <div class="a-section__head">
+            <h2 class="a-section__title" id="upcoming-title">
+              próximos bolos
+            </h2>
+            <a class="a-link" href={adminHref(page.slug, 'archivo')}>
+              archivo →
+            </a>
+          </div>
+          {upcoming && !upcoming.ok && <p class="a-alert">{ADMIN_TEXT.loadFailed}</p>}
+          <GigList
+            gigs={upcoming?.data ?? []}
+            slug={page.slug}
+            region="upcoming"
+            empty="No hay próximos bolos. En la web sale «PRÓXIMAS FECHAS POR ANUNCIAR»."
+            returnTo={here}
+          />
+        </section>
+      </main>
+    </AdminLayout>
+  )
+}

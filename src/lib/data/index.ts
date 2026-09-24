@@ -10,9 +10,10 @@
  */
 import { PUBLIC_MEDIA_BASE_URL } from 'astro:env/client';
 import { DATA_SOURCE, DATA_STRICT } from 'astro:env/server';
-import { MEDIA_VIDEO } from '../../config/media';
+import { MEDIA_VIDEO, type MediaVideoConfig } from '../../config/media';
 import { SITE } from '../../config/site';
 import { getCutoffDate } from '../dates';
+import { parseStoredVideo } from '../admin/video';
 import { resolveMediaVideo, type ResolvedMediaVideo } from '../media';
 import { createSupabasePublicClient, isSupabaseConfigured } from '../supabase/server';
 import {
@@ -226,10 +227,45 @@ export async function checkDatabase(): Promise<DataResult<boolean>> {
 }
 
 /**
+ * Texto de Info guardado desde el panel (P2, fase 6), o `null` si no hay
+ * (entonces la página usa src/content/info.md). Si la consulta falla, también
+ * `null`: mejor el texto del repo que una página vacía.
+ */
+export async function getInfoMarkdown(): Promise<DataResult<string | null>> {
+  if (useFixtures) return { data: null, ok: true };
+  if (!isSupabaseConfigured()) return notConfigured<string | null>(null);
+
+  const supabase = createSupabasePublicClient();
+  const result = await runQuery<{ info_markdown: string | null } | null>(
+    (signal) => supabase.from('site_settings').select('info_markdown').eq('id', 1).abortSignal(signal).maybeSingle(),
+    null,
+    { label: 'texto de info', timeoutMs },
+  );
+  const text = result.data?.info_markdown?.trim();
+  return checked({ data: text ? text : null, ok: result.ok }, 'texto de info');
+}
+
+/**
  * Vídeo de Media (C15) con las URLs completas, o `null` si falta
- * `PUBLIC_MEDIA_BASE_URL`. De momento sale de `src/config/media.ts`; más
- * adelante podrá venir de `site_settings.video` (panel, fase 6).
+ * `PUBLIC_MEDIA_BASE_URL`. Sale de `site_settings.video` si se ha guardado
+ * desde el panel (P2, fase 6) y es válido; si no, de `src/config/media.ts`.
  */
 export async function getMediaVideo(): Promise<ResolvedMediaVideo | null> {
-  return resolveMediaVideo(useFixtures ? FIXTURE_VIDEO : MEDIA_VIDEO, PUBLIC_MEDIA_BASE_URL);
+  if (useFixtures) return resolveMediaVideo(FIXTURE_VIDEO, PUBLIC_MEDIA_BASE_URL);
+  const stored = await getStoredVideo();
+  return resolveMediaVideo(stored.data ?? MEDIA_VIDEO, PUBLIC_MEDIA_BASE_URL);
+}
+
+/** El vídeo guardado desde el panel, o `null` (se usa el del código). */
+export async function getStoredVideo(): Promise<DataResult<MediaVideoConfig | null>> {
+  if (useFixtures) return { data: null, ok: true };
+  if (!isSupabaseConfigured()) return notConfigured<MediaVideoConfig | null>(null);
+
+  const supabase = createSupabasePublicClient();
+  const result = await runQuery<{ video: unknown } | null>(
+    (signal) => supabase.from('site_settings').select('video').eq('id', 1).abortSignal(signal).maybeSingle(),
+    null,
+    { label: 'vídeo', timeoutMs },
+  );
+  return checked({ data: parseStoredVideo(result.data?.video), ok: result.ok }, 'vídeo');
 }

@@ -88,6 +88,7 @@ export type Database = {
           subtitle: string | null;
           title: string;
           updated_at: string;
+          updated_by: string | null;
         };
         Insert: {
           artwork_url?: string | null;
@@ -100,6 +101,7 @@ export type Database = {
           subtitle?: string | null;
           title: string;
           updated_at?: string;
+          updated_by?: string | null;
         };
         Update: {
           artwork_url?: string | null;
@@ -112,6 +114,7 @@ export type Database = {
           subtitle?: string | null;
           title?: string;
           updated_at?: string;
+          updated_by?: string | null;
         };
         Relationships: [];
       };

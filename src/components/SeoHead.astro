@@ -21,8 +21,10 @@ const noindex = (Astro.props.noindex ?? false) || SITE_NOINDEX;
 
 const fullTitle = `${title} — ${SITE.name}`;
 const origin = PUBLIC_SITE_URL ?? Astro.site?.origin ?? Astro.url.origin;
-// `Astro.url.pathname` ya incluye el `base`.
-const canonical = new URL(cleanPathname(Astro.url.pathname), origin).href;
+// `Astro.url.pathname` ya incluye el `base`. `originPathname`: la ruta que se
+// pidió, también cuando el middleware reescribe a la 404 (panel, fase 6), para
+// que esa 404 sea idéntica a la de cualquier otra ruta.
+const canonical = new URL(cleanPathname(Astro.originPathname ?? Astro.url.pathname), origin).href;
 
 const personLd = {
   '@context': 'https://schema.org',

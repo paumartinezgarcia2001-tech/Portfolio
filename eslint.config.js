@@ -15,6 +15,7 @@ export default defineConfig(
       'worker-configuration.d.ts',
       'test-results/',
       'playwright-report/',
+      'playwright-report-admin/',
       'blob-report/',
     ],
   },
