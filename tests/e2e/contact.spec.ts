@@ -399,6 +399,7 @@ test.describe('Redes y pie legal', () => {
   test('SoundCloud e Instagram se abren en otra pestaña', async ({ page }) => {
     await openContact(page);
     await showMobilePage(page);
+    await waitForTurnstileToken(page);
     for (const [label, href] of [
       ['SoundCloud', 'https://soundcloud.com/travest15m0'],
       ['Instagram', 'https://www.instagram.com/travest15m0/'],
@@ -421,6 +422,8 @@ test.describe('Redes y pie legal', () => {
   test('el pie lleva al aviso legal y a la privacidad, con sus TODO a la vista', async ({ page }) => {
     await openContact(page);
     await showMobilePage(page);
+    // Con el widget ya pintado, el pie no se mueve mientras se pulsa.
+    await waitForTurnstileToken(page);
     await page.getByRole('link', { name: 'privacidad', exact: true }).click();
     await expect(page).toHaveURL(/\/privacidad\/?$/);
     await expect(page.locator('html')).toHaveAttribute('data-section', 'none');
