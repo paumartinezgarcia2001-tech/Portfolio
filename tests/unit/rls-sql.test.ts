@@ -88,7 +88,11 @@ async function asUser(db: PGlite, claims: Record<string, unknown>, sql: string):
   return rows[0]!.r;
 }
 
-describe('migraciones y RLS (PGlite)', () => {
+// Cada test arranca su propio Postgres (PGlite es Postgres compilado a
+// WebAssembly) y aplica las migraciones: unos segundos por test, más en las
+// máquinas de GitHub Actions. Sin este margen, el límite de 5 s de vitest corta
+// los tests y con ellos el despliegue.
+describe('migraciones y RLS (PGlite)', { timeout: 60_000 }, () => {
   it('rls.sql sin administradoras: todo bloqueado o sin efecto', async () => {
     const db = await database();
     const rows = await runRlsCheck(db);
