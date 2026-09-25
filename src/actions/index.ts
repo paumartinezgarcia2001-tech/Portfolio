@@ -6,10 +6,11 @@
  * `contact.send` (C17, fase 5): el formulario de contacto. Acepta FormData, así
  * que funciona igual desde el script del formulario (fetch, sin recargar) y
  * sin JavaScript (POST del propio formulario; src/pages/contact.astro redirige
- * a `/contact?enviado=1` si sale bien).
+ * a /mensaje-enviado si sale bien).
  *
  * Solo funciona con servidor (Cloudflare Workers). En el build estático de
- * GitHub Pages el formulario no se muestra (ver astro.config.pages.mjs).
+ * GitHub Pages no hay Actions: allí el formulario envía a Web3Forms
+ * (src/lib/contact/web3forms.ts, D58).
  */
 import { ActionError, defineAction } from 'astro:actions';
 import {

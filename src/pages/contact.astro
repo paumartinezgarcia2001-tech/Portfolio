@@ -1,22 +1,30 @@
 ---
 /**
- * C17 · Contact — formulario, redes y pie legal (fase 5).
+ * C17 · Contact — formulario, correo, redes y pie legal (fase 5).
  *
- * El formulario envía a la Action `contact.send`:
- * - con JavaScript, sin recargar (src/scripts/contact-form.ts);
- * - sin JavaScript, con un POST normal. Si sale bien, se redirige aquí con
- *   `?enviado=1` (así recargar no reenvía); si falla, la página se vuelve a
+ * Dos formas de enviar, según dónde esté la web (ver ContactForm.astro):
+ * - **Cloudflare**: Action `contact.send`. Con JavaScript, sin recargar; sin
+ *   JavaScript, con un POST normal, y al salir bien se redirige a
+ *   /mensaje-enviado (así recargar no reenvía). Si falla, la página se vuelve a
  *   pintar con los errores y lo ya escrito.
+ * - **GitHub Pages** (STATIC_BUILD): API de Web3Forms, con la clave pública
+ *   PUBLIC_WEB3FORMS_KEY. Sin JavaScript también funciona: Web3Forms devuelve
+ *   el navegador a /mensaje-enviado.
  *
- * Sin servidor (GitHub Pages, STATIC_BUILD) o sin la clave de Turnstile, en
- * lugar del formulario aparece «formulario — próximamente» y quedan las redes.
+ * Si falta la clave que hace falta en cada caso, en lugar del formulario
+ * aparece «formulario — próximamente» y quedan el correo y las redes.
  */
 import { actions, isInputError } from 'astro:actions';
-import { PUBLIC_TURNSTILE_SITE_KEY } from 'astro:env/client';
+import { PUBLIC_SITE_URL, PUBLIC_TURNSTILE_SITE_KEY, PUBLIC_WEB3FORMS_KEY } from 'astro:env/client';
 import { STATIC_BUILD } from 'astro:env/server';
 import ContactForm from '../components/ContactForm.astro';
 import SocialLinks from '../components/SocialLinks.astro';
-import { CONTACT_SENT_PARAM, CONTACT_TEXT as TEXT, warnMissingTurnstileSiteKey } from '../config/contact';
+import {
+  CONTACT_SENT_PATH,
+  CONTACT_TEXT as TEXT,
+  warnMissingTurnstileSiteKey,
+  warnMissingWeb3FormsKey,
+} from '../config/contact';
 import BaseLayout from '../layouts/BaseLayout.astro';
 import { readContactValues } from '../lib/contact/values';
 import { withBase } from '../lib/url';
@@ -24,10 +32,9 @@ import { withBase } from '../lib/url';
 const result = Astro.getActionResult(actions.contact.send);
 // POST → redirección → GET (C17): recargar la página no reenvía el mensaje.
 if (result && !result.error) {
-  return Astro.redirect(`${withBase('/contact')}?${CONTACT_SENT_PARAM}=1`, 303);
+  return Astro.redirect(withBase(CONTACT_SENT_PATH), 303);
 }
 
-const sent = Astro.url.searchParams.has(CONTACT_SENT_PARAM);
 const error = result?.error;
 const fieldErrors = error && isInputError(error) ? error.fields : undefined;
 const errorCode = error && !isInputError(error) ? error.message : undefined;
@@ -35,9 +42,21 @@ const errorCode = error && !isInputError(error) ? error.message : undefined;
 const values = error ? await readContactValues(Astro.request) : undefined;
 if (error) Astro.response.status = error.status;
 
-const siteKey = PUBLIC_TURNSTILE_SITE_KEY;
-const formAvailable = !STATIC_BUILD && Boolean(siteKey);
+// Sin servidor manda Web3Forms; con servidor, la Action y Turnstile.
+const siteKey = STATIC_BUILD ? undefined : PUBLIC_TURNSTILE_SITE_KEY;
+const accessKey = STATIC_BUILD ? PUBLIC_WEB3FORMS_KEY : undefined;
+if (STATIC_BUILD && !accessKey) warnMissingWeb3FormsKey();
 if (!STATIC_BUILD && !siteKey) warnMissingTurnstileSiteKey();
+
+/**
+ * Dirección absoluta de /mensaje-enviado para el campo `redirect` de Web3Forms
+ * (su plan gratuito solo admite el mismo dominio). Con `build.format: 'file'`
+ * las páginas son archivos `.html`, y ahí `Astro.url.pathname` ya lo lleva.
+ */
+const origin = PUBLIC_SITE_URL ?? Astro.site?.origin ?? Astro.url.origin;
+const sentPath = `${withBase(CONTACT_SENT_PATH)}${Astro.url.pathname.endsWith('.html') ? '.html' : ''}`;
+const web3forms = accessKey ? { accessKey, redirect: new URL(sentPath, origin).href } : undefined;
+const formAvailable = STATIC_BUILD ? Boolean(web3forms) : Boolean(siteKey);
 ---
 
 <BaseLayout
@@ -49,11 +68,20 @@ if (!STATIC_BUILD && !siteKey) warnMissingTurnstileSiteKey();
   <div class="contact">
     <p class="contact__intro">{TEXT.intro}</p>
 
-    <p class="contact__sent" role="status" tabindex="-1" data-contact-sent hidden={!sent}>{TEXT.success}</p>
+    {/* Con JavaScript, al enviarse bien el script cambia el formulario por esto. */}
+    <p class="contact__sent" role="status" tabindex="-1" data-contact-sent hidden>{TEXT.success}</p>
 
-    {formAvailable && !sent && (
-      <ContactForm siteKey={siteKey ?? ''} values={values} fieldErrors={fieldErrors} errorCode={errorCode} />
-    )}
+    {
+      formAvailable && (
+        <ContactForm
+          web3forms={web3forms}
+          siteKey={siteKey}
+          values={values}
+          fieldErrors={fieldErrors}
+          errorCode={errorCode}
+        />
+      )
+    }
     {!formAvailable && <p class="contact__unavailable">{TEXT.unavailable}</p>}
 
     <SocialLinks />

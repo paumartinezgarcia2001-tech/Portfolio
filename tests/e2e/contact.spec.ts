@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { CONTACT_RATE_LIMIT, CONTACT_TEXT as TEXT } from '../../src/config/contact';
+import { SITE } from '../../src/config/site';
 import {
   DUMMY_TOKEN,
   mockTurnstile,
@@ -19,8 +20,12 @@ import {
 import { isMobileViewport, menu, menuLink, showMobilePage, withMusicPaused } from './helpers';
 
 /**
- * C17 · formulario de contacto (fase 5).
+ * C17 · formulario de contacto (fase 5), con los tres campos de D58.
  * Turnstile y Resend están simulados: ver tests/e2e/contact-helpers.ts.
+ *
+ * Estos tests corren contra el build de Cloudflare (`npm run build`), el que
+ * tiene Actions. El camino de GitHub Pages (Web3Forms) se prueba con tests
+ * unitarios y de componente.
  */
 
 test.beforeEach(async ({ page }) => {
@@ -34,13 +39,9 @@ test.describe('Envío correcto', () => {
     await openContact(page);
     await showMobilePage(page);
     await fillContact(page, {
-      nombre: 'Ana Prueba',
       email: 'ana@example.com',
-      motivo: 'booking',
-      fecha: '2026-10-15',
-      lugar: 'LA MARIQUEEN, Madrid',
-      mensaje: `Hola, ¿tienes libre esa fecha? ${marker}`,
-      privacidad: true,
+      telefono: '+34 600 11 22 33',
+      mensaje: `Hola, ¿tienes libre el 15 de octubre? ${marker}`,
     });
     await waitForTurnstileToken(page);
     await submitButton(page).click();
@@ -54,23 +55,26 @@ test.describe('Envío correcto', () => {
     await expect(page).toHaveURL(/\/contact$/);
 
     const email = await waitForEmail(request, marker);
-    expect(email.body.subject).toBe('[web] booking — Ana Prueba');
+    expect(email.body.subject).toBe('[web] mensaje de ana@example.com');
     expect(email.body.reply_to).toBe('ana@example.com');
     expect(email.body.to).toEqual(['pau@e2e.test']);
-    expect(email.body.text).toContain('Fecha del evento: 15 OCTUBRE 2026');
-    expect(email.body.text).toContain('Sala / ciudad: LA MARIQUEEN, Madrid');
+    expect(email.body.text).toContain('Email: ana@example.com');
+    expect(email.body.text).toContain('Teléfono: +34 600 11 22 33');
     expect(email.attempts).toBe(1);
   });
 
-  test('la fecha del evento solo se pide para booking', async ({ page }) => {
+  test('el teléfono es opcional', async ({ page, request }) => {
+    const marker = uniqueMarker();
     await openContact(page);
     await showMobilePage(page);
-    const fecha = page.locator('[name="fecha"]');
-    await expect(fecha).toBeVisible();
-    await page.locator('[name="motivo"]').selectOption('prensa');
-    await expect(fecha).toBeHidden();
-    await page.locator('[name="motivo"]').selectOption('booking');
-    await expect(fecha).toBeVisible();
+    await expect(page.locator('[name="telefono"]')).not.toHaveAttribute('required', '');
+    await fillContact(page, { email: 'ana@example.com', mensaje: `Mensaje sin teléfono ${marker}` });
+    await waitForTurnstileToken(page);
+    await submitButton(page).click();
+
+    await expect(sentMessage(page)).toBeVisible();
+    const email = await waitForEmail(request, marker);
+    expect(email.body.text).not.toContain('Teléfono');
   });
 });
 
@@ -92,42 +96,31 @@ test.describe('Teclado (§10)', () => {
         );
       });
 
-    await page.locator('[name="nombre"]').focus();
-    await page.keyboard.type('Ana Teclado');
+    await page.locator('[name="email"]').focus();
+    await page.keyboard.type('ana@example.com');
 
     const order: string[] = [];
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0; i < 10; i++) {
       await page.keyboard.press('Tab');
       const current = await focused();
       order.push(current);
-      if (current === 'email') await page.keyboard.type('ana@example.com');
+      if (current === 'telefono') await page.keyboard.type('600112233');
       if (current === 'mensaje') await page.keyboard.type(`Mensaje escrito con el teclado ${marker}`);
-      if (current === 'privacidad') await page.keyboard.press('Space');
       if (current === 'enviar') break;
     }
 
-    // Orden de tabulación: los campos en el orden en que se leen, y al final «enviar».
-    // El <input type="date"> tiene varias paradas dentro (día, mes y año) y el enlace
-    // de la política y el widget quedan por medio.
+    // Orden de tabulación: los campos en el orden en que se leen, y al final
+    // «enviar». El widget de Turnstile queda por medio (iframe).
     const visited = order
       .filter((name) => name !== 'a' && name !== 'iframe')
       .filter((name, index, all) => name !== all[index - 1]);
-    expect(visited).toEqual([
-      'email',
-      'motivo',
-      'fecha',
-      'lugar',
-      'mensaje',
-      'privacidad',
-      'enviar',
-    ]);
-    await expect(page.locator('[name="privacidad"]')).toBeChecked();
+    expect(visited).toEqual(['telefono', 'mensaje', 'enviar']);
 
     await page.keyboard.press('Enter');
     await expect(sentMessage(page)).toBeVisible();
     await expect(sentMessage(page)).toBeFocused();
     const email = await waitForEmail(request, marker);
-    expect(email.body.subject).toBe('[web] booking — Ana Teclado');
+    expect(email.body.text).toContain('Teléfono: 600112233');
   });
 });
 
@@ -139,14 +132,14 @@ test.describe('Errores de validación', () => {
     await waitForTurnstileToken(page);
     await submitButton(page).click();
 
-    await expect(fieldError(page, 'nombre')).toHaveText('Escribe tu nombre.');
     await expect(fieldError(page, 'email')).toHaveText('Escribe tu email.');
     await expect(fieldError(page, 'mensaje')).toHaveText('Escribe tu mensaje.');
-    await expect(fieldError(page, 'privacidad')).toHaveText('Acepta la política de privacidad para enviar el mensaje.');
+    // El teléfono está vacío, pero es opcional: sin error.
+    await expect(fieldError(page, 'telefono')).toBeHidden();
     // El foco va al primer campo con error y queda enlazado con su mensaje.
-    await expect(page.locator('[name="nombre"]')).toBeFocused();
-    await expect(page.locator('[name="nombre"]')).toHaveAttribute('aria-describedby', 'contact-nombre-error');
-    await expect(page.locator('[name="nombre"]')).toHaveAttribute('aria-invalid', 'true');
+    await expect(page.locator('[name="email"]')).toBeFocused();
+    await expect(page.locator('[name="email"]')).toHaveAttribute('aria-describedby', 'contact-email-error');
+    await expect(page.locator('[name="email"]')).toHaveAttribute('aria-invalid', 'true');
     await expect(form(page)).toBeVisible();
     await expect(sentMessage(page)).toBeHidden();
     expect(await sentEmails(request, marker)).toHaveLength(0);
@@ -157,10 +150,9 @@ test.describe('Errores de validación', () => {
     await openContact(page);
     await showMobilePage(page);
     await fillContact(page, {
-      nombre: 'Ana',
       email: 'ana@',
+      telefono: '600112233',
       mensaje: `Un mensaje bastante largo para pasar el mínimo ${marker}`,
-      privacidad: true,
     });
     await waitForTurnstileToken(page);
     await submitButton(page).click();
@@ -168,7 +160,7 @@ test.describe('Errores de validación', () => {
     await expect(fieldError(page, 'email')).toHaveText('Escribe un email válido.');
     await expect(page.locator('[name="email"]')).toBeFocused();
     await expect(page.locator('[name="email"]')).toHaveValue('ana@');
-    await expect(page.locator('[name="nombre"]')).toHaveValue('Ana');
+    await expect(page.locator('[name="telefono"]')).toHaveValue('600112233');
     expect(await sentEmails(request, marker)).toHaveLength(0);
 
     // Al corregirlo, el mensaje sale y el error desaparece.
@@ -179,10 +171,27 @@ test.describe('Errores de validación', () => {
     await waitForEmail(request, marker);
   });
 
+  test('teléfono con letras: lo dice y no envía', async ({ page, request }) => {
+    const marker = uniqueMarker();
+    await openContact(page);
+    await showMobilePage(page);
+    await fillContact(page, {
+      email: 'ana@example.com',
+      telefono: 'llámame al fijo',
+      mensaje: `Mensaje con un teléfono raro ${marker}`,
+    });
+    await waitForTurnstileToken(page);
+    await submitButton(page).click();
+
+    await expect(fieldError(page, 'telefono')).toContainText('Escribe un teléfono válido');
+    await expect(page.locator('[name="telefono"]')).toBeFocused();
+    expect(await sentEmails(request, marker)).toHaveLength(0);
+  });
+
   test('mensaje demasiado corto', async ({ page }) => {
     await openContact(page);
     await showMobilePage(page);
-    await fillContact(page, { nombre: 'Ana', email: 'ana@example.com', mensaje: 'corto', privacidad: true });
+    await fillContact(page, { email: 'ana@example.com', mensaje: 'corto' });
     await waitForTurnstileToken(page);
     await submitButton(page).click();
     await expect(fieldError(page, 'mensaje')).toHaveText('Escribe al menos 10 caracteres.');
@@ -190,17 +199,14 @@ test.describe('Errores de validación', () => {
 });
 
 test.describe('Anti-spam', () => {
-  test('honeypot relleno: responde como si se hubiera enviado, pero no envía', async ({ page, request }) => {
+  test('honeypot marcado: responde como si se hubiera enviado, pero no envía', async ({ page, request }) => {
     const marker = uniqueMarker();
     await openContact(page);
     await showMobilePage(page);
     await fillContact(page, {
-      nombre: 'Bot',
       email: 'bot@example.com',
-      motivo: 'otro',
       mensaje: `Mensaje de un bot ${marker}`,
-      privacidad: true,
-      honeypot: 'http://spam.example',
+      honeypot: true,
     });
     await waitForTurnstileToken(page);
 
@@ -216,12 +222,7 @@ test.describe('Anti-spam', () => {
     const marker = uniqueMarker();
     await openContact(page);
     await showMobilePage(page);
-    await fillContact(page, {
-      nombre: 'Ana',
-      email: 'ana@example.com',
-      mensaje: `Mensaje sin comprobación ${marker}`,
-      privacidad: true,
-    });
+    await fillContact(page, { email: 'ana@example.com', mensaje: `Mensaje sin comprobación ${marker}` });
     await waitForTurnstileToken(page);
     // Como si el widget no hubiera terminado: se le quita el token.
     await page.evaluate(() => {
@@ -243,13 +244,7 @@ test.describe('Anti-spam', () => {
     await showMobilePage(page);
 
     for (let i = 1; i <= CONTACT_RATE_LIMIT.max; i++) {
-      await fillContact(page, {
-        nombre: 'Ana',
-        email: 'ana@example.com',
-        motivo: 'otro',
-        mensaje: `Mensaje número ${i} ${marker}`,
-        privacidad: true,
-      });
+      await fillContact(page, { email: 'ana@example.com', mensaje: `Mensaje número ${i} ${marker}` });
       await waitForTurnstileToken(page);
       await submitButton(page).click();
       await expect(sentMessage(page)).toBeVisible();
@@ -261,11 +256,8 @@ test.describe('Anti-spam', () => {
 
     // El sexto: la Action responde 429 y se ve el aviso.
     await fillContact(page, {
-      nombre: 'Ana',
       email: 'ana@example.com',
-      motivo: 'otro',
       mensaje: `Mensaje número ${CONTACT_RATE_LIMIT.max + 1} ${marker}`,
-      privacidad: true,
     });
     await waitForTurnstileToken(page);
     const response = page.waitForResponse((res) => res.url().includes('/_actions/contact.send'));
@@ -284,11 +276,8 @@ test.describe('Si falla el envío', () => {
     await showMobilePage(page);
     // El Resend simulado devuelve 500 con esta marca en el mensaje.
     await fillContact(page, {
-      nombre: 'Ana',
       email: 'ana@example.com',
-      motivo: 'otro',
       mensaje: `Mensaje que falla [e2e:resend-500] ${marker}`,
-      privacidad: true,
     });
     await waitForTurnstileToken(page);
     const response = page.waitForResponse((res) => res.url().includes('/_actions/contact.send'));
@@ -310,11 +299,8 @@ test.describe('Si falla el envío', () => {
     await openContact(page);
     await showMobilePage(page);
     await fillContact(page, {
-      nombre: 'Ana',
       email: 'ana@example.com',
-      motivo: 'otro',
       mensaje: `Mensaje con un fallo pasajero [e2e:resend-500-once] ${marker}`,
-      privacidad: true,
     });
     await waitForTurnstileToken(page);
     await submitButton(page).click();
@@ -330,7 +316,7 @@ test.describe('Si falla el envío', () => {
 test.describe('Sin JavaScript', () => {
   test.use({ javaScriptEnabled: false });
 
-  test('el POST funciona y el resultado llega con una redirección', async ({ page, request }) => {
+  test('el POST funciona y acaba en /mensaje-enviado', async ({ page, request }) => {
     const marker = uniqueMarker();
     await page.setExtraHTTPHeaders({ 'CF-Connecting-IP': uniqueIp() });
     // Sin JavaScript no hay widget de Turnstile: se añade el token al POST como
@@ -341,7 +327,8 @@ test.describe('Sin JavaScript', () => {
     });
     await page.goto('/contact');
 
-    // El aviso del <noscript> explica que hace falta JavaScript.
+    // El aviso del <noscript> explica que hace falta JavaScript (en Cloudflare
+    // lo necesita Turnstile).
     await expect(page.locator('.contact-form__noscript')).toHaveText(TEXT.noscript);
     // En móvil, sin JavaScript no hay capas: el menú y la página se ven a la vez.
     if (isMobileViewport(page.viewportSize())) {
@@ -350,21 +337,27 @@ test.describe('Sin JavaScript', () => {
     }
 
     await fillContact(page, {
-      nombre: 'Ana Sin JS',
       email: 'ana@example.com',
-      motivo: 'prensa',
+      telefono: '600112233',
       mensaje: `Mensaje enviado sin JavaScript ${marker}`,
-      privacidad: true,
     });
     await submitButton(page).click();
 
-    // POST → redirección → GET: se ve el aviso y recargar no reenvía.
-    await expect(page).toHaveURL(/\/contact\?enviado=1$/);
-    await expect(sentMessage(page)).toBeVisible();
+    // POST → redirección → GET: se llega a una página de verdad, así que
+    // recargar no reenvía.
+    await expect(page).toHaveURL(/\/mensaje-enviado\/?$/);
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('mensaje enviado');
+    await expect(page.getByText(TEXT.success)).toBeVisible();
     await expect(form(page)).toHaveCount(0);
+    // Y esa página no va a los buscadores.
+    await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', /noindex/);
 
     const email = await waitForEmail(request, marker);
-    expect(email.body.subject).toBe('[web] prensa — Ana Sin JS');
+    expect(email.body.subject).toBe('[web] mensaje de ana@example.com');
+
+    // Desde ahí se vuelve a contact.
+    await page.getByRole('link', { name: 'volver a contact' }).click();
+    await expect(page).toHaveURL(/\/contact\/?$/);
   });
 
   test('un error vuelve a pintar la página con lo escrito', async ({ page }) => {
@@ -374,28 +367,22 @@ test.describe('Sin JavaScript', () => {
       await route.continue({ postData: `${body}&cf-turnstile-response=${encodeURIComponent(DUMMY_TOKEN)}` });
     });
     await page.goto('/contact');
-    // Un nombre de solo espacios pasa el `required` del navegador, pero el
-    // servidor lo recorta y lo rechaza: así se prueba el camino sin JavaScript.
-    await fillContact(page, {
-      nombre: '   ',
-      email: 'ana@example.com',
-      mensaje: 'Mensaje suficientemente largo',
-      privacidad: true,
-    });
+    // Un mensaje de solo espacios pasa el `required` y el `minlength` del
+    // navegador, pero el servidor lo recorta y lo rechaza: así se prueba el
+    // camino sin JavaScript.
+    await fillContact(page, { email: 'ana@example.com', mensaje: ' '.repeat(15) });
     await submitButton(page).click();
 
-    await expect(fieldError(page, 'nombre')).toHaveText('Escribe tu nombre.');
+    await expect(fieldError(page, 'mensaje')).toHaveText('Escribe tu mensaje.');
     await expect(page.locator('[name="email"]')).toHaveValue('ana@example.com');
-    await expect(page.locator('[name="mensaje"]')).toHaveValue('Mensaje suficientemente largo');
-    await expect(page.locator('[name="privacidad"]')).toBeChecked();
     // El primer campo con error recibe el foco al cargar la página.
-    await expect(page.locator('[name="nombre"]')).toHaveAttribute('autofocus', '');
+    await expect(page.locator('[name="mensaje"]')).toHaveAttribute('autofocus', '');
     // Y sigue sin enviarse nada (el formulario está a la vista, no el aviso).
     await expect(sentMessage(page)).toBeHidden();
   });
 });
 
-test.describe('Redes y pie legal', () => {
+test.describe('Correo, redes y pie legal', () => {
   test('SoundCloud e Instagram se abren en otra pestaña', async ({ page }) => {
     await openContact(page);
     await showMobilePage(page);
@@ -411,12 +398,15 @@ test.describe('Redes y pie legal', () => {
     }
   });
 
-  test('el email y el teléfono de Pau no están en el HTML', async ({ page }) => {
+  test('el email de Pau está a la vista como mailto (D58), y su teléfono no', async ({ page }) => {
     await openContact(page);
-    const html = await page.content();
-    expect(html).not.toMatch(/mailto:/);
-    expect(html).not.toMatch(/@gmail\.com|@hotmail\.com|@outlook\.com/);
-    expect(html).not.toMatch(/\+34\s?\d{2}/);
+    await showMobilePage(page);
+    const link = page.getByRole('link', { name: SITE.contactEmail });
+    await expect(link).toHaveAttribute('href', `mailto:${SITE.contactEmail}`);
+    // No abre pestaña nueva: es el programa de correo.
+    await expect(link).not.toHaveAttribute('target', '_blank');
+    // El teléfono sigue sin aparecer.
+    expect(await page.content()).not.toMatch(/tel:|\+34\s?\d{2}\s?\d{2}/);
   });
 
   test('el pie lleva al aviso legal y a la privacidad, con sus TODO a la vista', async ({ page }) => {
@@ -424,7 +414,7 @@ test.describe('Redes y pie legal', () => {
     await showMobilePage(page);
     // Con el widget ya pintado, el pie no se mueve mientras se pulsa.
     await waitForTurnstileToken(page);
-    await page.getByRole('link', { name: 'privacidad', exact: true }).click();
+    await page.getByRole('link', { name: 'privacidad', exact: true }).first().click();
     await expect(page).toHaveURL(/\/privacidad\/?$/);
     await expect(page.locator('html')).toHaveAttribute('data-section', 'none');
     await expect(page.locator('.todo').first()).toBeVisible();

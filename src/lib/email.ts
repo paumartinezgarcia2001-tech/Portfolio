@@ -3,16 +3,15 @@
  *
  * - Texto plano + HTML, con todo lo que escribe la persona escapado (§11).
  * - `reply_to` = quien escribe: al pulsar «responder», se le contesta a ella.
- * - Asunto: `[web] {motivo} — {nombre}`.
+ * - Asunto: `[web] mensaje de {email}`.
  * - Un único reintento si Resend devuelve un 5xx (o no responde), con la misma
  *   `Idempotency-Key`: si el primer intento sí llegó, Resend no lo duplica.
  *
  * Sin el SDK de Resend: es una sola petición HTTP, pesa menos en el Worker y
  * la URL se puede cambiar en los tests e2e (RESEND_API_URL).
  */
-import { reasonSubject } from '../config/contact';
 import type { ContactMessage } from './contact/schema';
-import { SITE_TIME_ZONE, formatEventDate } from './dates';
+import { SITE_TIME_ZONE } from './dates';
 
 export const RESEND_API_URL = 'https://api.resend.com/emails';
 
@@ -35,8 +34,8 @@ export function singleLine(value: string): string {
   return value.replace(/[\u0000-\u001f\u007f\u2028\u2029]+/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
-export function contactSubject(message: Pick<ContactMessage, 'reason' | 'name'>): string {
-  return `[web] ${reasonSubject(message.reason)} — ${singleLine(message.name)}`;
+export function contactSubject(message: Pick<ContactMessage, 'email'>): string {
+  return `[web] mensaje de ${singleLine(message.email)}`;
 }
 
 /** Cuerpo de la petición a Resend (POST /emails). */
@@ -67,13 +66,8 @@ function formatSentAt(date: Date): string {
 
 /** Filas de datos del mensaje: [etiqueta, valor]. */
 function detailRows(message: ContactMessage): Array<[string, string]> {
-  const rows: Array<[string, string]> = [
-    ['Nombre', singleLine(message.name)],
-    ['Email', message.email],
-    ['Motivo', reasonSubject(message.reason)],
-  ];
-  if (message.date) rows.push(['Fecha del evento', formatEventDate(message.date)]);
-  if (message.place) rows.push(['Sala / ciudad', singleLine(message.place)]);
+  const rows: Array<[string, string]> = [['Email', message.email]];
+  if (message.phone) rows.push(['Teléfono', singleLine(message.phone)]);
   return rows;
 }
 
@@ -82,9 +76,8 @@ export function buildContactEmail(
   options: { from: string; to: string; sentAt?: Date },
 ): EmailPayload {
   const sentAt = formatSentAt(options.sentAt ?? new Date());
-  const name = singleLine(message.name);
   const rows = detailRows(message);
-  const footer = `Enviado el ${sentAt} (hora de Madrid). Responde a este email para contestar a ${name}.`;
+  const footer = `Enviado el ${sentAt} (hora de Madrid). Responde a este email para contestar a ${singleLine(message.email)}.`;
 
   const text = [
     'Mensaje desde el formulario de contacto de la web.',

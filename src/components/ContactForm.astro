@@ -1,34 +1,42 @@
 ---
 /**
- * C17 · ContactForm — formulario de contacto (fase 5).
+ * C17 · ContactForm — formulario de contacto (fase 5, tres campos desde D58).
  *
- * Progresivo:
- * - sin JavaScript hace un POST normal a la Action `contact.send`; si sale
- *   bien, la página redirige a `/contact?enviado=1` y, si falla, se vuelve a
- *   pintar con los errores y lo ya escrito;
- * - con JavaScript (src/scripts/contact-form.ts) envía sin recargar y muestra
- *   los estados. Ojo: Turnstile necesita JavaScript, así que sin él aparece el
- *   aviso del <noscript>.
+ * Dos caminos de envío, según dónde esté alojada la web:
+ * - **Cloudflare** (`astro.config.mjs`): va a la Action `contact.send`, que
+ *   valida con zod, comprueba Turnstile, cuenta los envíos y llama a Resend.
+ * - **GitHub Pages** (`astro.config.pages.mjs`, STATIC_BUILD): no hay servidor,
+ *   así que va a la API de Web3Forms (prop `web3forms`). Sin Turnstile y sin
+ *   límite de envíos: lo explica src/lib/contact/web3forms.ts.
  *
- * La fecha del evento solo se ve con el motivo «booking»: lo hace el CSS con
- * `:has()`, sin JavaScript.
+ * Los dos funcionan sin JavaScript, con un POST normal del formulario: al
+ * acabar se llega a /mensaje-enviado. Con JavaScript
+ * (src/scripts/contact-form.ts) se envía sin recargar, así la música no se
+ * corta. La excepción es Cloudflare sin JavaScript: allí Turnstile lo necesita,
+ * y por eso sale el aviso del <noscript>.
  */
 import { actions } from 'astro:actions';
 import {
   CONTACT_FIELDS as FIELD,
+  CONTACT_FIELD_ERRORS as FIELD_ERROR,
   CONTACT_LIMITS as LIMITS,
-  CONTACT_REASONS,
   CONTACT_TEXT as TEXT,
-  DEFAULT_REASON,
+  PHONE_PATTERN,
   contactErrorText,
 } from '../config/contact';
 import type { ContactValues } from '../lib/contact/values';
+import { WEB3FORMS_ENDPOINT, WEB3FORMS_FIELDS, WEB3FORMS_FROM_NAME, WEB3FORMS_SUBJECT } from '../lib/contact/web3forms';
 import { withBase } from '../lib/url';
 
 interface Props {
-  /** PUBLIC_TURNSTILE_SITE_KEY. */
-  siteKey: string;
-  /** Lo escrito en el envío anterior (solo sin JavaScript). */
+  /**
+   * Envío por Web3Forms (build estático). `accessKey` es pública por diseño
+   * (va en el HTML); `redirect`, la dirección absoluta de /mensaje-enviado.
+   */
+  web3forms?: { accessKey: string; redirect: string } | undefined;
+  /** PUBLIC_TURNSTILE_SITE_KEY. Solo con servidor. */
+  siteKey?: string | undefined;
+  /** Lo escrito en el envío anterior (solo sin JavaScript, en Cloudflare). */
   values?: ContactValues | undefined;
   /** Errores por campo que devuelve la Action. */
   fieldErrors?: Record<string, string[] | undefined> | undefined;
@@ -36,45 +44,36 @@ interface Props {
   errorCode?: string | undefined;
 }
 
-const { siteKey, values = {}, fieldErrors, errorCode } = Astro.props;
+const { web3forms, siteKey, values = {}, fieldErrors, errorCode } = Astro.props;
 
 const errorOf = (field: string): string | undefined => fieldErrors?.[field]?.[0];
 const describedBy = (field: string, hint?: string) =>
   [errorOf(field) ? `contact-${field}-error` : undefined, hint].filter(Boolean).join(' ') || undefined;
 const invalid = (field: string) => (errorOf(field) ? 'true' : undefined);
 /** El primer campo con error recibe el foco al recargar (sin JavaScript). */
-const firstInvalid = [FIELD.name, FIELD.email, FIELD.reason, FIELD.date, FIELD.place, FIELD.message, FIELD.privacy].find(
-  (field) => errorOf(field),
-);
-const reason = values.motivo ?? DEFAULT_REASON;
+const firstInvalid = [FIELD.email, FIELD.phone, FIELD.message].find((field) => errorOf(field));
 ---
 
 <form
   class="contact-form"
   method="post"
-  action={actions.contact.send}
+  action={web3forms ? WEB3FORMS_ENDPOINT : actions.contact.send}
   data-contact-form
+  data-static={web3forms ? 'true' : undefined}
   data-state="idle"
 >
-  <div class="field" data-field={FIELD.name} data-invalid={invalid(FIELD.name)}>
-    <label class="field__label" for={`contact-${FIELD.name}`}>{TEXT.labels.name}</label>
-    <input
-      class="field__input"
-      id={`contact-${FIELD.name}`}
-      name={FIELD.name}
-      type="text"
-      autocomplete="name"
-      required
-      maxlength={LIMITS.nameMax}
-      value={values.nombre}
-      aria-invalid={invalid(FIELD.name)}
-      aria-describedby={describedBy(FIELD.name)}
-      autofocus={firstInvalid === FIELD.name || undefined}
-    />
-    <p class="field__error" id={`contact-${FIELD.name}-error`} data-error-for={FIELD.name} hidden={!errorOf(FIELD.name)}>
-      {errorOf(FIELD.name)}
-    </p>
-  </div>
+  {
+    web3forms && (
+      <>
+        {/* Campos reservados de Web3Forms. `redirect` solo lo usa el envío sin
+            JavaScript: con JavaScript el aviso se muestra aquí mismo. */}
+        <input type="hidden" name={WEB3FORMS_FIELDS.accessKey} value={web3forms.accessKey} />
+        <input type="hidden" name={WEB3FORMS_FIELDS.subject} value={WEB3FORMS_SUBJECT} />
+        <input type="hidden" name={WEB3FORMS_FIELDS.fromName} value={WEB3FORMS_FROM_NAME} />
+        <input type="hidden" name={WEB3FORMS_FIELDS.redirect} value={web3forms.redirect} data-redirect />
+      </>
+    )
+  }
 
   <div class="field" data-field={FIELD.email} data-invalid={invalid(FIELD.email)}>
     <label class="field__label" for={`contact-${FIELD.email}`}>{TEXT.labels.email}</label>
@@ -103,81 +102,32 @@ const reason = values.motivo ?? DEFAULT_REASON;
     </p>
   </div>
 
-  <div class="field" data-field={FIELD.reason} data-invalid={invalid(FIELD.reason)}>
-    <label class="field__label" for={`contact-${FIELD.reason}`}>{TEXT.labels.reason}</label>
-    <div class="field__select">
-      <select
-        class="field__input"
-        id={`contact-${FIELD.reason}`}
-        name={FIELD.reason}
-        required
-        aria-invalid={invalid(FIELD.reason)}
-        aria-describedby={describedBy(FIELD.reason)}
-        autofocus={firstInvalid === FIELD.reason || undefined}
-      >
-        {
-          CONTACT_REASONS.map((option) => (
-            <option value={option.value} selected={option.value === reason}>
-              {option.label}
-            </option>
-          ))
-        }
-      </select>
-      <span class="field__arrow" aria-hidden="true">▾</span>
-    </div>
-    <p
-      class="field__error"
-      id={`contact-${FIELD.reason}-error`}
-      data-error-for={FIELD.reason}
-      hidden={!errorOf(FIELD.reason)}
-    >
-      {errorOf(FIELD.reason)}
-    </p>
-  </div>
-
-  {/* Solo con el motivo «booking» (CSS `:has()`, más abajo). */}
-  <div class="field field--date" data-field={FIELD.date} data-invalid={invalid(FIELD.date)}>
-    <label class="field__label" for={`contact-${FIELD.date}`}>
-      {TEXT.labels.date} <span class="field__optional">{TEXT.optional}</span>
+  <div class="field" data-field={FIELD.phone} data-invalid={invalid(FIELD.phone)}>
+    <label class="field__label" for={`contact-${FIELD.phone}`}>
+      {TEXT.labels.phone} <span class="field__optional">{TEXT.optional}</span>
     </label>
     <input
       class="field__input"
-      id={`contact-${FIELD.date}`}
-      name={FIELD.date}
-      type="date"
-      value={values.fecha}
-      aria-invalid={invalid(FIELD.date)}
-      aria-describedby={describedBy(FIELD.date)}
-      autofocus={firstInvalid === FIELD.date || undefined}
-    />
-    <p class="field__error" id={`contact-${FIELD.date}-error`} data-error-for={FIELD.date} hidden={!errorOf(FIELD.date)}>
-      {errorOf(FIELD.date)}
-    </p>
-  </div>
-
-  <div class="field" data-field={FIELD.place} data-invalid={invalid(FIELD.place)}>
-    <label class="field__label" for={`contact-${FIELD.place}`}>
-      {TEXT.labels.place} <span class="field__optional">{TEXT.optional}</span>
-    </label>
-    <input
-      class="field__input"
-      id={`contact-${FIELD.place}`}
-      name={FIELD.place}
-      type="text"
-      autocomplete="off"
-      maxlength={LIMITS.placeMax}
-      value={values.lugar}
-      aria-invalid={invalid(FIELD.place)}
-      aria-describedby={describedBy(FIELD.place)}
-      autofocus={firstInvalid === FIELD.place || undefined}
+      id={`contact-${FIELD.phone}`}
+      name={FIELD.phone}
+      type="tel"
+      inputmode="tel"
+      autocomplete="tel"
+      maxlength={LIMITS.phoneMax}
+      pattern={PHONE_PATTERN}
+      title={FIELD_ERROR.phoneInvalid}
+      value={values.telefono}
+      aria-invalid={invalid(FIELD.phone)}
+      aria-describedby={describedBy(FIELD.phone)}
+      autofocus={firstInvalid === FIELD.phone || undefined}
     />
     <p
       class="field__error"
-      id={`contact-${FIELD.place}-error`}
-      data-error-for={FIELD.place}
-      hidden={!errorOf(FIELD.place)}
+      id={`contact-${FIELD.phone}-error`}
+      data-error-for={FIELD.phone}
+      hidden={!errorOf(FIELD.phone)}
     >
-      {errorOf(FIELD.place)}
+      {errorOf(FIELD.phone)}
     </p>
   </div>
 
@@ -205,55 +155,38 @@ const reason = values.motivo ?? DEFAULT_REASON;
     </p>
   </div>
 
-  <div class="field field--check" data-field={FIELD.privacy} data-invalid={invalid(FIELD.privacy)}>
-    <div class="check">
-      <input
-        class="check__box"
-        id={`contact-${FIELD.privacy}`}
-        name={FIELD.privacy}
-        type="checkbox"
-        required
-        checked={values.privacidad}
-        aria-invalid={invalid(FIELD.privacy)}
-        aria-describedby={describedBy(FIELD.privacy)}
-        autofocus={firstInvalid === FIELD.privacy || undefined}
-      />
-      <label class="check__label" for={`contact-${FIELD.privacy}`}>
-        {TEXT.labels.privacyBefore}{' '}
-        <a class="hl" href={withBase('/privacidad')}>{TEXT.labels.privacyLink}</a>.
-      </label>
-    </div>
-    <p
-      class="field__error"
-      id={`contact-${FIELD.privacy}-error`}
-      data-error-for={FIELD.privacy}
-      hidden={!errorOf(FIELD.privacy)}
-    >
-      {errorOf(FIELD.privacy)}
-    </p>
-  </div>
+  {/* Honeypot (`botcheck`): casilla escondida con `style` en línea, como pide
+      Web3Forms. Fuera del foco y del lector de pantalla; si llega marcada, el
+      mensaje se descarta. */}
+  <input
+    id={`contact-${FIELD.honeypot}`}
+    name={FIELD.honeypot}
+    type="checkbox"
+    style="display: none;"
+    tabindex="-1"
+    aria-hidden="true"
+  />
 
-  {/* Honeypot: fuera del foco y del lector de pantalla. Si llega relleno, el mensaje se descarta. */}
-  <div class="contact-form__honeypot" aria-hidden="true" inert>
-    <label for={`contact-${FIELD.honeypot}`}>{TEXT.labels.honeypot}</label>
-    <input id={`contact-${FIELD.honeypot}`} name={FIELD.honeypot} type="text" tabindex="-1" autocomplete="off" />
-  </div>
-
-  {/* Widget de Turnstile (lo pinta el script). El cursor propio se oculta encima (C10). */}
-  <div class="field">
-    <span class="field__label" id="contact-turnstile-label">{TEXT.labels.turnstile}</span>
-    <div
-      class="contact-form__turnstile"
-      data-turnstile
-      data-sitekey={siteKey}
-      data-native-cursor
-      aria-labelledby="contact-turnstile-label"
-    >
-    </div>
-    <noscript>
-      <p class="contact-form__noscript">{TEXT.noscript}</p>
-    </noscript>
-  </div>
+  {
+    siteKey && (
+      /* Widget de Turnstile (lo pinta el script). El cursor propio se oculta encima (C10). */
+      <div class="field">
+        <span class="field__label" id="contact-turnstile-label">
+          {TEXT.labels.turnstile}
+        </span>
+        <div
+          class="contact-form__turnstile"
+          data-turnstile
+          data-sitekey={siteKey}
+          data-native-cursor
+          aria-labelledby="contact-turnstile-label"
+        />
+        <noscript>
+          <p class="contact-form__noscript">{TEXT.noscript}</p>
+        </noscript>
+      </div>
+    )
+  }
 
   {/* Error general (límite, Turnstile, envío). Sin JavaScript llega ya pintado;
       con JavaScript lo rellena el script. «reintentar» es un submit más, así
@@ -267,6 +200,10 @@ const reason = values.motivo ?? DEFAULT_REASON;
     <button class="contact-form__submit" type="submit" data-submit>{TEXT.submit}</button>
     <p class="visually-hidden" id="contact-form-status" role="status" aria-live="polite" data-status></p>
   </div>
+
+  <p class="contact-form__privacy">
+    {TEXT.labels.privacyBefore} <a class="hl" href={withBase('/privacidad')}>{TEXT.labels.privacyLink}</a>.
+  </p>
 </form>
 
 <script>
@@ -293,13 +230,9 @@ const reason = values.motivo ?? DEFAULT_REASON;
       gap: 0.35rem;
     }
 
-    .field__label,
-    .check__label {
+    .field__label {
       font-size: var(--fs-label);
       line-height: var(--lh-paragraph);
-    }
-
-    .field__label {
       letter-spacing: 0.04em;
       text-transform: uppercase;
     }
@@ -348,73 +281,13 @@ const reason = values.motivo ?? DEFAULT_REASON;
       display: none;
     }
 
-    .field__select {
-      position: relative;
-      display: grid;
-    }
-
-    .field__select .field__input {
-      padding-right: 1.5em;
-    }
-
-    .field__arrow {
-      position: absolute;
-      right: 0.1em;
-      bottom: 0.15em;
-      pointer-events: none;
-      font-size: var(--fs-paragraph);
-      line-height: var(--lh-paragraph);
-    }
-
-    /* La fecha del evento solo se pide para booking (DATE_REASON en
-       src/config/contact.ts: si cambia, cambia también este selector). Sin
-       JavaScript también: `:has()` mira la opción marcada del desplegable. */
-    .contact-form:not(:has(select[name='motivo'] option[value='booking']:checked)) .field--date {
-      display: none;
-    }
-
-    .check {
-      display: grid;
-      grid-template-columns: auto 1fr;
-      align-items: center;
-      gap: 0.6rem;
-    }
-
-    .check__box {
-      width: 1.75rem;
-      height: 1.75rem;
-      margin: 0;
-      accent-color: var(--c-panel-fg);
-    }
-
-    /* Pulsar la etiqueta también marca la casilla: entre las dos, la zona
-       táctil pasa de 44 px de alto (§10). */
-    .check__label {
-      display: flex;
-      align-items: center;
-      min-height: 44px;
-    }
-
-    .field--check[data-invalid] .check__box {
-      outline: var(--rule-w) solid var(--accent);
-      outline-offset: 2px;
-    }
-
-    .contact-form__honeypot {
-      position: absolute;
-      width: 1px;
-      height: 1px;
-      overflow: hidden;
-      clip-path: inset(50%);
-      white-space: nowrap;
-    }
-
     .contact-form__turnstile {
       /* Hueco del widget (300 × 65): así no salta el contenido al aparecer. */
       min-height: 65px;
     }
 
-    .contact-form__noscript {
+    .contact-form__noscript,
+    .contact-form__privacy {
       max-width: 34rem;
       font-size: var(--fs-small);
       line-height: var(--lh-paragraph);

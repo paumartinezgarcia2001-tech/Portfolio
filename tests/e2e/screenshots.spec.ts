@@ -63,13 +63,9 @@ test.describe('Capturas del contacto', () => {
     await showMobilePage(page);
     await waitForTurnstileToken(page);
     await fillContact(page, {
-      nombre: 'Ana Prueba',
       email: 'ana@example.com',
-      motivo: 'booking',
-      fecha: '2026-10-15',
-      lugar: 'LA MARIQUEEN, Madrid',
-      mensaje: 'Hola, ¿tienes libre esa fecha? [captura]',
-      privacidad: true,
+      telefono: '+34 600 11 22 33',
+      mensaje: 'Hola, ¿tienes libre el 15 de octubre? [captura]',
     });
     await submitButton(page).click();
     await page.locator('[data-contact-sent]').waitFor();

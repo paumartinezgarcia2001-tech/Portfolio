@@ -25,11 +25,9 @@ const NOW = new Date('2026-09-19T20:00:00Z');
 
 function input(overrides: Partial<ContactInput> = {}): ContactInput {
   return contactSchema.parse({
-    nombre: 'Ana',
     email: 'ana@example.com',
-    motivo: 'booking',
+    telefono: '600112233',
     mensaje: 'Hola, quiero proponerte una fecha.',
-    privacidad: true,
     'cf-turnstile-response': 'XXXX.DUMMY.TOKEN.XXXX',
     ...overrides,
   });
@@ -108,10 +106,10 @@ describe('handleContact', () => {
     expect(urls).toEqual(['https://turnstile.test/siteverify', 'https://resend.test/emails']);
   });
 
-  it('con el honeypot relleno no verifica, no envía y no gasta límite', async () => {
+  it('con el honeypot marcado no verifica, no envía y no gasta límite', async () => {
     const store = new MemoryStore();
     const fetchMock = fakeFetch();
-    const outcome = await handleContact(input({ website: 'http://spam.example' }), deps({ store, fetch: fetchMock }));
+    const outcome = await handleContact(input({ botcheck: true }), deps({ store, fetch: fetchMock }));
     expect(outcome).toEqual({ status: 'discarded' });
     expect(fetchMock).not.toHaveBeenCalled();
     expect(store.puts).toBe(0);

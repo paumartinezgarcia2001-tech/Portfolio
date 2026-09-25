@@ -1,0 +1,43 @@
+---
+/**
+ * C17 · «Mensaje enviado» — final del envío sin JavaScript (fase 5).
+ *
+ * Con JavaScript el aviso sale en la propia página de contact y no se navega.
+ * Sin JavaScript hace falta una página de verdad: es donde acaba el POST →
+ * redirección → GET, así que recargar no reenvía el mensaje. En Cloudflare
+ * redirige la Action; en GitHub Pages, Web3Forms (su campo `redirect`).
+ *
+ * Fuera del menú (`section="none"`, como las legales) y fuera de los buscadores.
+ */
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { CONTACT_TEXT as TEXT } from '../config/contact';
+import { withBase } from '../lib/url';
+
+export const prerender = true;
+---
+
+<BaseLayout section="none" title="mensaje enviado" description="Mensaje enviado a travest15m0." noindex>
+  <div class="sent">
+    <p class="sent__text">{TEXT.success}</p>
+    <p class="sent__back"><a class="hl" href={withBase('/contact')}>volver a contact</a></p>
+  </div>
+</BaseLayout>
+
+<style>
+  @layer components {
+    .sent {
+      max-width: 44rem;
+    }
+
+    .sent__text {
+      font-size: calc(var(--fs-paragraph) * 1.4);
+      line-height: var(--lh-paragraph);
+    }
+
+    .sent__back {
+      margin: 2rem 0 0;
+      font-size: var(--fs-small);
+      line-height: var(--lh-paragraph);
+    }
+  }
+</style>

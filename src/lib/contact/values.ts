@@ -6,13 +6,9 @@
 import { CONTACT_FIELDS, CONTACT_LIMITS } from '../../config/contact';
 
 export interface ContactValues {
-  nombre?: string;
   email?: string;
-  motivo?: string;
-  fecha?: string;
-  lugar?: string;
+  telefono?: string;
   mensaje?: string;
-  privacidad?: boolean;
 }
 
 /** Recorta y limita: lo que se devuelve al HTML nunca es más largo que el límite del campo. */
@@ -31,12 +27,8 @@ export async function readContactValues(request: Request): Promise<ContactValues
     return {};
   }
   return {
-    nombre: text(data, CONTACT_FIELDS.name, CONTACT_LIMITS.nameMax),
     email: text(data, CONTACT_FIELDS.email, CONTACT_LIMITS.emailMax),
-    motivo: text(data, CONTACT_FIELDS.reason, 40),
-    fecha: text(data, CONTACT_FIELDS.date, 10),
-    lugar: text(data, CONTACT_FIELDS.place, CONTACT_LIMITS.placeMax),
+    telefono: text(data, CONTACT_FIELDS.phone, CONTACT_LIMITS.phoneMax),
     mensaje: text(data, CONTACT_FIELDS.message, CONTACT_LIMITS.messageMax),
-    privacidad: data.has(CONTACT_FIELDS.privacy),
   };
 }

@@ -1,13 +1,17 @@
 ---
 /**
- * C17 · SocialLinks — los dos enlaces grandes de contact (fase 5).
- * Sin el email ni el teléfono de Pau: solo SoundCloud e Instagram.
+ * C17 · SocialLinks — los enlaces grandes de contact (fase 5).
+ *
+ * SoundCloud, Instagram y, desde D58, el email de Pau como enlace `mailto:`
+ * (Luna, 25-09-2026). Los dos primeros abren en otra pestaña; el correo abre el
+ * programa de correo, así que no lleva `target`.
  */
 import { SITE } from '../config/site';
 
 const LINKS = [
-  { label: 'SoundCloud', href: SITE.social.soundcloud },
-  { label: 'Instagram', href: SITE.social.instagram },
+  { label: 'SoundCloud', href: SITE.social.soundcloud, external: true },
+  { label: 'Instagram', href: SITE.social.instagram, external: true },
+  { label: SITE.contactEmail, href: `mailto:${SITE.contactEmail}`, external: false },
 ] as const;
 ---
 
@@ -15,9 +19,17 @@ const LINKS = [
   {
     LINKS.map((link) => (
       <li>
-        <a class="social__link hl" href={link.href} target="_blank" rel="noopener">
-          {link.label}<span aria-hidden="true"> ↗</span><span class="visually-hidden"> (se abre en otra pestaña)</span>
-        </a>
+        {link.external ? (
+          <a class="social__link hl" href={link.href} target="_blank" rel="noopener">
+            {link.label}
+            <span aria-hidden="true"> ↗</span>
+            <span class="visually-hidden"> (se abre en otra pestaña)</span>
+          </a>
+        ) : (
+          <a class="social__link social__link--mail hl" href={link.href}>
+            {link.label}
+          </a>
+        )}
       </li>
     ))
   }
@@ -39,6 +51,12 @@ const LINKS = [
     /* El rotulador (D39) solo al pasar el ratón o con el foco. */
     .social__link:not(:hover, :focus-visible) {
       background: none;
+    }
+
+    /* El email es más largo que «SoundCloud»: en móvil tiene que poder partirse. */
+    .social__link--mail {
+      font-size: var(--fs-paragraph);
+      overflow-wrap: anywhere;
     }
   }
 </style>

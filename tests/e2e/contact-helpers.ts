@@ -138,14 +138,11 @@ export async function waitForEmail(request: APIRequestContext, marker: string): 
 }
 
 export interface ContactFormData {
-  nombre?: string;
   email?: string;
-  motivo?: string;
-  fecha?: string;
-  lugar?: string;
+  telefono?: string;
   mensaje?: string;
-  privacidad?: boolean;
-  honeypot?: string;
+  /** Marca la casilla oculta `botcheck`, como haría un bot. */
+  honeypot?: boolean;
 }
 
 export function form(page: Page): Locator {
@@ -174,18 +171,14 @@ export async function openContact(page: Page, options: { ip?: string } = {}): Pr
 
 /** Rellena el formulario (solo lo que se le pase). */
 export async function fillContact(page: Page, values: ContactFormData): Promise<void> {
-  if (values.nombre !== undefined) await page.locator('[name="nombre"]').fill(values.nombre);
   if (values.email !== undefined) await page.locator('[name="email"]').fill(values.email);
-  if (values.motivo !== undefined) await page.locator('[name="motivo"]').selectOption(values.motivo);
-  if (values.fecha !== undefined) await page.locator('[name="fecha"]').fill(values.fecha);
-  if (values.lugar !== undefined) await page.locator('[name="lugar"]').fill(values.lugar);
+  if (values.telefono !== undefined) await page.locator('[name="telefono"]').fill(values.telefono);
   if (values.mensaje !== undefined) await page.locator('[name="mensaje"]').fill(values.mensaje);
-  if (values.privacidad) await page.locator('[name="privacidad"]').check();
-  if (values.honeypot !== undefined) {
-    // Está oculto a propósito: se rellena como lo haría un bot.
-    await page.locator('[name="website"]').evaluate((input, value) => {
-      (input as HTMLInputElement).value = value;
-    }, values.honeypot);
+  if (values.honeypot) {
+    // La casilla está escondida con `display: none`: se marca como lo haría un bot.
+    await page.locator('[name="botcheck"]').evaluate((input) => {
+      (input as HTMLInputElement).checked = true;
+    });
   }
 }
 

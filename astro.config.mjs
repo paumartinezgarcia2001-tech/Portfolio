@@ -78,6 +78,12 @@ export default defineConfig({
       PUBLIC_SUPABASE_PUBLISHABLE_KEY: envField.string({ context: 'client', access: 'public', optional: true }),
       PUBLIC_MEDIA_BASE_URL: envField.string({ context: 'client', access: 'public', optional: true, url: true }),
       PUBLIC_TURNSTILE_SITE_KEY: envField.string({ context: 'client', access: 'public', optional: true }),
+      // Clave de acceso de Web3Forms (D58): la usa el build estático de GitHub
+      // Pages, donde no hay servidor que envíe el correo. Es pública por
+      // diseño (va escrita en el HTML), pero no se guarda en el repo: llega
+      // como variable de compilación. Sin ella, /contact muestra
+      // «formulario — próximamente».
+      PUBLIC_WEB3FORMS_KEY: envField.string({ context: 'client', access: 'public', optional: true }),
       // --- Secretas (solo servidor; secrets de Cloudflare) ---
       ADMIN_PATH: envField.string({ context: 'server', access: 'secret', optional: true }),
       // Alias para entrar en el panel sin escribir el email (fase 6, opcional):

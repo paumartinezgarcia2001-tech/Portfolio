@@ -22,11 +22,12 @@
  * - SITE_NOINDEX: la versión provisional no aparece en los buscadores.
  * - Sin /api/health: es un endpoint de servidor (keep-alive en Cloudflare).
  *   Aquí la propia compilación diaria mantiene despierto a Supabase.
- * - Sin Actions (fase 5): el formulario de contacto necesita servidor, así que
- *   STATIC_BUILD hace que /contact muestre «formulario — próximamente» (con
- *   las redes y el pie legal), y withoutActions() quita las Actions del build.
+ * - Sin Actions (fase 5): withoutActions() las quita del build y
  *   `cloudflare:workers` (bindings del Worker) se sustituye por un módulo
- *   vacío.
+ *   vacío. El formulario de contacto sigue funcionando: con STATIC_BUILD envía
+ *   a la API de Web3Forms en vez de a la Action (D58, ver
+ *   src/lib/contact/web3forms.ts). Necesita PUBLIC_WEB3FORMS_KEY; sin esa
+ *   clave, /contact muestra «formulario — próximamente».
  * - Sin panel (fase 6): sus páginas (src/pages/[admin]/) necesitan servidor.
  *   withoutAdminPanel() las compila como estáticas sin ninguna ruta, así que
  *   no generan nada.

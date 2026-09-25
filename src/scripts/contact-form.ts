@@ -2,28 +2,44 @@
  * C17 · Formulario de contacto en el navegador (fase 5).
  *
  * Mejora el formulario que ya funciona sin JavaScript:
- * - pinta el widget de Turnstile (solo aquí, y solo una vez por visita);
- * - envía con la Action `contact.send` sin recargar la página, así que la
- *   música del reproductor no se corta;
+ * - envía sin recargar la página, así que la música del reproductor no se corta;
  * - muestra los errores junto a cada campo, con el foco en el primero, y los
  *   generales (límite de envíos, Turnstile, fallo de envío) en un aviso;
  * - al salir bien, cambia el formulario por «Mensaje enviado. Te respondo
  *   pronto.» y lleva el foco ahí.
  *
- * La validación la hace el servidor (mismo esquema zod que sin JavaScript):
- * así no hay dos versiones de las reglas que se puedan desincronizar.
+ * Dos caminos, según cómo esté alojada la web (ver ContactForm.astro):
+ * - **Cloudflare**: Action `contact.send`. Pinta el widget de Turnstile y la
+ *   validación la hace el servidor con el mismo esquema zod que sin JavaScript,
+ *   así que no hay dos versiones de las reglas que se puedan desincronizar.
+ * - **GitHub Pages** (`data-static`): API de Web3Forms. Sin servidor que
+ *   valide, las reglas son los atributos del propio formulario (required,
+ *   type, minlength, maxlength, pattern) y aquí solo se traduce lo que dice el
+ *   navegador (`element.validity`) a los textos de CONTACT_FIELD_ERRORS.
  */
 import { actions, isInputError } from 'astro:actions';
-import { CONTACT_ERROR_CODES, CONTACT_FIELDS as FIELD, CONTACT_TEXT as TEXT, DATE_REASON, contactErrorText } from '../config/contact';
+import {
+  CONTACT_ERROR_CODES,
+  CONTACT_FIELDS as FIELD,
+  CONTACT_FIELD_ERRORS as FIELD_ERROR,
+  CONTACT_LIMITS as LIMITS,
+  CONTACT_TEXT as TEXT,
+  contactErrorText,
+} from '../config/contact';
+import { WEB3FORMS_FIELDS, buildWeb3FormsPayload, submitToWeb3Forms } from '../lib/contact/web3forms';
 import { onPageLoad } from './lifecycle';
 import { mountTurnstile, type TurnstileWidget } from './turnstile';
 
-const ERROR_ORDER = [FIELD.name, FIELD.email, FIELD.reason, FIELD.date, FIELD.place, FIELD.message, FIELD.privacy];
+const ERROR_ORDER = [FIELD.email, FIELD.phone, FIELD.message];
+
+/** Campos de texto del formulario. */
+type Control = HTMLInputElement | HTMLTextAreaElement;
 
 function setupContactForm(): (() => void) | void {
   const found = document.querySelector<HTMLFormElement>('[data-contact-form]');
   if (!found) return;
   const form = found;
+  const staticSend = form.dataset.static === 'true';
 
   const submit = form.querySelector<HTMLButtonElement>('[data-submit]');
   const alertBox = form.querySelector<HTMLElement>('[data-form-error]');
@@ -43,25 +59,26 @@ function setupContactForm(): (() => void) | void {
   form.noValidate = true;
 
   // `querySelector<HTMLElement>`: los tipos de Workers (worker-configuration.d.ts)
-  // chocan con los de algunos elementos concretos, como <select>.
-  const control = (field: string) => form.querySelector<HTMLElement>(`[name="${field}"]`);
+  // chocan con los de algunos elementos concretos.
+  const control = (field: string) => form.querySelector<HTMLElement>(`[name="${field}"]`) as Control | null;
   const wrapper = (field: string) => form.querySelector<HTMLElement>(`[data-field="${field}"]`);
   const errorBox = (field: string) => form.querySelector<HTMLElement>(`[data-error-for="${field}"]`);
+  const value = (field: string) => (control(field)?.value ?? '').trim();
 
   function setStatus(text: string): void {
     if (status) status.textContent = text;
   }
 
-  function setSending(value: boolean): void {
-    sending = value;
-    form.dataset.state = value ? 'sending' : 'idle';
-    if (value) form.setAttribute('aria-busy', 'true');
+  function setSending(state: boolean): void {
+    sending = state;
+    form.dataset.state = state ? 'sending' : 'idle';
+    if (state) form.setAttribute('aria-busy', 'true');
     else form.removeAttribute('aria-busy');
     if (submit) {
-      submit.disabled = value;
-      submit.textContent = value ? TEXT.sending : TEXT.submit;
+      submit.disabled = state;
+      submit.textContent = state ? TEXT.sending : TEXT.submit;
     }
-    setStatus(value ? TEXT.sending : '');
+    setStatus(state ? TEXT.sending : '');
   }
 
   function clearErrors(): void {
@@ -128,12 +145,71 @@ function setupContactForm(): (() => void) | void {
     setStatus(TEXT.success);
   }
 
-  async function onSubmit(event: SubmitEvent): Promise<void> {
-    // Sin esto, el ClientRouter enviaría el formulario a su manera.
-    event.preventDefault();
-    if (sending || disposed) return;
-    clearErrors();
+  /**
+   * Lo que dice el navegador sobre un campo, con nuestras palabras. Se mira el
+   * valor recortado: `required` se cumple con espacios, pero un mensaje de
+   * espacios está vacío.
+   */
+  function fieldError(field: string): string | undefined {
+    const element = control(field);
+    if (!element) return undefined;
+    const text = element.value.trim();
+    const validity = element.validity;
+    if (field === FIELD.email) {
+      if (!text) return FIELD_ERROR.emailRequired;
+      return validity.typeMismatch || validity.tooLong ? FIELD_ERROR.emailInvalid : undefined;
+    }
+    if (field === FIELD.phone) {
+      if (!text) return undefined;
+      return validity.patternMismatch || validity.tooLong ? FIELD_ERROR.phoneInvalid : undefined;
+    }
+    if (!text) return FIELD_ERROR.messageRequired;
+    if (text.length < LIMITS.messageMin) return FIELD_ERROR.messageTooShort;
+    if (text.length > LIMITS.messageMax) return FIELD_ERROR.messageTooLong;
+    return undefined;
+  }
 
+  /** Errores de los tres campos, o `undefined` si todo está bien. */
+  function validate(): Record<string, string[]> | undefined {
+    const errors: Record<string, string[]> = {};
+    for (const field of ERROR_ORDER) {
+      const message = fieldError(field);
+      if (message) errors[field] = [message];
+    }
+    return Object.keys(errors).length > 0 ? errors : undefined;
+  }
+
+  /** GitHub Pages: el navegador manda el mensaje a Web3Forms. */
+  async function sendWithWeb3Forms(): Promise<void> {
+    const errors = validate();
+    if (errors) {
+      showFieldErrors(errors);
+      return;
+    }
+    const accessKey = form.querySelector<HTMLInputElement>(`[name="${WEB3FORMS_FIELDS.accessKey}"]`)?.value ?? '';
+    const honeypot = form.querySelector<HTMLInputElement>(`[name="${FIELD.honeypot}"]`);
+    const payload = buildWeb3FormsPayload(
+      { email: value(FIELD.email), phone: value(FIELD.phone) || undefined, message: value(FIELD.message) },
+      accessKey,
+    );
+    // Honeypot marcado: se manda igual y Web3Forms lo descarta en su servidor.
+    // Quien escribe ve «enviado», como en el camino de Cloudflare.
+    if (honeypot?.checked) payload.botcheck = true;
+
+    setSending(true);
+    const result = await submitToWeb3Forms(payload, { endpoint: form.action });
+    if (disposed) return;
+    setSending(false);
+    if (result.ok) {
+      showSent();
+      return;
+    }
+    console.error(`[contact] Web3Forms no ha enviado el mensaje: ${result.error}`);
+    showFormError(undefined);
+  }
+
+  /** Cloudflare: la Action valida, comprueba Turnstile y envía con Resend. */
+  async function sendWithAction(): Promise<void> {
     const token = widget?.getToken();
     if (!token) {
       showFormError(widgetFailed ? CONTACT_ERROR_CODES.turnstileFailed : CONTACT_ERROR_CODES.turnstileMissing);
@@ -142,9 +218,6 @@ function setupContactForm(): (() => void) | void {
 
     const data = new FormData(form);
     data.set(FIELD.turnstile, token);
-    // La fecha solo cuenta para booking; el campo está oculto, no quitado.
-    const reason = control(FIELD.reason) as HTMLSelectElement | null;
-    if (reason?.value !== DATE_REASON) data.delete(FIELD.date);
 
     setSending(true);
     let result: Awaited<ReturnType<typeof actions.contact.send>>;
@@ -169,6 +242,14 @@ function setupContactForm(): (() => void) | void {
     widgetFailed = false;
     if (isInputError(result.error)) showFieldErrors(result.error.fields);
     else showFormError(result.error.message);
+  }
+
+  async function onSubmit(event: SubmitEvent): Promise<void> {
+    // Sin esto, el ClientRouter enviaría el formulario a su manera.
+    event.preventDefault();
+    if (sending || disposed) return;
+    clearErrors();
+    await (staticSend ? sendWithWeb3Forms() : sendWithAction());
   }
 
   form.addEventListener('submit', (event) => void onSubmit(event), { signal: listeners.signal });

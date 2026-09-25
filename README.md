@@ -159,13 +159,34 @@ quitarlos cuando lleguen los mixes de verdad: bórralos (o despublícalos) en Su
 
 ## Formulario de contacto
 
-`/contact` tiene el formulario (Astro Action `contact.send`), los enlaces a SoundCloud e
-Instagram y el pie con las páginas legales. El mensaje **no se guarda en ninguna base de
-datos**: se envía por email con Resend y llega al buzón de Pau, con «responder» apuntando
-a quien escribe.
+`/contact` tiene el formulario, el email de Pau como enlace `mailto:`, los enlaces a
+SoundCloud e Instagram y el pie con las páginas legales. El mensaje **no se guarda en
+ninguna base de datos**: se envía por email y «responder» apunta a quien escribe.
 
-Para que funcione hacen falta cuatro cosas (hasta entonces, en su lugar aparece
-«formulario — próximamente» y quedan las redes):
+**Tres campos y nada más** (D58): email de contacto, teléfono (opcional) y mensaje. Al
+enviarse bien, con JavaScript el aviso sale en la propia página y no se navega; sin
+JavaScript se llega a `/mensaje-enviado`, así que recargar no reenvía.
+
+Hay **dos caminos de envío**, según dónde esté alojada la web:
+
+| | Cloudflare Workers | GitHub Pages (`STATIC_BUILD`) |
+|---|---|---|
+| Quién envía | Action `contact.send` → Resend | El navegador → API de Web3Forms |
+| Validación | zod en el servidor | atributos del formulario (los textos de error son los mismos) |
+| Turnstile | sí, verificado en el servidor | no (Web3Forms solo lo verifica en su plan de pago) |
+| Límite de envíos | 5 por hora y por IP (KV) | el de Web3Forms (250 correos al mes) |
+| Honeypot | sí (`botcheck`) | sí, lo comprueba Web3Forms |
+| Sin JavaScript | no (Turnstile lo necesita) | sí |
+
+El de Cloudflare es el definitivo; el de Web3Forms es lo que hace que el formulario
+funcione en el despliegue de GitHub Pages (`src/lib/contact/web3forms.ts`). Para ese
+camino solo hace falta una cuenta en <https://web3forms.com> **con el Gmail que tiene que
+recibir los mensajes** y poner su clave de acceso en la variable `PUBLIC_WEB3FORMS_KEY`
+(*Settings → Secrets and variables → Actions → Variables*). Es pública por diseño: acaba
+escrita en el HTML. Sin ella, /contact muestra «formulario — próximamente».
+
+Para el camino de Cloudflare hacen falta cuatro cosas (hasta entonces, en su lugar aparece
+«formulario — próximamente» y quedan el correo y las redes):
 
 1. **Resend** (<https://resend.com>): verificar el dominio (SPF y DKIM) y crear una clave
    de API. Plan gratuito: 100 emails al día.
@@ -181,10 +202,10 @@ Para que funcione hacen falta cuatro cosas (hasta entonces, en su lugar aparece
    `npx wrangler kv namespace create CONTACT_RATE_LIMIT` y se pega su `id`). En local lo
    simula wrangler, sin configurar nada.
 
-Cómo se protege de los envíos automáticos, en este orden:
+Cómo se protege de los envíos automáticos **en Cloudflare**, en este orden:
 
-- un campo oculto (*honeypot*): si llega relleno, el mensaje se descarta y se responde
-  como si se hubiera enviado;
+- una casilla oculta (*honeypot*, `botcheck`): si llega marcada, el mensaje se descarta y
+  se responde como si se hubiera enviado;
 - **5 envíos por hora y por IP**, en KV; del sexto en adelante, «Has enviado demasiados
   mensajes. Prueba más tarde.». No se guarda la IP, sino un código derivado de ella que
   caduca a la hora;
@@ -193,11 +214,21 @@ Cómo se protege de los envíos automáticos, en este orden:
 - si Resend falla con un error suyo (5xx), se reintenta **una vez** con la misma clave de
   idempotencia, así que no puede llegar dos veces.
 
-El formulario funciona sin JavaScript (POST normal y redirección con el resultado), pero
-**Turnstile necesita JavaScript**: con el JS desactivado aparece un aviso que lo explica.
+En GitHub Pages queda la casilla oculta (la comprueba Web3Forms en su servidor) y su
+propio filtro anti-spam, que va incluido en el plan gratuito. Ahí **no** hay límite por IP
+ni Turnstile: si algún día entra spam, en el panel de Web3Forms se puede activar hCaptcha,
+pero entonces el formulario deja de funcionar sin JavaScript.
+
+En Cloudflare el formulario funciona sin JavaScript (POST normal y redirección con el
+resultado), pero **Turnstile lo necesita**: con el JS desactivado aparece un aviso que lo
+explica. En GitHub Pages funciona sin JavaScript sin más.
 
 Los textos y los límites están en `src/config/contact.ts`; la lógica del servidor, en
 `src/lib/contact/` y `src/lib/email.ts`.
+
+El teléfono se valida con una expresión (`PHONE_PATTERN`) que se escribe **una sola vez** y
+se usa como `pattern` del campo y en el servidor. Ojo al tocarla: el navegador la compila
+con la marca `v` y, si no compila, **se salta el `pattern` sin avisar**. Lo vigila un test.
 
 ### Páginas legales
 
@@ -290,13 +321,14 @@ estática en <https://paumartinezgarcia2001-tech.github.io/Portfolio/>.
   detiene y sigue publicada la versión anterior (nunca se publican listas vacías).
 - **Ajustes del repo** (una sola vez): *Settings → Pages → Source: GitHub Actions* y,
   en *Settings → Secrets and variables → Actions → Variables*,
-  `PUBLIC_SUPABASE_URL` y `PUBLIC_SUPABASE_PUBLISHABLE_KEY`. Cuando exista el bucket de
-  R2, añade también `PUBLIC_MEDIA_BASE_URL` para que se vean el vídeo de Media y el
-  reproductor.
-- **Límites**: sin servidor, así que el formulario de contacto no funciona (muestra
-  «formulario — próximamente», con las redes y las páginas legales) y el panel (fase 6)
-  no existe (sus páginas no se compilan). GitHub pausa los workflows programados tras 60 días sin actividad
-  en el repo: si pasa, se reactiva en la pestaña *Actions*.
+  `PUBLIC_SUPABASE_URL`, `PUBLIC_SUPABASE_PUBLISHABLE_KEY` y `PUBLIC_WEB3FORMS_KEY`
+  (formulario de contacto). Cuando exista el bucket de R2, añade también
+  `PUBLIC_MEDIA_BASE_URL` para que se vean el vídeo de Media y el reproductor.
+- **Límites**: sin servidor, el **panel (fase 6) no existe** (sus páginas no se compilan)
+  y el formulario de contacto envía por Web3Forms en lugar de Resend, sin Turnstile ni
+  límite por IP (ver [Formulario de contacto](#formulario-de-contacto)). GitHub pausa los
+  workflows programados tras 60 días sin actividad en el repo: si pasa, se reactiva en la
+  pestaña *Actions*.
 - **Al pasar a Cloudflare**: borra `astro.config.pages.mjs` y el workflow, y desactiva
   Pages.
 

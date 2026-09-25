@@ -5,12 +5,9 @@ import { RESEND_API_URL, buildContactEmail, contactSubject, escapeHtml, sendEmai
 /** C17 · el email que llega a Pau: texto + HTML escapado, y un solo reintento. */
 
 const MESSAGE: ContactMessage = {
-  name: 'Ana <Prueba>',
   email: 'ana@example.com',
-  reason: 'booking',
-  date: '2026-10-15',
-  place: 'LA MARIQUEEN & "sala 2"',
-  message: 'Hola:\n<script>alert(1)</script>\n¿Fecha libre?',
+  phone: '+34 600 11 22 33',
+  message: 'Hola:\n<script>alert(1)</script>\n¿Fecha libre en "LA MARIQUEEN" & sala 2?',
 };
 
 const OPTIONS = { from: 'web@travest15m0.test', to: 'pau@travest15m0.test', sentAt: new Date('2026-09-19T20:30:00Z') };
@@ -32,14 +29,13 @@ describe('singleLine', () => {
 });
 
 describe('contactSubject', () => {
-  it('«[web] {motivo} — {nombre}», con el motivo en español', () => {
-    expect(contactSubject({ reason: 'booking', name: 'Ana' })).toBe('[web] booking — Ana');
-    expect(contactSubject({ reason: 'colaboracion', name: 'Ana' })).toBe('[web] colaboración — Ana');
+  it('«[web] mensaje de {email}»', () => {
+    expect(contactSubject({ email: 'ana@example.com' })).toBe('[web] mensaje de ana@example.com');
   });
 
-  it('un nombre con saltos de línea no rompe el asunto', () => {
-    expect(contactSubject({ reason: 'otro', name: 'Ana\nBcc: alguien@example.com' })).toBe(
-      '[web] otro — Ana Bcc: alguien@example.com',
+  it('un email con saltos de línea no rompe el asunto', () => {
+    expect(contactSubject({ email: 'ana@example.com\nBcc: alguien@example.com' })).toBe(
+      '[web] mensaje de ana@example.com Bcc: alguien@example.com',
     );
   });
 });
@@ -54,11 +50,8 @@ describe('buildContactEmail', () => {
   });
 
   it('el texto lleva los datos y el mensaje tal cual', () => {
-    expect(payload.text).toContain('Nombre: Ana <Prueba>');
     expect(payload.text).toContain('Email: ana@example.com');
-    expect(payload.text).toContain('Motivo: booking');
-    expect(payload.text).toContain('Fecha del evento: 15 OCTUBRE 2026');
-    expect(payload.text).toContain('Sala / ciudad: LA MARIQUEEN & "sala 2"');
+    expect(payload.text).toContain('Teléfono: +34 600 11 22 33');
     expect(payload.text).toContain('<script>alert(1)</script>');
     expect(payload.text).toContain('Enviado el 19-09-2026 a las 22:30 (hora de Madrid)');
   });
@@ -66,14 +59,13 @@ describe('buildContactEmail', () => {
   it('el HTML va escapado: nada de lo que escriba nadie se interpreta', () => {
     expect(payload.html).not.toContain('<script>alert(1)</script>');
     expect(payload.html).toContain('&lt;script&gt;alert(1)&lt;/script&gt;');
-    expect(payload.html).toContain('Ana &lt;Prueba&gt;');
-    expect(payload.html).toContain('LA MARIQUEEN &amp; &quot;sala 2&quot;');
+    expect(payload.html).toContain('&quot;LA MARIQUEEN&quot; &amp; sala 2');
   });
 
-  it('sin fecha ni sala, esas filas no aparecen', () => {
-    const simple = buildContactEmail({ ...MESSAGE, date: undefined, place: undefined }, OPTIONS);
-    expect(simple.text).not.toContain('Fecha del evento');
-    expect(simple.text).not.toContain('Sala / ciudad');
+  it('sin teléfono, esa fila no aparece', () => {
+    const simple = buildContactEmail({ ...MESSAGE, phone: undefined }, OPTIONS);
+    expect(simple.text).toContain('Email: ana@example.com');
+    expect(simple.text).not.toContain('Teléfono');
   });
 });
 

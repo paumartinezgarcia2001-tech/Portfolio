@@ -32,9 +32,9 @@ export const prerender = true;
 
   <h2>Qué datos se recogen y para qué</h2>
   <p>
-    Solo los que escribes en el formulario de contacto: nombre, email, motivo del mensaje, fecha del evento (si es una
-    propuesta de booking), sala o ciudad y el mensaje. Sirven para leer tu mensaje y responderte, y para nada más: la
-    web no hace perfiles, ni publicidad, ni envía boletines.
+    Solo los que escribes en el formulario de contacto: tu email, tu teléfono (si lo pones, que es opcional) y el
+    mensaje. Sirven para leer tu mensaje y responderte, y para nada más: la web no hace perfiles, ni publicidad, ni
+    envía boletines.
   </p>
   <p><mark class="todo">TODO</mark> Base jurídica del tratamiento (por ejemplo, tu consentimiento al enviar el formulario).</p>
 
@@ -53,6 +53,12 @@ export const prerender = true;
     </li>
     <li><span lang="en">Resend</span>: el envío del correo con tu mensaje.</li>
     <li>
+      <span lang="en">Web3Forms</span>: mientras la web está publicada en <span lang="en">GitHub Pages</span>, es quien
+      recibe el formulario y manda el correo (en vez de <span lang="en">Resend</span>). <mark class="todo">TODO</mark>
+      Revisar su política de privacidad y cuánto conserva los mensajes.
+    </li>
+    <li><span lang="en">GitHub</span>: alojamiento de la web mientras esté en <span lang="en">GitHub Pages</span>.</li>
+    <li>
       <span lang="en">Supabase</span>: la base de datos de la web (fechas, mixes y textos). No guarda los mensajes del
       formulario.
     </li>
@@ -64,10 +70,15 @@ export const prerender = true;
 
   <h2>Anti-spam y límite de envíos</h2>
   <p>
-    Antes de enviar tu mensaje, <span lang="en">Cloudflare Turnstile</span> comprueba que quien lo envía no es un robot;
-    para eso trata datos técnicos de tu navegador y tu dirección IP. Para evitar abusos, la web guarda como máximo una
-    hora un código derivado de tu IP (no la IP en claro) y no acepta más de {CONTACT_RATE_LIMIT.max} mensajes por hora
-    desde la misma conexión.
+    En el alojamiento definitivo (<span lang="en">Cloudflare</span>), antes de enviar tu mensaje
+    <span lang="en">Cloudflare Turnstile</span> comprueba que quien lo envía no es un robot; para eso trata datos
+    técnicos de tu navegador y tu dirección IP. Para evitar abusos, la web guarda como máximo una hora un código
+    derivado de tu IP (no la IP en claro) y no acepta más de {CONTACT_RATE_LIMIT.max} mensajes por hora desde la misma
+    conexión.
+  </p>
+  <p>
+    Mientras la web está en <span lang="en">GitHub Pages</span> no hay nada de eso: el filtro anti-spam lo aplica
+    <span lang="en">Web3Forms</span> en su servidor.
   </p>
   <p>
     <mark class="todo">TODO</mark> Confirmar en la política de privacidad de <span lang="en">Cloudflare</span> qué datos
