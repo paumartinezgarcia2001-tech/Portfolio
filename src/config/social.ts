@@ -92,9 +92,15 @@ export function soundcloudPlayerUrl(options: { autoPlay?: boolean } = {}): strin
 export const INSTAGRAM_POSTS: readonly string[] = [
   // Las eligió Luna (02-10-2026). Tres, y van en una sola fila: si se añaden
   // más, la fila se desplaza en horizontal en vez de apilarlas.
-  'https://www.instagram.com/p/DF3IBcjIiO5/',
+  //
+  // Ojo: una publicación borrada —o de una cuenta que se pone privada— deja de
+  // poder incrustarse, y en su hueco queda solo el enlace. Pasó con
+  // `DF3IBcjIiO5` (02-10-2026): Instagram responde «es posible que el enlace de
+  // esta foto o video esté dañado, o que se haya eliminado la publicación», así
+  // que se cambió por `DBjxR7uuDQ1`, la cuarta que había elegido Luna.
   'https://www.instagram.com/p/DRRYO_dDMPC/',
   'https://www.instagram.com/p/DR-gy3GCNQK/',
+  'https://www.instagram.com/p/DBjxR7uuDQ1/',
 ];
 
 /** Script del embed oficial (el origen ya está en la CSP, §11). */
@@ -138,6 +144,10 @@ export function instagramPosts(): string[] {
  * Sin avisos de cookies debajo de cada widget (Luna ✓ 02-10-2026): los dos
  * llevan dentro los enlaces legales de SoundCloud y de Instagram, y lo que
  * hacen está explicado en /privacidad, que es donde toca.
+ *
+ * Debajo de cada widget va su enlace al perfil, con el nombre de la red a secas
+ * y la flecha (Luna ✓ 02-10-2026); antes estaban los dos juntos al final de
+ * contact.
  */
 export const SOCIAL_TEXT = {
   soundcloud: {
@@ -147,12 +157,14 @@ export const SOCIAL_TEXT = {
     /** Enlace de la fachada (sin JavaScript). Solo con `eager: false`. */
     openLabel: 'escuchar en SoundCloud',
     frameTitle: 'Reproductor de SoundCloud',
+    /** Debajo del reproductor, al perfil de SoundCloud. */
+    profileLabel: 'soundcloud',
   },
   instagram: {
     heading: 'instagram',
     /** Enlace de cada publicación mientras no haya cargado el embed. */
     postLabel: (index: number) => `publicación ${index}`,
-    /** Debajo de las publicaciones, al perfil entero. */
-    profileLabel: 'ver el perfil en Instagram',
+    /** Debajo de las publicaciones, al perfil de Instagram. */
+    profileLabel: 'instagram',
   },
 } as const;

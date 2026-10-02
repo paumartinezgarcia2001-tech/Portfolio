@@ -87,6 +87,19 @@
     letter-spacing: 0.04em;
     text-transform: uppercase;
   }
+
+  /* El enlace a la red, justo debajo de su widget (Luna ✓ 02-10-2026): antes
+     estaban los dos juntos al final de contact. */
+  .embed__link {
+    margin: 0;
+    font-size: calc(var(--fs-paragraph) * 1.4);
+    line-height: var(--lh-paragraph);
+  }
+
+  /* El rotulador (D39) solo al pasar el ratón o con el foco. */
+  .embed__link a:not(:hover, :focus-visible) {
+    background: none;
+  }
 }
 
 /* ------------------------------------------------------------------------ */

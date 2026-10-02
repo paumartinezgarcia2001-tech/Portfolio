@@ -54,8 +54,9 @@ const posts = Astro.props.posts
         ))}
       </instagram-posts>
 
-      <p class="ig__profile">
-        <a class="ig__link hl" href={SITE.social.instagram} target="_blank" rel="noopener">
+      {/* El enlace al perfil, justo debajo de las publicaciones (Luna ✓ 02-10-2026). */}
+      <p class="embed__link">
+        <a class="hl" href={SITE.social.instagram} target="_blank" rel="noopener">
           {TEXT.profileLabel}
           <span aria-hidden="true"> ↗</span>
           <span class="visually-hidden"> (se abre en otra pestaña)</span>
@@ -90,13 +91,24 @@ const posts = Astro.props.posts
     }
 
     /* Antes de que cargue el embed, cada publicación es solo su enlace: sin la
-       caja del `blockquote`, que si no se ven cuatro marcos vacíos. */
-    .ig :global(blockquote.instagram-media:not(.instagram-media-rendered)) {
+       caja del `blockquote`, que si no se ven tres marcos vacíos. */
+    .ig :global(blockquote) {
       margin: 0;
       padding: 0;
       border: 0;
       font-size: var(--fs-paragraph);
       line-height: var(--lh-paragraph);
+    }
+
+    /* Publicación que no ha llegado a cargar (borrada, o de una cuenta que se
+       ha puesto privada): se queda su enlace dentro de un marco del tamaño de
+       las demás, en vez de una línea suelta que descuadra la fila. */
+    .ig :global(blockquote.ig__fallback) {
+      display: grid;
+      place-items: center;
+      padding: var(--pad);
+      border: var(--rule-w) solid var(--c-panel-fg);
+      aspect-ratio: 1 / 1.4;
     }
 
     /* Ya cargado: las reglas que inyecta Instagram llevan !important, y su
@@ -107,12 +119,6 @@ const posts = Astro.props.posts
       max-width: 100% !important;
       margin: 0 !important;
       scroll-snap-align: start;
-    }
-
-    .ig__profile {
-      margin: 0;
-      font-size: var(--fs-small);
-      line-height: var(--lh-paragraph);
     }
 
     /* El rotulador (D39) solo al pasar el ratón o con el foco. */

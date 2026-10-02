@@ -3,9 +3,11 @@ import { SITE } from '../../src/config/site';
 import {
   INSTAGRAM_EMBED_SCRIPT,
   INSTAGRAM_ORIGIN,
+  INSTAGRAM_POSTS,
   SOUNDCLOUD,
   SOUNDCLOUD_WIDGET_API,
   instagramPostUrl,
+  instagramPosts,
   soundcloudPlayerUrl,
 } from '../../src/config/social';
 
@@ -38,6 +40,19 @@ describe('soundcloudPlayerUrl', () => {
   it('los scripts de terceros salen de los orígenes que permite la CSP', () => {
     expect(SOUNDCLOUD_WIDGET_API.startsWith('https://w.soundcloud.com/')).toBe(true);
     expect(INSTAGRAM_EMBED_SCRIPT).toBe(`${INSTAGRAM_ORIGIN}/embed.js`);
+  });
+});
+
+describe('INSTAGRAM_POSTS', () => {
+  it('son tres, válidas y sin repetir (van en una fila)', () => {
+    const posts = instagramPosts();
+    expect(posts).toHaveLength(3);
+    expect(new Set(posts).size).toBe(3);
+    expect(posts).toEqual(INSTAGRAM_POSTS.map((raw) => instagramPostUrl(raw)));
+  });
+
+  it('fuera DF3IBcjIiO5: Instagram dice que ya no existe (02-10-2026)', () => {
+    expect(instagramPosts().some((url) => url.includes('DF3IBcjIiO5'))).toBe(false);
   });
 });
 

@@ -234,7 +234,9 @@ con la marca `v` y, si no compila, **se salta el `pattern` sin avisar**. Lo vigi
 
 Debajo del formulario hay un reproductor de SoundCloud y tres publicaciones destacadas de
 Instagram. **Los dos se cargan al abrir la página**, y el formulario y los dos widgets
-**ocupan todo el ancho de la columna** (que ya no tiene `max-width` propio).
+**ocupan todo el ancho de la columna** (que ya no tiene `max-width` propio). Debajo de cada
+widget va su enlace al perfil —«soundcloud ↗» e «instagram ↗»—; al final de contact ya solo
+queda el email (`SocialLinks.astro`).
 
 - **SoundCloud**: reproductor visual oficial, sin registro ni clave. Ahora mismo incrusta el
   **perfil entero**, porque `SOUNDCLOUD.trackUrl` (`src/config/social.ts`) está vacío; con
@@ -252,6 +254,14 @@ Instagram. **Los dos se cargan al abrir la página**, y el formulario y los dos 
   aparece.** Se limpian los `?igsh=…` y se descarta lo que no sea una publicación.
   Las tres van **en una sola fila**: si no caben —pantallas estrechas, o más de tres— la fila
   se desplaza en horizontal, no se apila.
+
+**Una publicación borrada deja de poder incrustarse** (y lo mismo si su cuenta se pone
+privada): Instagram responde «es posible que el enlace de esta foto o vídeo esté dañado».
+`embed.js` lo deja a medias —mete un iframe vacío y no quita el `blockquote`—, así que a los
+8 segundos `src/scripts/instagram-posts.ts` tira ese iframe y deja el enlace dentro de un
+marco del tamaño de los demás (`.ig__fallback`), en vez de un hueco roto en la fila. Si pasa,
+cambia esa URL en `INSTAGRAM_POSTS`. Para comprobar si una publicación se puede incrustar,
+abre `https://www.instagram.com/p/<código>/embed/` en el navegador.
 
 **No se puede incrustar el perfil entero de Instagram**: el oEmbed de Meta devuelve 400 («not
 embeddable») para las URLs de perfil, y su API de feeds exige cuenta profesional y un token

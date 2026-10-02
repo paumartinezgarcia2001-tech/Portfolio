@@ -8,6 +8,13 @@
  *
  * El embed oficial no necesita token ni revisión de la app desde junio de 2026,
  * pero solo vale para **publicaciones públicas**.
+ *
+ * Cuando una publicación concreta no se puede incrustar —borrada, o de una
+ * cuenta que se ha puesto privada—, `embed.js` deja a medias lo suyo: mete un
+ * iframe vacío (de alto 0) justo antes del `blockquote` y nunca quita el
+ * `blockquote`. Eso se veía como un hueco roto en mitad de la fila, así que
+ * pasado `FALLBACK_MS` se tira ese iframe y el enlace se queda dentro de un
+ * marco del tamaño de las demás (`.ig__fallback`).
  */
 import { INSTAGRAM_EMBED_SCRIPT } from '../config/social';
 import { loadExternalScript } from './external-script';
@@ -18,9 +25,19 @@ declare global {
   }
 }
 
+/** Margen que se le da a cada embed antes de dar su hueco por perdido. */
+export const FALLBACK_MS = 8_000;
+
 export class InstagramPostsElement extends HTMLElement {
+  #timer: ReturnType<typeof setTimeout> | undefined;
+
   connectedCallback(): void {
     void this.#load();
+  }
+
+  disconnectedCallback(): void {
+    if (this.#timer !== undefined) clearTimeout(this.#timer);
+    this.#timer = undefined;
   }
 
   async #load(): Promise<void> {
@@ -39,6 +56,26 @@ export class InstagramPostsElement extends HTMLElement {
       console.error('[instagram] No se ha podido cargar el embed; quedan los enlaces.', error);
       this.dataset.state = 'error';
     }
+    this.#timer = setTimeout(() => this.tidyUnrendered(), FALLBACK_MS);
+  }
+
+  /**
+   * Recoge lo que `embed.js` haya dejado a medias: por cada `blockquote` que
+   * siga en pie, tira el iframe vacío que le precede y marca el hueco para que
+   * el enlace se vea dentro de un marco, no como una línea suelta.
+   */
+  tidyUnrendered(): number {
+    let caidas = 0;
+    for (const quote of this.querySelectorAll('blockquote')) {
+      const frame = quote.previousElementSibling;
+      // `embed.js` mete su iframe justo antes del `blockquote` y solo quita el
+      // `blockquote` cuando el embed responde con su alto.
+      if (frame instanceof HTMLIFrameElement && !frame.classList.contains('instagram-media-rendered')) frame.remove();
+      quote.classList.add('ig__fallback');
+      caidas += 1;
+    }
+    if (caidas > 0) this.dataset.fallback = String(caidas);
+    return caidas;
   }
 }
 

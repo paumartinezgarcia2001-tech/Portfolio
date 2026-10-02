@@ -54,6 +54,15 @@ const TEXT = SOCIAL_TEXT.soundcloud;
       )
     }
   </soundcloud-embed>
+
+  {/* El enlace al perfil, justo debajo del reproductor (Luna ✓ 02-10-2026). */}
+  <p class="embed__link">
+    <a class="hl" href={SITE.social.soundcloud} target="_blank" rel="noopener">
+      {TEXT.profileLabel}
+      <span aria-hidden="true"> ↗</span>
+      <span class="visually-hidden"> (se abre en otra pestaña)</span>
+    </a>
+  </p>
 </section>
 
 <script>

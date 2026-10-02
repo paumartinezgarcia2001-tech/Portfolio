@@ -134,6 +134,17 @@ test.describe('Reproductor de SoundCloud', () => {
     }
   });
 
+  test('debajo, el enlace al perfil: «soundcloud ↗» (Luna ✓ 02-10)', async ({ page }) => {
+    await stubThirdParties(page);
+    await withMusicPaused(page);
+    await openContact(page);
+    await showMobilePage(page);
+    const link = page.locator('soundcloud-embed ~ .embed__link a');
+    await expect(link).toHaveAttribute('href', 'https://soundcloud.com/travest15m0');
+    await expect(link).toContainText(SOCIAL_TEXT.soundcloud.profileLabel);
+    await expect(link).toHaveAttribute('target', '_blank');
+  });
+
   test('va centrado en la columna de la página', async ({ page }) => {
     await stubThirdParties(page);
     await withMusicPaused(page);
@@ -215,12 +226,53 @@ test.describe('Publicaciones de Instagram', () => {
     expect(Math.abs(cajas[0]!.width - cajas[2]!.width)).toBeLessThanOrEqual(1);
   });
 
-  test('debajo, el enlace al perfil entero', async ({ page }) => {
+  test('debajo, el enlace al perfil: «instagram ↗» (Luna ✓ 02-10)', async ({ page }) => {
     await stubThirdParties(page);
     await openContact(page);
     await showMobilePage(page);
-    const link = page.getByRole('link', { name: new RegExp(SOCIAL_TEXT.instagram.profileLabel) });
+    const link = page.locator('instagram-posts ~ .embed__link a');
     await expect(link).toHaveAttribute('href', 'https://www.instagram.com/travest15m0/');
+    await expect(link).toContainText(SOCIAL_TEXT.instagram.profileLabel);
+  });
+
+  test('una publicación que no carga deja su enlace en un marco (02-10)', async ({ page }) => {
+    await stubThirdParties(page);
+    // Simula lo que hace embed.js con una publicación borrada: le mete delante
+    // un iframe vacío y no llega a quitar el blockquote. Esta ruta se registra
+    // después que la del helper, así que es la que manda.
+    await page.route(`${INSTAGRAM_ORIGIN}/embed.js`, (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/javascript; charset=utf-8',
+        body: `(() => {
+          const render = () => {
+            [...document.querySelectorAll('blockquote.instagram-media')].forEach((quote, i) => {
+              const frame = document.createElement('iframe');
+              frame.className = i === 0 ? 'instagram-media' : 'instagram-media instagram-media-rendered';
+              frame.setAttribute('height', i === 0 ? '0' : '320');
+              frame.style.cssText = 'display:block;width:100%;border:0';
+              quote.before(frame);
+              if (i !== 0) quote.remove();
+            });
+          };
+          window.instgrm = { Embeds: { process: render } };
+          render();
+        })();`,
+      }),
+    );
+    await openContact(page);
+    await showMobilePage(page);
+
+    const fila = page.locator('instagram-posts');
+    await expect(fila).toHaveAttribute('data-fallback', '1', { timeout: 20_000 });
+    // El iframe vacío se tira: quedan los dos que sí cargaron.
+    await expect(fila.locator('iframe')).toHaveCount(2);
+    // Y la que falló se queda como marco con su enlace, no como una línea suelta.
+    const caida = fila.locator('blockquote.ig__fallback');
+    await expect(caida).toHaveCount(1);
+    await expect(caida.locator('a')).toHaveAttribute('href', instagramPosts()[0]!);
+    const caja = await caida.boundingBox();
+    expect(caja!.height).toBeGreaterThan(100);
   });
 
   test('sin JavaScript quedan los enlaces de cada publicación', async ({ browser }) => {

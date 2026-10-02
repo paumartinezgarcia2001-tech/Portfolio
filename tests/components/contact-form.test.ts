@@ -132,21 +132,18 @@ describe('ContactForm en el build estático (Web3Forms)', () => {
 });
 
 describe('SocialLinks', () => {
-  it('SoundCloud e Instagram, en otra pestaña y sin referrer abierto', async () => {
-    const html = await container.renderToString(SocialLinks);
-    expect(html).toContain('https://soundcloud.com/travest15m0');
-    expect(html).toContain('https://www.instagram.com/travest15m0/');
-    expect(html.match(/target="_blank"/g)).toHaveLength(2);
-    expect(html.match(/rel="noopener"/g)).toHaveLength(2);
-    expect(html).toContain('(se abre en otra pestaña)');
-    expect(html).not.toContain('linkedin');
-  });
-
   it('el email de Pau, como enlace mailto y en la misma pestaña (D58)', async () => {
     const html = await container.renderToString(SocialLinks);
     expect(html).toContain(`href="mailto:${SITE.contactEmail}"`);
     expect(html).toContain(SITE.contactEmail);
-    // El correo no abre pestaña: solo los dos enlaces de redes lo hacen.
-    expect(html).not.toMatch(new RegExp(`mailto:[^"]*"[^>]*target="_blank"`));
+    // El correo abre el programa de correo, no una pestaña.
+    expect(html).not.toContain('target="_blank"');
+  });
+
+  it('ya no trae los enlaces de redes: cada uno va bajo su widget (Luna ✓ 02-10)', async () => {
+    const html = await container.renderToString(SocialLinks);
+    expect(html).not.toContain('soundcloud.com');
+    expect(html).not.toContain('instagram.com');
+    expect(html).not.toContain('linkedin');
   });
 });

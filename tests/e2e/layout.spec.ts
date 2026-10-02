@@ -192,6 +192,10 @@ test.describe('Layout', () => {
     await page.goto('/');
     const track = page.locator('.ticker__track');
     expect(await track.evaluate((el) => el.getAnimations().length)).toBe(1);
+    // El ratón arranca en (0,0), que es justo encima de la barra: según la
+    // versión de Chromium eso ya cuenta como `:hover` y la pausa. Se aparta
+    // antes de comprobar que se mueve.
+    await page.mouse.move(600, 400);
     await expect(track).toHaveCSS('animation-play-state', 'running');
     await page.locator('[data-ticker]').hover();
     await expect(track).toHaveCSS('animation-play-state', 'paused');

@@ -57,10 +57,20 @@ describe('SoundCloudEmbed', () => {
     expect(html).not.toMatch(/cookies/i);
   });
 
-  it('sin SoundCloud no se queda el enlace de la fachada a medias', async () => {
+  it('debajo, el enlace al perfil: «soundcloud ↗» (Luna ✓ 02-10)', async () => {
     const html = await container.renderToString(SoundCloudEmbed);
-    // Con `eager`, la fachada no se pinta: no hay enlace que lleve fuera.
-    expect(html).not.toContain(`href="${SITE.social.soundcloud}"`);
+    expect(SOCIAL_TEXT.soundcloud.profileLabel).toBe('soundcloud');
+    expect(html).toContain('embed__link');
+    expect(html).toContain(`href="${SITE.social.soundcloud}"`);
+    expect(html).toContain(SOCIAL_TEXT.soundcloud.profileLabel);
+    expect(html).toContain('(se abre en otra pestaña)');
+  });
+
+  it('con el reproductor puesto, la fachada no se pinta', async () => {
+    const html = await container.renderToString(SoundCloudEmbed);
+    // El único enlace a SoundCloud es el del perfil, debajo; la fachada no está.
+    expect(html).not.toContain('sc__facade');
+    expect(html).not.toContain(SOCIAL_TEXT.soundcloud.openLabel);
     // Pero la URL para cargarlo sonando sigue disponible por si se vuelve a
     // `eager: false` (la usa el script al pulsar).
     expect(html).toMatch(/data-player-src="[^"]*auto_play=true/);
@@ -102,8 +112,10 @@ describe('InstagramPosts', () => {
     expect(html.match(/data-instgrm-permalink/g)).toHaveLength(2);
   });
 
-  it('debajo, el enlace al perfil entero, y sin aviso de cookies', async () => {
+  it('debajo, el enlace al perfil: «instagram ↗», y sin aviso de cookies', async () => {
     const html = await container.renderToString(InstagramPosts, { props: { posts: POSTS } });
+    expect(SOCIAL_TEXT.instagram.profileLabel).toBe('instagram');
+    expect(html).toContain('embed__link');
     expect(html).toContain(SOCIAL_TEXT.instagram.profileLabel);
     expect(html).toContain(`href="${SITE.social.instagram}"`);
     expect(html).not.toContain('embed__notice');

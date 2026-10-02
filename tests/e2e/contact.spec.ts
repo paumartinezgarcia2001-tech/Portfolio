@@ -383,19 +383,23 @@ test.describe('Sin JavaScript', () => {
 });
 
 test.describe('Correo, redes y pie legal', () => {
-  test('SoundCloud e Instagram se abren en otra pestaña', async ({ page }) => {
+  test('soundcloud e instagram, cada uno debajo de su widget (Luna ✓ 02-10)', async ({ page }) => {
     await openContact(page);
     await showMobilePage(page);
     await waitForTurnstileToken(page);
     for (const [label, href] of [
-      ['SoundCloud', 'https://soundcloud.com/travest15m0'],
-      ['Instagram', 'https://www.instagram.com/travest15m0/'],
+      ['soundcloud', 'https://soundcloud.com/travest15m0'],
+      ['instagram', 'https://www.instagram.com/travest15m0/'],
     ]) {
-      const link = page.getByRole('link', { name: new RegExp(`^${label}`) });
+      const link = page.getByRole('link', { name: new RegExp(`^${label}`, 'i') });
       await expect(link).toHaveAttribute('href', href!);
       await expect(link).toHaveAttribute('target', '_blank');
       await expect(link).toHaveAttribute('rel', /noopener/);
+      // Dentro del apartado de su widget, no en el bloque del final.
+      await expect(link.locator('xpath=ancestor::section[contains(@class,"embed")]')).toHaveCount(1);
     }
+    // Abajo ya solo queda el email.
+    await expect(page.locator('.social a')).toHaveCount(1);
   });
 
   test('el email de Pau está a la vista como mailto (D58), y su teléfono no', async ({ page }) => {
