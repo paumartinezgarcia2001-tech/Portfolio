@@ -1,16 +1,17 @@
 /**
  * Widgets de SoundCloud e Instagram en contact (C17, D59).
  *
- * Los dos se cargan **solo si alguien los pide** (una fachada con un botón, no
- * un iframe de entrada):
- * - la página pesa lo mismo que antes para quien no los toca;
- * - y, sobre todo, ni SoundCloud ni Meta reciben una visita —ni ponen cookies—
- *   mientras nadie pulse. Así sigue siendo verdad que la web no pone cookies de
- *   terceros sin que se las pidan (§11 y /privacidad), que es lo que permite no
- *   tener banner.
+ * **Instagram** se carga solo si alguien lo pide: lo que se sirve es una
+ * fachada con enlaces de verdad (lo que funciona sin JavaScript) y los embeds
+ * llegan al pulsar el botón. Así Meta no recibe ninguna visita ni pone cookies
+ * mientras nadie se lo pida.
  *
- * Sin JavaScript las dos fachadas son enlaces de verdad: la música se escucha
- * en SoundCloud y las publicaciones se abren en Instagram.
+ * **SoundCloud** va puesto desde el principio (`SOUNDCLOUD.eager`, Luna ✓
+ * 02-10-2026): se ve el reproductor nada más abrir contact, aunque no suena
+ * hasta que le dan al play. A cambio, SoundCloud sí recibe la visita y puede
+ * poner sus cookies en cuanto se abre la página; está contado en /privacidad.
+ * Poniendo `eager: false` se vuelve a la fachada y no se carga nada hasta que
+ * se pulsa.
  */
 import { INSTAGRAM_ORIGIN, SOUNDCLOUD_WIDGET_ORIGIN } from '../lib/security-headers';
 import { SITE } from './site';
@@ -38,6 +39,15 @@ export const SOUNDCLOUD = {
   visual: true,
   /** Alto del reproductor visual, en píxeles (SoundCloud ofrece 300, 450 y 600). */
   height: 450,
+  /**
+   * `true` = el reproductor ya está puesto al abrir contact (Luna ✓
+   * 02-10-2026). Nunca arranca solo: hay que darle al play, y además la web ya
+   * tiene su propia música sonando (D43).
+   *
+   * `false` = fachada: un enlace a SoundCloud y, al pulsarlo, el reproductor
+   * sonando. Con `false`, SoundCloud no se entera de la visita hasta ese clic.
+   */
+  eager: true,
 } as const;
 
 /** API de JavaScript del widget (el origen ya está en la CSP, §11). */
@@ -75,8 +85,11 @@ export function soundcloudPlayerUrl(options: { autoPlay?: boolean } = {}): strin
  * Con la lista vacía, en contact no aparece el apartado.
  */
 export const INSTAGRAM_POSTS: readonly string[] = [
-  // TODO (Luna): pega aquí de dos a cuatro publicaciones de
-  // https://www.instagram.com/travest15m0/
+  // Las eligió Luna (02-10-2026).
+  'https://www.instagram.com/p/DF3IBcjIiO5/',
+  'https://www.instagram.com/p/DRRYO_dDMPC/',
+  'https://www.instagram.com/p/DR-gy3GCNQK/',
+  'https://www.instagram.com/p/DBjxR7uuDQ1/',
 ];
 
 /** Script del embed oficial (el origen ya está en la CSP, §11). */
@@ -115,13 +128,14 @@ export function instagramPosts(): string[] {
 export const SOCIAL_TEXT = {
   soundcloud: {
     heading: 'escucha',
-    /** Botón de la fachada (con JavaScript). */
+    /** Botón de la fachada (con JavaScript). Solo con `eager: false`. */
     load: 'cargar el reproductor',
     /** Enlace de la fachada (sin JavaScript) y texto del aviso. */
     openLabel: 'escuchar en SoundCloud',
     loading: 'cargando el reproductor…',
     frameTitle: 'Reproductor de SoundCloud',
-    notice: 'El reproductor se carga desde SoundCloud, que puede usar cookies.',
+    /** Debajo del reproductor, en el tamaño más pequeño de la web. */
+    notice: 'El reproductor es de SoundCloud, que puede usar sus propias cookies.',
   },
   instagram: {
     heading: 'instagram',

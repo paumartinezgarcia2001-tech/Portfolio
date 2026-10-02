@@ -2,11 +2,14 @@
 /**
  * C17 · SoundCloudEmbed — el reproductor de SoundCloud en contact (D59).
  *
- * Lo que llega del servidor es una **fachada**: un enlace de verdad a
- * SoundCloud, que es lo que se usa sin JavaScript. Con JavaScript, al pulsarla
- * se cambia por el reproductor visual oficial, ya sonando
- * (src/scripts/soundcloud-embed.ts). Hasta ese clic, SoundCloud no recibe
- * ninguna visita ni pone ninguna cookie.
+ * Con `SOUNDCLOUD.eager` (así está ahora, Luna ✓ 02-10-2026) el reproductor ya
+ * viene puesto: se ve nada más abrir contact y no suena hasta que le dan al
+ * play. Con `eager: false` lo que llega es una **fachada** —un enlace de verdad
+ * a SoundCloud, que es lo que se usa sin JavaScript— y el reproductor aparece,
+ * ya sonando, al pulsarla.
+ *
+ * En los dos casos, src/scripts/soundcloud-embed.ts se encarga de que la música
+ * de la web y SoundCloud no suenen a la vez.
  */
 import { SITE } from '../config/site';
 import { SOCIAL_TEXT, SOUNDCLOUD, soundcloudPlayerUrl } from '../config/social';
@@ -19,22 +22,37 @@ const TEXT = SOCIAL_TEXT.soundcloud;
 
   <soundcloud-embed
     class="sc"
-    data-state="idle"
+    data-state={SOUNDCLOUD.eager ? 'ready' : 'idle'}
     data-player-src={soundcloudPlayerUrl({ autoPlay: true })}
     data-frame-height={String(SOUNDCLOUD.height)}
     data-frame-title={TEXT.frameTitle}
     data-load-label={TEXT.load}
     data-native-cursor
   >
-    {/* El mismo elemento es la fachada y, después, el hueco del iframe. */}
-    <a class="sc__facade" href={SITE.social.soundcloud} target="_blank" rel="noopener" data-facade data-load>
-      <span class="sc__title">{SOUNDCLOUD.trackTitle}</span>
-      <span class="sc__action" data-action
-        >{TEXT.openLabel}<span aria-hidden="true"> ↗</span><span class="visually-hidden">
-          (se abre en otra pestaña)</span
-        ></span
-      >
-    </a>
+    {
+      SOUNDCLOUD.eager ? (
+        <iframe
+          src={soundcloudPlayerUrl()}
+          title={TEXT.frameTitle}
+          width="100%"
+          height={String(SOUNDCLOUD.height)}
+          loading="lazy"
+          frameborder="no"
+          scrolling="no"
+          allow="autoplay; encrypted-media"
+        />
+      ) : (
+        /* El mismo elemento es la fachada y, después, el hueco del iframe. */
+        <a class="sc__facade" href={SITE.social.soundcloud} target="_blank" rel="noopener" data-facade data-load>
+          <span class="sc__title">{SOUNDCLOUD.trackTitle}</span>
+          <span class="sc__action" data-action>
+            {TEXT.openLabel}
+            <span aria-hidden="true"> ↗</span>
+            <span class="visually-hidden"> (se abre en otra pestaña)</span>
+          </span>
+        </a>
+      )
+    }
   </soundcloud-embed>
 
   <p class="embed__notice">{TEXT.notice}</p>
@@ -46,25 +64,8 @@ const TEXT = SOCIAL_TEXT.soundcloud;
 
 <style>
   @layer components {
-    .embed {
-      display: grid;
-      gap: 0.5rem;
-      width: 100%;
-      max-width: 40rem;
-    }
-
-    .embed__heading {
-      font-size: var(--fs-label);
-      font-weight: var(--fw-regular);
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-    }
-
-    .embed__notice {
-      font-size: var(--fs-small);
-      line-height: var(--lh-paragraph);
-    }
-
+    /* `.embed`, `.embed__heading` y `.embed__notice` son comunes con
+       InstagramPosts.astro y están en src/styles/global.css. */
     .sc {
       display: block;
     }

@@ -414,7 +414,17 @@ test.describe('Correo, redes y pie legal', () => {
     await showMobilePage(page);
     // Con el widget ya pintado, el pie no se mueve mientras se pulsa.
     await waitForTurnstileToken(page);
-    await page.getByRole('link', { name: 'privacidad', exact: true }).first().click();
+    // Desde D59 el pie queda debajo del iframe de SoundCloud. Hay que esperar a
+    // que ese iframe haya cargado antes de pulsar: mientras no lo esté, su
+    // tamaño puede cambiar por encima del pie y el navegador corrige el
+    // desplazamiento (scroll anchoring), con lo que el enlace se mueve bajo el
+    // puntero justo al pulsar y el clic se pierde.
+    await expect
+      .poll(() => page.frames().some((frame) => frame.url().startsWith('https://w.soundcloud.com')), { timeout: 15_000 })
+      .toBe(true);
+    const privacidad = page.getByRole('link', { name: 'privacidad', exact: true }).first();
+    await privacidad.scrollIntoViewIfNeeded();
+    await privacidad.click();
     await expect(page).toHaveURL(/\/privacidad\/?$/);
     await expect(page.locator('html')).toHaveAttribute('data-section', 'none');
     await expect(page.locator('.todo').first()).toBeVisible();

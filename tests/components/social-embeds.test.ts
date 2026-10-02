@@ -6,10 +6,12 @@ import { SITE } from '../../src/config/site';
 import { SOCIAL_TEXT, SOUNDCLOUD } from '../../src/config/social';
 
 /**
- * D59 · lo que sale del servidor en contact: **fachadas**, no iframes. Esto es
- * lo que de verdad protege la promesa de /privacidad («mientras no pulses, tu
- * navegador no se conecta ni a SoundCloud ni a Meta»), así que se comprueba que
- * en el HTML no hay nada de ellos.
+ * D59 · lo que sale del servidor en contact.
+ *
+ * - SoundCloud va puesto (`SOUNDCLOUD.eager`), pero **sin arrancar solo**: eso
+ *   es lo que hay que vigilar, porque la web ya tiene su propia música (D43).
+ * - Instagram es una **fachada**: en el HTML no puede haber nada de Meta. Eso
+ *   es lo que sostiene lo que promete /privacidad.
  */
 
 let container: AstroContainer;
@@ -19,36 +21,49 @@ beforeAll(async () => {
 
 const POSTS = ['https://www.instagram.com/p/AbC123/', 'https://www.instagram.com/reel/XyZ789/?igsh=basura'];
 
+/** Atributo `src` del iframe, con las entidades HTML deshechas. */
+function frameSrc(html: string): string {
+  return (/<iframe[^>]*\ssrc="([^"]+)"/.exec(html)?.[1] ?? '').replace(/&#38;|&amp;/g, '&');
+}
+
 describe('SoundCloudEmbed', () => {
-  it('no trae ningún iframe ni ninguna petición a SoundCloud', async () => {
+  it('el reproductor ya viene puesto, con la pista y a la altura configurada', async () => {
     const html = await container.renderToString(SoundCloudEmbed);
-    expect(html).not.toContain('<iframe');
-    expect(html).not.toContain('w.soundcloud.com/player/api.js');
-    // La URL del reproductor viaja en un atributo: no se pide hasta el clic.
-    expect(html).toMatch(/data-player-src="[^"]*w\.soundcloud\.com/);
+    expect(SOUNDCLOUD.eager).toBe(true);
+    expect(html).toContain('<iframe');
+    const src = frameSrc(html);
+    expect(src).toContain('w.soundcloud.com/player/');
+    expect(src).toContain(encodeURIComponent(SOUNDCLOUD.trackUrl));
+    expect(src).toContain('visual=true');
+    expect(html).toContain(`height="${SOUNDCLOUD.height}"`);
+    expect(html).toContain(`title="${SOCIAL_TEXT.soundcloud.frameTitle}"`);
   });
 
-  it('sin JavaScript la fachada es un enlace a SoundCloud, en otra pestaña', async () => {
+  it('NO arranca solo: la web ya tiene su propia música (D43)', async () => {
     const html = await container.renderToString(SoundCloudEmbed);
-    expect(html).toContain(`href="${SITE.social.soundcloud}"`);
-    expect(html).toMatch(/data-facade[^>]*data-load|data-load[^>]*data-facade/);
-    expect(html).toContain('target="_blank"');
-    expect(html).toContain('rel="noopener"');
-    expect(html).toContain(SOCIAL_TEXT.soundcloud.openLabel);
-    expect(html).toContain('(se abre en otra pestaña)');
+    expect(frameSrc(html)).toContain('auto_play=false');
+    expect(frameSrc(html)).not.toContain('auto_play=true');
   });
 
-  it('lleva el título de la pista, el aviso y el cursor del sistema sobre el iframe (C10)', async () => {
+  it('se carga con calma y el cursor del sistema manda encima (C10)', async () => {
     const html = await container.renderToString(SoundCloudEmbed);
-    expect(html).toContain(SOUNDCLOUD.trackTitle);
-    expect(html).toContain(SOCIAL_TEXT.soundcloud.notice);
+    expect(html).toContain('loading="lazy"');
     expect(html).toContain('data-native-cursor');
   });
 
-  it('el reproductor que se cargará arranca sonando (quien pulsa quiere oírlo)', async () => {
+  it('el aviso de que es de SoundCloud va debajo, en el tamaño más pequeño', async () => {
     const html = await container.renderToString(SoundCloudEmbed);
-    const src = /data-player-src="([^"]+)"/.exec(html)?.[1] ?? '';
-    expect(src.replace(/&#38;|&amp;/g, '&')).toContain('auto_play=true');
+    expect(html).toContain(SOCIAL_TEXT.soundcloud.notice);
+    expect(html).toMatch(/class="embed__notice"/);
+  });
+
+  it('sin SoundCloud no se queda el enlace de la fachada a medias', async () => {
+    const html = await container.renderToString(SoundCloudEmbed);
+    // Con `eager`, la fachada no se pinta: no hay enlace que lleve fuera.
+    expect(html).not.toContain(`href="${SITE.social.soundcloud}"`);
+    // Pero la URL para cargarlo sonando sigue disponible por si se vuelve a
+    // `eager: false` (la usa el script al pulsar).
+    expect(html).toMatch(/data-player-src="[^"]*auto_play=true/);
   });
 });
 

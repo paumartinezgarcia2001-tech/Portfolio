@@ -65,6 +65,34 @@
 }
 
 /* ------------------------------------------------------------------------ */
+/* C17 · Apartados de SoundCloud e Instagram en contact (D59)               */
+/* ------------------------------------------------------------------------ */
+/* Compartido por SoundCloudEmbed.astro e InstagramPosts.astro: los <style>
+   de los componentes están aislados, así que lo común va aquí. */
+@layer components {
+  .embed {
+    display: grid;
+    gap: 0.5rem;
+    width: 100%;
+    max-width: 40rem;
+  }
+
+  .embed__heading {
+    font-size: var(--fs-label);
+    font-weight: var(--fw-regular);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  /* El aviso va en el tamaño más pequeño de la web (--fs-label): está ahí por
+     transparencia, no para leerlo antes que el contenido. */
+  .embed__notice {
+    font-size: var(--fs-label);
+    line-height: var(--lh-paragraph);
+  }
+}
+
+/* ------------------------------------------------------------------------ */
 /* C11c · Transición de píxeles (src/scripts/pixel-transition.ts)           */
 /* ------------------------------------------------------------------------ */
 @layer components {
