@@ -1,17 +1,16 @@
 /**
  * Widgets de SoundCloud e Instagram en contact (C17, D59).
  *
- * **Instagram** se carga solo si alguien lo pide: lo que se sirve es una
- * fachada con enlaces de verdad (lo que funciona sin JavaScript) y los embeds
- * llegan al pulsar el botón. Así Meta no recibe ninguna visita ni pone cookies
- * mientras nadie se lo pida.
+ * Los dos se ven nada más abrir contact (Luna ✓ 02-10-2026): el reproductor no
+ * suena hasta que le dan al play, y las publicaciones se pintan solas. A cambio,
+ * SoundCloud y Meta reciben la visita y pueden poner sus cookies en cuanto se
+ * abre la página; está contado en /privacidad.
  *
- * **SoundCloud** va puesto desde el principio (`SOUNDCLOUD.eager`, Luna ✓
- * 02-10-2026): se ve el reproductor nada más abrir contact, aunque no suena
- * hasta que le dan al play. A cambio, SoundCloud sí recibe la visita y puede
- * poner sus cookies en cuanto se abre la página; está contado en /privacidad.
- * Poniendo `eager: false` se vuelve a la fachada y no se carga nada hasta que
- * se pulsa.
+ * Sin JavaScript quedan enlaces de verdad: el `blockquote` de cada publicación
+ * lleva dentro su enlace, y `embed.js` lo sustituye por el embed cuando carga.
+ *
+ * Con `SOUNDCLOUD.eager: false` el reproductor vuelve a ser una fachada que no
+ * carga nada hasta que se pulsa.
  */
 import { INSTAGRAM_ORIGIN, SOUNDCLOUD_WIDGET_ORIGIN } from '../lib/security-headers';
 import { SITE } from './site';
@@ -80,6 +79,11 @@ export function soundcloudPlayerUrl(options: { autoPlay?: boolean } = {}): strin
  * `embed.js`), que desde junio de 2026 no necesita token ni revisión de la app.
  * Solo funciona con **publicaciones públicas**.
  *
+ * No hay forma de incrustar el perfil entero: el oEmbed de Meta rechaza las
+ * URLs de perfil con un 400 («not embeddable»), y su API de feeds exige cuenta
+ * profesional y un token que caduca cada 60 días. Lo más parecido es esta
+ * selección de publicaciones.
+ *
  * Para cambiarlas: en Instagram, en la publicación, «···» → «Copiar enlace», y
  * pega aquí la URL (vale con o sin los parámetros de detrás). Reels incluidos.
  * Con la lista vacía, en contact no aparece el apartado.
@@ -94,6 +98,9 @@ export const INSTAGRAM_POSTS: readonly string[] = [
 
 /** Script del embed oficial (el origen ya está en la CSP, §11). */
 export const INSTAGRAM_EMBED_SCRIPT = `${INSTAGRAM_ORIGIN}/embed.js`;
+
+/** Versión del formato del embed que documenta Instagram. */
+export const INSTAGRAM_EMBED_VERSION = '14';
 
 /**
  * Normaliza la URL de una publicación: `https://www.instagram.com/p/<código>/`,
@@ -124,26 +131,27 @@ export function instagramPosts(): string[] {
   return [...seen];
 }
 
-/** Textos de los dos apartados. */
+/**
+ * Textos de los dos apartados.
+ *
+ * Sin avisos de cookies debajo de cada widget (Luna ✓ 02-10-2026): los dos
+ * llevan dentro los enlaces legales de SoundCloud y de Instagram, y lo que
+ * hacen está explicado en /privacidad, que es donde toca.
+ */
 export const SOCIAL_TEXT = {
   soundcloud: {
     heading: 'escucha',
     /** Botón de la fachada (con JavaScript). Solo con `eager: false`. */
     load: 'cargar el reproductor',
-    /** Enlace de la fachada (sin JavaScript) y texto del aviso. */
+    /** Enlace de la fachada (sin JavaScript). Solo con `eager: false`. */
     openLabel: 'escuchar en SoundCloud',
-    loading: 'cargando el reproductor…',
     frameTitle: 'Reproductor de SoundCloud',
-    /** Debajo del reproductor, en el tamaño más pequeño de la web. */
-    notice: 'El reproductor es de SoundCloud, que puede usar sus propias cookies.',
   },
   instagram: {
     heading: 'instagram',
-    load: 'ver las publicaciones aquí',
-    loading: 'cargando las publicaciones…',
-    failed: 'No se han podido cargar. Ábrelas en Instagram.',
-    notice: 'Las publicaciones se cargan desde Instagram, que puede usar cookies.',
-    /** Para el enlace de cada publicación sin JavaScript: «publicación 1», etc. */
+    /** Enlace de cada publicación mientras no haya cargado el embed. */
     postLabel: (index: number) => `publicación ${index}`,
+    /** Debajo de las publicaciones, al perfil entero. */
+    profileLabel: 'ver el perfil en Instagram',
   },
 } as const;

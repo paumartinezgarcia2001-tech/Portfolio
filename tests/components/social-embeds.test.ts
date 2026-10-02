@@ -51,10 +51,10 @@ describe('SoundCloudEmbed', () => {
     expect(html).toContain('data-native-cursor');
   });
 
-  it('el aviso de que es de SoundCloud va debajo, en el tamaño más pequeño', async () => {
+  it('sin aviso de cookies debajo: lo cuenta /privacidad (Luna ✓ 02-10)', async () => {
     const html = await container.renderToString(SoundCloudEmbed);
-    expect(html).toContain(SOCIAL_TEXT.soundcloud.notice);
-    expect(html).toMatch(/class="embed__notice"/);
+    expect(html).not.toContain('embed__notice');
+    expect(html).not.toMatch(/cookies/i);
   });
 
   it('sin SoundCloud no se queda el enlace de la fachada a medias', async () => {
@@ -72,35 +72,41 @@ describe('InstagramPosts', () => {
     const html = await container.renderToString(InstagramPosts, { props: { posts: [] } });
     expect(html).not.toContain('<instagram-posts');
     expect(html).not.toContain('<section');
-    expect(html).not.toContain('data-posts');
-    expect(html).not.toContain(SOCIAL_TEXT.instagram.load);
+    expect(html).not.toContain('instagram-media');
   });
 
-  it('pinta un enlace por publicación, y ningún embed', async () => {
+  it('un blockquote del embed oficial por publicación, con su permalink', async () => {
+    const html = await container.renderToString(InstagramPosts, { props: { posts: POSTS } });
+    expect(html.match(/class="instagram-media"/g)).toHaveLength(2);
+    expect(html).toContain('data-instgrm-permalink="https://www.instagram.com/p/AbC123/"');
+    // Los parámetros de compartir se quedan fuera.
+    expect(html).toContain('data-instgrm-permalink="https://www.instagram.com/reel/XyZ789/"');
+    expect(html).not.toContain('igsh');
+    expect(html).toContain('data-instgrm-version="14"');
+  });
+
+  it('cada blockquote lleva dentro su enlace: es lo que se ve sin JavaScript', async () => {
     const html = await container.renderToString(InstagramPosts, { props: { posts: POSTS } });
     expect(html).toContain('href="https://www.instagram.com/p/AbC123/"');
-    // Los parámetros de compartir se quedan fuera.
-    expect(html).toContain('href="https://www.instagram.com/reel/XyZ789/"');
-    expect(html).not.toContain('igsh');
-    expect(html).not.toContain('instagram-media');
-    expect(html).not.toContain('embed.js');
-    expect(html).not.toContain('<iframe');
     expect(html).toContain(SOCIAL_TEXT.instagram.postLabel(1));
     expect(html).toContain(SOCIAL_TEXT.instagram.postLabel(2));
+    expect(html).toContain('(se abre en otra pestaña)');
+    // Y no hay botón de cargar nada: se cargan solas (Luna ✓ 02-10).
+    expect(html).not.toContain('<button');
   });
 
   it('descarta las URLs que no son publicaciones', async () => {
     const html = await container.renderToString(InstagramPosts, {
       props: { posts: [...POSTS, 'https://www.instagram.com/travest15m0/', 'cualquier cosa'] },
     });
-    // `data-post` (cada enlace), que no es `data-posts` (la lista).
-    expect(html.match(/data-post(?!s)/g)).toHaveLength(2);
+    expect(html.match(/data-instgrm-permalink/g)).toHaveLength(2);
   });
 
-  it('el botón de cargar y el aviso están, y el hueco de los embeds vacío', async () => {
+  it('debajo, el enlace al perfil entero, y sin aviso de cookies', async () => {
     const html = await container.renderToString(InstagramPosts, { props: { posts: POSTS } });
-    expect(html).toContain(SOCIAL_TEXT.instagram.load);
-    expect(html).toContain(SOCIAL_TEXT.instagram.notice);
-    expect(html).toMatch(/data-embeds[^>]*>\s*<\/div>/);
+    expect(html).toContain(SOCIAL_TEXT.instagram.profileLabel);
+    expect(html).toContain(`href="${SITE.social.instagram}"`);
+    expect(html).not.toContain('embed__notice');
+    expect(html).not.toMatch(/cookies/i);
   });
 });

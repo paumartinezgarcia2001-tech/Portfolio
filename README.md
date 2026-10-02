@@ -232,25 +232,32 @@ con la marca `v` y, si no compila, **se salta el `pattern` sin avisar**. Lo vigi
 
 ### SoundCloud e Instagram en contact
 
-Debajo del formulario hay un reproductor de SoundCloud y unas publicaciones destacadas de
-Instagram. Los dos llegan **apagados**: lo que se sirve es una *fachada* (un enlace de
-verdad, que es lo que funciona sin JavaScript) y solo al pulsarla se carga el widget.
-
-Eso no es solo por peso: mientras nadie pulse, **el navegador no se conecta ni a SoundCloud
-ni a Meta**, así que ninguno de los dos puede dejar cookies. Es lo que permite mantener lo
-que dice §11 y `/privacidad`: la web no pone cookies de terceros sin que se las pidan, y por
-eso no necesita banner. Si algún día se cambia a cargarlos de entrada, hay que revisar la
-política de privacidad y, probablemente, poner un banner de consentimiento.
+Debajo del formulario, centrados en la columna, hay un reproductor de SoundCloud y unas
+publicaciones destacadas de Instagram. **Los dos se cargan al abrir la página.**
 
 - **SoundCloud**: reproductor visual oficial, sin registro ni clave. Qué pista se incrusta
-  está en `SOUNDCLOUD.trackUrl` (`src/config/social.ts`); vacío = el perfil entero. Al
-  cargarlo arranca sonando (quien pulsa quiere oírlo) y **la música de la web se pausa**,
-  igual que con el vídeo de Media; al salir de contact, vuelve sola.
+  está en `SOUNDCLOUD.trackUrl` (`src/config/social.ts`); vacío = el perfil entero. **No
+  arranca solo** (`auto_play=false`): la web ya tiene su propia música (D43). Cuando suena,
+  **la música se pausa**, igual que con el vídeo de Media, y vuelve al salir de contact; y si
+  arranca la música, el reproductor se calla. Lo coordina la Widget API de SoundCloud.
+  Con `SOUNDCLOUD.eager: false` vuelve a ser una fachada que no carga nada hasta que se pulsa.
 - **Instagram**: embed oficial (`blockquote` + `embed.js`), que desde junio de 2026 ya no
   necesita token ni revisión de la app, pero **solo funciona con publicaciones públicas**.
+  Cada `blockquote` sale del servidor con su enlace dentro: eso es lo que se ve sin
+  JavaScript y mientras `embed.js` carga, y lo que el script sustituye por la publicación.
   Qué publicaciones se destacan está en `INSTAGRAM_POSTS` (`src/config/social.ts`): pega ahí
-  de dos a cuatro URLs (en Instagram: «···» → «Copiar enlace»). **Con la lista vacía el
-  apartado no aparece.** Se limpian los `?igsh=…` y se descarta lo que no sea una publicación.
+  las URLs (en Instagram: «···» → «Copiar enlace»). **Con la lista vacía el apartado no
+  aparece.** Se limpian los `?igsh=…` y se descarta lo que no sea una publicación.
+
+**No se puede incrustar el perfil entero de Instagram**: el oEmbed de Meta devuelve 400 («not
+embeddable») para las URLs de perfil, y su API de feeds exige cuenta profesional y un token
+que caduca cada 60 días (imposible de renovar desde una web estática). Lo más parecido es
+esta selección, con un enlace al perfil debajo.
+
+Como los dos se cargan de entrada, **SoundCloud y Meta pueden poner sus cookies en cuanto se
+abre contact**. No hay avisos debajo de cada widget (los dos llevan dentro sus propios
+enlaces legales): está explicado en `/privacidad`, que es donde toca. Si alguna vez se quiere
+volver a «no cargar nada sin pedirlo», `SOUNDCLOUD.eager: false` hace la mitad del trabajo.
 
 Los dos orígenes están en `script-src` y `frame-src` de la CSP (`src/lib/security-headers.ts`),
 declarados una sola vez y reutilizados desde la configuración.

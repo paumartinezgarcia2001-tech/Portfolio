@@ -102,29 +102,31 @@ test.describe('Reproductor de SoundCloud', () => {
     await context.close();
   });
 
-  test('el aviso va debajo, en el tamaño más pequeño de la web', async ({ page }) => {
+  test('sin aviso de cookies debajo (Luna ✓ 02-10): lo cuenta /privacidad', async ({ page }) => {
     await stubThirdParties(page);
     await withMusicPaused(page);
     await openContact(page);
     await showMobilePage(page);
-    const notice = page.getByText(SOCIAL_TEXT.soundcloud.notice);
-    await expect(notice).toBeVisible();
+    expect(await page.locator('.embed__notice').count()).toBe(0);
+    await expect(page.locator('soundcloud-embed')).not.toContainText(/cookies/i);
+  });
 
-    const [noticePx, smallPx] = await page.evaluate(() => {
-      const styles = getComputedStyle(document.documentElement);
-      const read = (token: string) => {
-        const probe = document.createElement('span');
-        probe.style.fontSize = styles.getPropertyValue(token).trim();
-        document.body.appendChild(probe);
-        const size = Number.parseFloat(getComputedStyle(probe).fontSize);
-        probe.remove();
-        return size;
-      };
-      const element = document.querySelector('.embed__notice');
-      return [Number.parseFloat(getComputedStyle(element!).fontSize), read('--fs-small')];
+  test('va centrado en la columna de la página', async ({ page }) => {
+    await stubThirdParties(page);
+    await withMusicPaused(page);
+    await openContact(page);
+    await showMobilePage(page);
+    const centrado = await page.evaluate(() => {
+      const section = document.querySelector('soundcloud-embed')?.closest('.embed');
+      const panel = document.querySelector('#panel .contact');
+      if (!section || !panel) return null;
+      const a = section.getBoundingClientRect();
+      const b = panel.getBoundingClientRect();
+      return Math.abs((a.left + a.right) / 2 - (b.left + b.right) / 2);
     });
-    // El más pequeño de la escala (--fs-label), por debajo del texto normal.
-    expect(noticePx).toBeLessThan(smallPx);
+    // A menos de 2 px del centro de la columna.
+    expect(centrado).not.toBeNull();
+    expect(centrado!).toBeLessThan(2);
   });
 });
 
@@ -138,39 +140,51 @@ test.describe('Publicaciones de Instagram', () => {
     await withMusicPaused(page);
   });
 
-  test('al abrir contact no se pide ni un byte a Meta', async ({ page }) => {
-    const requests = await stubThirdParties(page);
-    await openContact(page);
-    await showMobilePage(page);
-    await page.waitForLoadState('load');
-    await page.waitForTimeout(500);
-
-    expect(requests.filter((request) => request.url().startsWith(INSTAGRAM_ORIGIN))).toEqual([]);
-    expect(await page.locator('.instagram-media').count()).toBe(0);
-    await expect(page.getByText(SOCIAL_TEXT.instagram.notice)).toBeVisible();
-  });
-
-  test('los enlaces están desde el principio y el botón carga los embeds', async ({ page }) => {
+  test('se cargan solas al abrir contact (Luna ✓ 02-10)', async ({ page }) => {
     const requests = await stubThirdParties(page);
     await openContact(page);
     await showMobilePage(page);
 
     const total = instagramPosts().length;
-    await expect(page.locator('instagram-posts [data-post]')).toHaveCount(total);
-    for (const url of instagramPosts()) {
-      await expect(page.locator(`instagram-posts a[href="${url}"]`)).toHaveAttribute('target', '_blank');
-    }
-
-    await page.getByRole('button', { name: SOCIAL_TEXT.instagram.load }).click();
-
-    // Un blockquote por publicación, con su permalink, y los enlaces fuera.
-    await expect(page.locator('.instagram-media')).toHaveCount(total);
+    await expect(page.locator('instagram-posts .instagram-media')).toHaveCount(total);
     for (const url of instagramPosts()) {
       await expect(page.locator(`.instagram-media[data-instgrm-permalink="${url}"]`)).toHaveCount(1);
     }
-    await expect(page.locator('instagram-posts [data-posts]')).toBeHidden();
-    await expect(page.getByRole('button', { name: SOCIAL_TEXT.instagram.load })).toHaveCount(0);
-    expect(requests.some((request) => request.url().startsWith(`${INSTAGRAM_ORIGIN}/embed.js`))).toBe(true);
+    // Y se ha pedido su script, sin que nadie pulse nada.
+    await expect
+      .poll(() => requests.some((request) => request.url().startsWith(`${INSTAGRAM_ORIGIN}/embed.js`)), {
+        timeout: 10_000,
+      })
+      .toBe(true);
+    await expect(page.locator('instagram-posts')).toHaveAttribute('data-state', 'ready');
+  });
+
+  test('cada publicación lleva su enlace dentro, por si el embed no carga', async ({ page }) => {
+    await stubThirdParties(page);
+    await openContact(page);
+    await showMobilePage(page);
+    for (const url of instagramPosts()) {
+      const link = page.locator(`instagram-posts .instagram-media a[href="${url}"]`);
+      await expect(link).toHaveCount(1);
+      await expect(link).toHaveAttribute('target', '_blank');
+    }
+  });
+
+  test('debajo, el enlace al perfil entero', async ({ page }) => {
+    await stubThirdParties(page);
+    await openContact(page);
+    await showMobilePage(page);
+    const link = page.getByRole('link', { name: new RegExp(SOCIAL_TEXT.instagram.profileLabel) });
+    await expect(link).toHaveAttribute('href', 'https://www.instagram.com/travest15m0/');
+  });
+
+  test('sin JavaScript quedan los enlaces de cada publicación', async ({ browser }) => {
+    const context = await browser.newContext({ javaScriptEnabled: false });
+    const noJs = await context.newPage();
+    await stubThirdParties(noJs);
+    await noJs.goto('/contact');
+    await expect(noJs.locator('instagram-posts .instagram-media a')).toHaveCount(instagramPosts().length);
+    await context.close();
   });
 });
 
@@ -186,7 +200,6 @@ test.describe('Cabeceras de seguridad con los widgets puestos (§11)', () => {
     await showMobilePage(page);
     await expect(page.locator('soundcloud-embed iframe')).toHaveCount(1);
     if (instagramPosts().length > 0) {
-      await page.getByRole('button', { name: SOCIAL_TEXT.instagram.load }).click();
       await expect(page.locator('.instagram-media').first()).toBeAttached();
     }
     await page.waitForTimeout(500);

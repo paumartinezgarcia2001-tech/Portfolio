@@ -2,15 +2,21 @@
 /**
  * C17 · InstagramPosts — publicaciones destacadas de Instagram en contact (D59).
  *
- * Del servidor salen los enlaces a cada publicación (lo que se usa sin
- * JavaScript) y un botón; al pulsarlo, src/scripts/instagram-posts.ts carga el
- * embed oficial de Instagram y los cambia por las publicaciones de verdad.
- * Hasta ese clic no se habla con Meta.
+ * Se ven nada más abrir la página (Luna ✓ 02-10-2026). Cada publicación sale
+ * como el `blockquote` del embed oficial de Instagram, con su enlace dentro:
+ * eso es lo que se ve sin JavaScript (y mientras `embed.js` carga), y lo que
+ * `embed.js` sustituye por la publicación de verdad
+ * (src/scripts/instagram-posts.ts).
+ *
+ * **No es el perfil entero**: Meta no deja incrustarlo (su oEmbed rechaza las
+ * URLs de perfil y su API de feeds pide cuenta profesional y un token que
+ * caduca cada 60 días). Debajo queda un enlace al perfil.
  *
  * Qué publicaciones se destacan se decide en `INSTAGRAM_POSTS`
  * (src/config/social.ts). Con la lista vacía, este componente no pinta nada.
  */
-import { SOCIAL_TEXT, instagramPostUrl, instagramPosts } from '../config/social';
+import { SITE } from '../config/site';
+import { INSTAGRAM_EMBED_VERSION, SOCIAL_TEXT, instagramPostUrl, instagramPosts } from '../config/social';
 
 interface Props {
   /** Publicaciones a destacar. Por defecto, las de `INSTAGRAM_POSTS`. */
@@ -31,27 +37,30 @@ const posts = Astro.props.posts
       </h2>
 
       <instagram-posts class="ig" data-state="idle" data-native-cursor>
-        <ul class="ig__links" role="list" data-posts>
-          {posts.map((url, index) => (
-            <li>
-              <a class="ig__link hl" href={url} target="_blank" rel="noopener" data-post>
-                {TEXT.postLabel(index + 1)}
-                <span aria-hidden="true"> ↗</span>
-                <span class="visually-hidden"> (se abre en otra pestaña)</span>
-              </a>
-            </li>
-          ))}
-        </ul>
-
-        {/* Aquí se meten los embeds al pulsar el botón. */}
-        <div class="ig__embeds" data-embeds />
-
-        <button class="ig__load" type="button" data-load>
-          {TEXT.load}
-        </button>
+        {posts.map((url, index) => (
+          <blockquote
+            class="instagram-media"
+            data-instgrm-permalink={url}
+            data-instgrm-version={INSTAGRAM_EMBED_VERSION}
+            data-post
+          >
+            {/* Lo que se ve sin JavaScript y mientras carga el embed. */}
+            <a class="ig__link hl" href={url} target="_blank" rel="noopener">
+              {TEXT.postLabel(index + 1)}
+              <span aria-hidden="true"> ↗</span>
+              <span class="visually-hidden"> (se abre en otra pestaña)</span>
+            </a>
+          </blockquote>
+        ))}
       </instagram-posts>
 
-      <p class="embed__notice">{TEXT.notice}</p>
+      <p class="ig__profile">
+        <a class="ig__link hl" href={SITE.social.instagram} target="_blank" rel="noopener">
+          {TEXT.profileLabel}
+          <span aria-hidden="true"> ↗</span>
+          <span class="visually-hidden"> (se abre en otra pestaña)</span>
+        </a>
+      </p>
     </section>
   )
 }
@@ -67,73 +76,37 @@ const posts = Astro.props.posts
     .ig {
       display: grid;
       gap: var(--pad);
-      justify-items: start;
       width: 100%;
+      max-width: 100%;
     }
 
-    .ig__links {
-      display: grid;
-      justify-items: start;
-      gap: 0.2em;
+    /* Antes de que cargue el embed, cada publicación es solo su enlace: sin la
+       caja del `blockquote`, que si no se ven cuatro marcos vacíos. */
+    .ig :global(blockquote.instagram-media:not(.instagram-media-rendered)) {
       margin: 0;
       padding: 0;
-      list-style: none;
+      border: 0;
       font-size: var(--fs-paragraph);
       line-height: var(--lh-paragraph);
     }
 
-    .ig__links[hidden] {
-      display: none;
+    /* Ya cargado: las reglas que inyecta Instagram llevan !important, y su
+       ancho mínimo de 326 px sacaría scroll horizontal en móvil. */
+    .ig :global(.instagram-media) {
+      min-width: 0 !important;
+      max-width: 100% !important;
+      margin: 0 auto !important;
+    }
+
+    .ig__profile {
+      margin: 0;
+      font-size: var(--fs-small);
+      line-height: var(--lh-paragraph);
     }
 
     /* El rotulador (D39) solo al pasar el ratón o con el foco. */
     .ig__link:not(:hover, :focus-visible) {
       background: none;
-    }
-
-    /* Los embeds de Instagram piden 326 px de ancho mínimo: en móvil hay que
-       dejar que se encojan para que no aparezca scroll horizontal. */
-    .ig__embeds {
-      display: grid;
-      gap: var(--pad);
-      width: 100%;
-      max-width: 100%;
-    }
-
-    .ig__embeds :global(.instagram-media) {
-      /* Las reglas que inyecta Instagram llevan !important. */
-      min-width: 0 !important;
-      max-width: 100% !important;
-      margin: 0 !important;
-    }
-
-    .ig__embeds:empty {
-      display: none;
-    }
-
-    .ig__load {
-      padding: 0.1em 0.25em;
-      border: var(--rule-w) solid var(--c-panel-fg);
-      color: inherit;
-      font-size: var(--fs-small);
-      line-height: var(--lh-paragraph);
-      /* Zona táctil mínima de 44 px (§10). */
-      min-height: 44px;
-    }
-
-    .ig__load:where(:hover, :focus-visible) {
-      background: var(--accent);
-      --cursor-over: var(--c-panel-fg);
-    }
-
-    .ig__load[disabled] {
-      cursor: default;
-      opacity: 0.6;
-    }
-
-    /* Sin JavaScript no hay nada que cargar: quedan los enlaces. */
-    .ig:not(:defined) .ig__load {
-      display: none;
     }
   }
 </style>
