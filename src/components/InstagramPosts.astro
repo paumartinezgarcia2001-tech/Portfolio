@@ -73,11 +73,20 @@ const posts = Astro.props.posts
   @layer components {
     /* `.embed`, `.embed__heading` y `.embed__notice` son comunes con
        SoundCloudEmbed.astro y están en src/styles/global.css. */
+    /* Las tres en la misma fila (Luna ✓ 02-10-2026). Si no caben —pantallas
+       estrechas, o más de tres publicaciones— la fila se desplaza en
+       horizontal en vez de apilarse, que es lo que pidió. */
     .ig {
       display: grid;
+      grid-auto-flow: column;
+      grid-auto-columns: minmax(12rem, 1fr);
       gap: var(--pad);
       width: 100%;
       max-width: 100%;
+      overflow-x: auto;
+      /* Que el gesto no se escape al historial del navegador. */
+      overscroll-behavior-x: contain;
+      scroll-snap-type: x proximity;
     }
 
     /* Antes de que cargue el embed, cada publicación es solo su enlace: sin la
@@ -91,11 +100,13 @@ const posts = Astro.props.posts
     }
 
     /* Ya cargado: las reglas que inyecta Instagram llevan !important, y su
-       ancho mínimo de 326 px sacaría scroll horizontal en móvil. */
+       ancho mínimo de 326 px rompería la fila de tres. */
     .ig :global(.instagram-media) {
       min-width: 0 !important;
+      width: 100% !important;
       max-width: 100% !important;
-      margin: 0 auto !important;
+      margin: 0 !important;
+      scroll-snap-align: start;
     }
 
     .ig__profile {

@@ -20,17 +20,18 @@ export { INSTAGRAM_ORIGIN, SOUNDCLOUD_WIDGET_ORIGIN };
 /** Reproductor de SoundCloud (C17). */
 export const SOUNDCLOUD = {
   /**
-   * Qué se incrusta. Una pista concreta (Luna ✓ 02-10-2026: el perfil solo
-   * tiene un audio propio y se vería vacío) o, si se deja vacío, el perfil
-   * entero.
+   * Qué se incrusta. **Vacío = el perfil entero** (Luna ✓ 02-10-2026: quiere el
+   * feed del perfil), que es `SITE.social.soundcloud`.
    *
-   * La forma `https://api.soundcloud.com/tracks/<id>` es la que devuelve el
-   * oEmbed de SoundCloud para esa pista; vale igual la URL normal de la pista.
-   * Para cambiarla: en SoundCloud, «Share» → copia el enlace y pégalo aquí.
+   * Para incrustar una pista suelta, pega aquí su URL: en SoundCloud, «Share»
+   * → copia el enlace. También vale la forma
+   * `https://api.soundcloud.com/tracks/<id>` que devuelve su oEmbed; la de la
+   * única pista propia de Pau («VAYA PUTO CUADRO») es
+   * `https://api.soundcloud.com/tracks/1670061867`.
    */
-  trackUrl: 'https://api.soundcloud.com/tracks/1670061867',
-  /** Título que se ve en la fachada, antes de cargar nada. */
-  trackTitle: 'VAYA PUTO CUADRO',
+  trackUrl: '',
+  /** Título que se ve en la fachada, antes de cargar nada (solo con `eager: false`). */
+  trackTitle: 'travest15m0',
   /**
    * `visual`: el reproductor grande, con la carátula de fondo y la cabecera de
    * artista (es el que se parece a la aplicación). El clásico es una fila baja.
@@ -89,11 +90,11 @@ export function soundcloudPlayerUrl(options: { autoPlay?: boolean } = {}): strin
  * Con la lista vacía, en contact no aparece el apartado.
  */
 export const INSTAGRAM_POSTS: readonly string[] = [
-  // Las eligió Luna (02-10-2026).
+  // Las eligió Luna (02-10-2026). Tres, y van en una sola fila: si se añaden
+  // más, la fila se desplaza en horizontal en vez de apilarlas.
   'https://www.instagram.com/p/DF3IBcjIiO5/',
   'https://www.instagram.com/p/DRRYO_dDMPC/',
   'https://www.instagram.com/p/DR-gy3GCNQK/',
-  'https://www.instagram.com/p/DBjxR7uuDQ1/',
 ];
 
 /** Script del embed oficial (el origen ya está en la CSP, §11). */

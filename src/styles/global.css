@@ -70,15 +70,14 @@
 /* Compartido por SoundCloudEmbed.astro e InstagramPosts.astro: los <style>
    de los componentes están aislados, así que lo común va aquí. */
 @layer components {
-  /* Centrados dentro de la columna de la página (Luna ✓ 02-10-2026), al
-     contrario que el resto de contact, que va alineado a la izquierda. */
+  /* A todo el ancho de la columna de la página y centrados dentro de ella
+     (Luna ✓ 02-10-2026), al contrario que el resto de contact, que va alineado
+     a la izquierda. Sin tope de ancho: lo que mande el panel. */
   .embed {
     display: grid;
     justify-items: center;
     gap: 0.5rem;
     width: 100%;
-    max-width: 40rem;
-    margin-inline: auto;
     text-align: center;
   }
 

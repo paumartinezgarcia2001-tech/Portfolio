@@ -105,7 +105,8 @@ const formAvailable = STATIC_BUILD ? Boolean(web3forms) : Boolean(siteKey);
       display: grid;
       justify-items: start;
       gap: var(--pad);
-      max-width: 44rem;
+      /* Sin tope de ancho (Luna ✓ 02-10-2026): el formulario y los widgets de
+         redes ocupan todo lo que da la columna de la página. */
     }
 
     .contact__intro,

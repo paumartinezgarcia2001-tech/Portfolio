@@ -232,11 +232,13 @@ con la marca `v` y, si no compila, **se salta el `pattern` sin avisar**. Lo vigi
 
 ### SoundCloud e Instagram en contact
 
-Debajo del formulario, centrados en la columna, hay un reproductor de SoundCloud y unas
-publicaciones destacadas de Instagram. **Los dos se cargan al abrir la página.**
+Debajo del formulario hay un reproductor de SoundCloud y tres publicaciones destacadas de
+Instagram. **Los dos se cargan al abrir la página**, y el formulario y los dos widgets
+**ocupan todo el ancho de la columna** (que ya no tiene `max-width` propio).
 
-- **SoundCloud**: reproductor visual oficial, sin registro ni clave. Qué pista se incrusta
-  está en `SOUNDCLOUD.trackUrl` (`src/config/social.ts`); vacío = el perfil entero. **No
+- **SoundCloud**: reproductor visual oficial, sin registro ni clave. Ahora mismo incrusta el
+  **perfil entero**, porque `SOUNDCLOUD.trackUrl` (`src/config/social.ts`) está vacío; con
+  una URL ahí incrusta esa pista suelta. **No
   arranca solo** (`auto_play=false`): la web ya tiene su propia música (D43). Cuando suena,
   **la música se pausa**, igual que con el vídeo de Media, y vuelve al salir de contact; y si
   arranca la música, el reproductor se calla. Lo coordina la Widget API de SoundCloud.
@@ -248,6 +250,8 @@ publicaciones destacadas de Instagram. **Los dos se cargan al abrir la página.*
   Qué publicaciones se destacan está en `INSTAGRAM_POSTS` (`src/config/social.ts`): pega ahí
   las URLs (en Instagram: «···» → «Copiar enlace»). **Con la lista vacía el apartado no
   aparece.** Se limpian los `?igsh=…` y se descarta lo que no sea una publicación.
+  Las tres van **en una sola fila**: si no caben —pantallas estrechas, o más de tres— la fila
+  se desplaza en horizontal, no se apila.
 
 **No se puede incrustar el perfil entero de Instagram**: el oEmbed de Meta devuelve 400 («not
 embeddable») para las URLs de perfil, y su API de feeds exige cuenta profesional y un token

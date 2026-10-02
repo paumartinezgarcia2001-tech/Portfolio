@@ -111,6 +111,29 @@ test.describe('Reproductor de SoundCloud', () => {
     await expect(page.locator('soundcloud-embed')).not.toContainText(/cookies/i);
   });
 
+  test('el formulario y los dos widgets ocupan todo el ancho de la columna', async ({ page }) => {
+    await stubThirdParties(page);
+    await withMusicPaused(page);
+    await openContact(page);
+    await showMobilePage(page);
+    const anchos = await page.evaluate(() => {
+      const ancho = (selector: string) => {
+        const element = document.querySelector(selector);
+        return element ? Math.round(element.getBoundingClientRect().width) : 0;
+      };
+      return {
+        columna: ancho('#panel .contact'),
+        formulario: ancho('.contact-form'),
+        escucha: ancho('soundcloud-embed'),
+        instagram: ancho('instagram-posts'),
+      };
+    });
+    expect(anchos.columna).toBeGreaterThan(0);
+    for (const clave of ['formulario', 'escucha', 'instagram'] as const) {
+      expect(Math.abs(anchos[clave] - anchos.columna), clave).toBeLessThanOrEqual(1);
+    }
+  });
+
   test('va centrado en la columna de la página', async ({ page }) => {
     await stubThirdParties(page);
     await withMusicPaused(page);
@@ -168,6 +191,28 @@ test.describe('Publicaciones de Instagram', () => {
       await expect(link).toHaveCount(1);
       await expect(link).toHaveAttribute('target', '_blank');
     }
+  });
+
+  test('las tres van en la misma fila (Luna ✓ 02-10)', async ({ page }) => {
+    test.skip(isMobileViewport(page.viewportSize()), 'En móvil la fila se desplaza en horizontal.');
+    await stubThirdParties(page);
+    await openContact(page);
+    await showMobilePage(page);
+
+    const cajas = await page.locator('instagram-posts .instagram-media').evaluateAll((nodes) =>
+      nodes.map((node) => {
+        const { x, y, width } = node.getBoundingClientRect();
+        return { x: Math.round(x), y: Math.round(y), width: Math.round(width) };
+      }),
+    );
+    expect(cajas).toHaveLength(3);
+    // Misma línea: todas empiezan a la misma altura.
+    expect(new Set(cajas.map((caja) => caja.y)).size).toBe(1);
+    // Y una detrás de otra, de izquierda a derecha.
+    expect(cajas[1]!.x).toBeGreaterThan(cajas[0]!.x);
+    expect(cajas[2]!.x).toBeGreaterThan(cajas[1]!.x);
+    // Del mismo ancho (columnas iguales).
+    expect(Math.abs(cajas[0]!.width - cajas[2]!.width)).toBeLessThanOrEqual(1);
   });
 
   test('debajo, el enlace al perfil entero', async ({ page }) => {

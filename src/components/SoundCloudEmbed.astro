@@ -64,8 +64,11 @@ const TEXT = SOCIAL_TEXT.soundcloud;
   @layer components {
     /* `.embed`, `.embed__heading` y `.embed__notice` son comunes con
        InstagramPosts.astro y están en src/styles/global.css. */
+    /* A todo el ancho de la columna: el padre centra sus hijos, así que sin
+       esto el reproductor se quedaría del tamaño de su contenido. */
     .sc {
       display: block;
+      width: 100%;
     }
 
     .sc__facade {

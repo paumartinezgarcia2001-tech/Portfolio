@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { SITE } from '../../src/config/site';
 import {
   INSTAGRAM_EMBED_SCRIPT,
   INSTAGRAM_ORIGIN,
@@ -11,13 +12,17 @@ import {
 /** D59 · widgets de SoundCloud e Instagram en contact. */
 
 describe('soundcloudPlayerUrl', () => {
-  it('apunta al reproductor visual de la pista, sin arrancar solo', () => {
+  it('apunta al reproductor visual, sin arrancar solo', () => {
     const url = new URL(soundcloudPlayerUrl());
     expect(url.origin).toBe('https://w.soundcloud.com');
     expect(url.pathname).toBe('/player/');
-    expect(url.searchParams.get('url')).toBe(SOUNDCLOUD.trackUrl);
     expect(url.searchParams.get('visual')).toBe('true');
     expect(url.searchParams.get('auto_play')).toBe('false');
+  });
+
+  it('sin pista concreta, incrusta el perfil entero (Luna ✓ 02-10)', () => {
+    expect(SOUNDCLOUD.trackUrl).toBe('');
+    expect(new URL(soundcloudPlayerUrl()).searchParams.get('url')).toBe(SITE.social.soundcloud);
   });
 
   it('con autoPlay arranca: el iframe solo se crea después del clic', () => {
