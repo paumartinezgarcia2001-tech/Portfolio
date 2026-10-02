@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+  INSTAGRAM_ORIGIN,
   PERMISSIONS_POLICY,
+  SOUNDCLOUD_WIDGET_ORIGIN,
   TURNSTILE_ORIGIN,
   buildContentSecurityPolicy,
   buildHeadersFileBlock,
@@ -35,9 +37,9 @@ describe('originOf', () => {
 describe('buildContentSecurityPolicy', () => {
   const csp = directives(buildContentSecurityPolicy(OPTIONS));
 
-  it('deja cargar Turnstile: su script y el iframe del widget (C17)', () => {
-    expect(csp['script-src']).toEqual(["'self'", TURNSTILE_ORIGIN]);
-    expect(csp['frame-src']).toEqual([TURNSTILE_ORIGIN]);
+  it('deja cargar Turnstile y los widgets de contact: su script y su iframe (C17, D59)', () => {
+    expect(csp['script-src']).toEqual(["'self'", TURNSTILE_ORIGIN, SOUNDCLOUD_WIDGET_ORIGIN, INSTAGRAM_ORIGIN]);
+    expect(csp['frame-src']).toEqual([TURNSTILE_ORIGIN, SOUNDCLOUD_WIDGET_ORIGIN, INSTAGRAM_ORIGIN]);
   });
 
   it('no permite scripts en línea (por eso Astro no los incrusta)', () => {

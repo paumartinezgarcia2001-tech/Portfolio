@@ -20,6 +20,15 @@
 /** Turnstile: su script y el iframe del widget (C17). */
 export const TURNSTILE_ORIGIN = 'https://challenges.cloudflare.com';
 
+/**
+ * Widgets de contact (C17, D59): el reproductor de SoundCloud y el embed de
+ * Instagram. Los dos necesitan su script y su iframe, y los dos se cargan solo
+ * cuando alguien los pide, así que esto no se usa en la mayoría de las visitas.
+ * Aquí se declaran una sola vez: src/config/social.ts los importa de aquí.
+ */
+export const SOUNDCLOUD_WIDGET_ORIGIN = 'https://w.soundcloud.com';
+export const INSTAGRAM_ORIGIN = 'https://www.instagram.com';
+
 export interface SecurityHeadersOptions {
   /** PUBLIC_MEDIA_BASE_URL: vídeo (HLS), mixes y pósters (R2). */
   mediaBaseUrl?: string | undefined;
@@ -49,7 +58,7 @@ export function buildContentSecurityPolicy(options: SecurityHeadersOptions = {})
   const supabase = originOf(options.supabaseUrl);
   const directives: Array<[string, Array<string | undefined>]> = [
     ['default-src', ["'self'"]],
-    ['script-src', ["'self'", TURNSTILE_ORIGIN]],
+    ['script-src', ["'self'", TURNSTILE_ORIGIN, SOUNDCLOUD_WIDGET_ORIGIN, INSTAGRAM_ORIGIN]],
     // Astro mete estilos en línea (hojas pequeñas, `style=""`, transiciones).
     ['style-src', ["'self'", "'unsafe-inline'"]],
     ['img-src', ["'self'", 'data:', 'blob:', media]],
@@ -57,7 +66,7 @@ export function buildContentSecurityPolicy(options: SecurityHeadersOptions = {})
     // hls.js reproduce desde `blob:` (Media Source Extensions).
     ['media-src', ["'self'", 'blob:', media]],
     ['connect-src', ["'self'", media, supabase, ...(options.connectSources ?? []).map(originOf)]],
-    ['frame-src', [TURNSTILE_ORIGIN]],
+    ['frame-src', [TURNSTILE_ORIGIN, SOUNDCLOUD_WIDGET_ORIGIN, INSTAGRAM_ORIGIN]],
     ['manifest-src', ["'self'"]],
     ['object-src', ["'none'"]],
     ['base-uri', ["'self'"]],

@@ -18,7 +18,9 @@ import { actions, isInputError } from 'astro:actions';
 import { PUBLIC_SITE_URL, PUBLIC_TURNSTILE_SITE_KEY, PUBLIC_WEB3FORMS_KEY } from 'astro:env/client';
 import { STATIC_BUILD } from 'astro:env/server';
 import ContactForm from '../components/ContactForm.astro';
+import InstagramPosts from '../components/InstagramPosts.astro';
 import SocialLinks from '../components/SocialLinks.astro';
+import SoundCloudEmbed from '../components/SoundCloudEmbed.astro';
 import {
   CONTACT_SENT_PATH,
   CONTACT_TEXT as TEXT,
@@ -83,6 +85,10 @@ const formAvailable = STATIC_BUILD ? Boolean(web3forms) : Boolean(siteKey);
       )
     }
     {!formAvailable && <p class="contact__unavailable">{TEXT.unavailable}</p>}
+
+    {/* D59: los dos se cargan solo si alguien los pide (ver src/config/social.ts). */}
+    <SoundCloudEmbed />
+    <InstagramPosts />
 
     <SocialLinks />
 

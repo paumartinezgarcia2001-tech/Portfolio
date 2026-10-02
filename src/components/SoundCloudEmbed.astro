@@ -1,0 +1,118 @@
+---
+/**
+ * C17 · SoundCloudEmbed — el reproductor de SoundCloud en contact (D59).
+ *
+ * Lo que llega del servidor es una **fachada**: un enlace de verdad a
+ * SoundCloud, que es lo que se usa sin JavaScript. Con JavaScript, al pulsarla
+ * se cambia por el reproductor visual oficial, ya sonando
+ * (src/scripts/soundcloud-embed.ts). Hasta ese clic, SoundCloud no recibe
+ * ninguna visita ni pone ninguna cookie.
+ */
+import { SITE } from '../config/site';
+import { SOCIAL_TEXT, SOUNDCLOUD, soundcloudPlayerUrl } from '../config/social';
+
+const TEXT = SOCIAL_TEXT.soundcloud;
+---
+
+<section class="embed" aria-labelledby="escucha-heading">
+  <h2 class="embed__heading" id="escucha-heading">{TEXT.heading}</h2>
+
+  <soundcloud-embed
+    class="sc"
+    data-state="idle"
+    data-player-src={soundcloudPlayerUrl({ autoPlay: true })}
+    data-frame-height={String(SOUNDCLOUD.height)}
+    data-frame-title={TEXT.frameTitle}
+    data-load-label={TEXT.load}
+    data-native-cursor
+  >
+    {/* El mismo elemento es la fachada y, después, el hueco del iframe. */}
+    <a class="sc__facade" href={SITE.social.soundcloud} target="_blank" rel="noopener" data-facade data-load>
+      <span class="sc__title">{SOUNDCLOUD.trackTitle}</span>
+      <span class="sc__action" data-action
+        >{TEXT.openLabel}<span aria-hidden="true"> ↗</span><span class="visually-hidden">
+          (se abre en otra pestaña)</span
+        ></span
+      >
+    </a>
+  </soundcloud-embed>
+
+  <p class="embed__notice">{TEXT.notice}</p>
+</section>
+
+<script>
+  import '../scripts/soundcloud-embed';
+</script>
+
+<style>
+  @layer components {
+    .embed {
+      display: grid;
+      gap: 0.5rem;
+      width: 100%;
+      max-width: 40rem;
+    }
+
+    .embed__heading {
+      font-size: var(--fs-label);
+      font-weight: var(--fw-regular);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .embed__notice {
+      font-size: var(--fs-small);
+      line-height: var(--lh-paragraph);
+    }
+
+    .sc {
+      display: block;
+    }
+
+    .sc__facade {
+      display: grid;
+      gap: 0.2em;
+      padding: 1rem;
+      border: var(--rule-w) solid var(--c-panel-fg);
+      color: inherit;
+      text-decoration: none;
+      /* Zona táctil de sobra (§10). */
+      min-height: 44px;
+    }
+
+    .sc__title {
+      font-size: calc(var(--fs-paragraph) * 1.4);
+      line-height: var(--lh-paragraph);
+      text-transform: uppercase;
+    }
+
+    .sc__action {
+      font-size: var(--fs-small);
+      line-height: var(--lh-paragraph);
+    }
+
+    /* Resaltado naranja al pasar el ratón (rotulador de D39). */
+    .sc__facade:where(:hover, :focus-visible) {
+      background: var(--accent);
+      --cursor-over: var(--c-panel-fg);
+    }
+
+    /* Con el reproductor puesto, el hueco ya no es un botón: fuera el relleno. */
+    .sc[data-state='ready'] .sc__facade {
+      display: block;
+      padding: 0;
+      border: 0;
+      background: none;
+    }
+
+    .sc[data-state='ready'] .sc__facade:where(:hover, :focus-visible) {
+      background: none;
+    }
+
+    .sc iframe {
+      display: block;
+      width: 100%;
+      border: 0;
+    }
+  }
+</style>

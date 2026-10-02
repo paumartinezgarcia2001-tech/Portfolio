@@ -230,6 +230,31 @@ El teléfono se valida con una expresión (`PHONE_PATTERN`) que se escribe **una
 se usa como `pattern` del campo y en el servidor. Ojo al tocarla: el navegador la compila
 con la marca `v` y, si no compila, **se salta el `pattern` sin avisar**. Lo vigila un test.
 
+### SoundCloud e Instagram en contact
+
+Debajo del formulario hay un reproductor de SoundCloud y unas publicaciones destacadas de
+Instagram. Los dos llegan **apagados**: lo que se sirve es una *fachada* (un enlace de
+verdad, que es lo que funciona sin JavaScript) y solo al pulsarla se carga el widget.
+
+Eso no es solo por peso: mientras nadie pulse, **el navegador no se conecta ni a SoundCloud
+ni a Meta**, así que ninguno de los dos puede dejar cookies. Es lo que permite mantener lo
+que dice §11 y `/privacidad`: la web no pone cookies de terceros sin que se las pidan, y por
+eso no necesita banner. Si algún día se cambia a cargarlos de entrada, hay que revisar la
+política de privacidad y, probablemente, poner un banner de consentimiento.
+
+- **SoundCloud**: reproductor visual oficial, sin registro ni clave. Qué pista se incrusta
+  está en `SOUNDCLOUD.trackUrl` (`src/config/social.ts`); vacío = el perfil entero. Al
+  cargarlo arranca sonando (quien pulsa quiere oírlo) y **la música de la web se pausa**,
+  igual que con el vídeo de Media; al salir de contact, vuelve sola.
+- **Instagram**: embed oficial (`blockquote` + `embed.js`), que desde junio de 2026 ya no
+  necesita token ni revisión de la app, pero **solo funciona con publicaciones públicas**.
+  Qué publicaciones se destacan está en `INSTAGRAM_POSTS` (`src/config/social.ts`): pega ahí
+  de dos a cuatro URLs (en Instagram: «···» → «Copiar enlace»). **Con la lista vacía el
+  apartado no aparece.** Se limpian los `?igsh=…` y se descarta lo que no sea una publicación.
+
+Los dos orígenes están en `script-src` y `frame-src` de la CSP (`src/lib/security-headers.ts`),
+declarados una sola vez y reutilizados desde la configuración.
+
 ### Páginas legales
 
 `/aviso-legal` y `/privacidad` están **sin terminar a propósito**: son plantillas con los

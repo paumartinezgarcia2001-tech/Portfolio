@@ -1,19 +1,26 @@
 /**
- * Eventos entre el vídeo de Media (C15) y el reproductor de mixes (C06): solo
- * suena uno a la vez. Se emiten en `document` como `CustomEvent`.
+ * Eventos entre el reproductor de mixes (C06) y lo demás que puede sonar en la
+ * web —el vídeo de Media (C15) y, desde D59, el reproductor de SoundCloud de
+ * contact (C17)—: solo suena uno a la vez. Se emiten en `document` como
+ * `CustomEvent`.
  */
 
 /**
- * El vídeo empieza a sonar (arranca con sonido o se lo activan) → el
- * reproductor se pausa (src/scripts/mix-player.ts).
+ * Algo que no es el reproductor de mixes empieza a sonar (el vídeo arranca con
+ * sonido o se lo activan; alguien carga el reproductor de SoundCloud) → la
+ * música se pausa (src/scripts/mix-player.ts), y vuelve sola al salir de esa
+ * página, cuando ya no queda nada en el DOM que pueda estar sonando.
  */
 export const MEDIA_SOUND_ON = 'media:sound-on';
 
-/** El reproductor empieza a sonar → el vídeo se silencia (src/scripts/mix-player.ts). */
+/**
+ * El reproductor de mixes empieza a sonar → el vídeo se silencia y el
+ * reproductor de SoundCloud se pausa.
+ */
 export const PLAYER_PLAY = 'player:play';
 
 export interface MediaSoundOnDetail {
-  /** Slug del vídeo que ha activado el sonido. */
+  /** Quién ha empezado a sonar: el slug del vídeo, o `'soundcloud'`. */
   slug: string;
 }
 
