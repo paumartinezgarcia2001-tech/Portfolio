@@ -14,6 +14,19 @@
  * que Luna pidió publicar.
  */
 
+/**
+ * **El interruptor del formulario** (Luna ✓ 03-10-2026).
+ *
+ * `false` = en /contact no hay formulario: se escribe directamente al email de
+ * Pau, que aparece como enlace `mailto:` donde antes estaba el formulario. Así
+ * no hay nada que mandar a terceros ni datos que recoger.
+ *
+ * Todo el formulario sigue en su sitio —Action, zod, Turnstile, KV, Resend y el
+ * camino de Web3Forms—, solo que no se pinta: ponlo en `true` y vuelve, con sus
+ * tests (que se saltan solos mientras esté apagado).
+ */
+export const CONTACT_FORM_ENABLED = false;
+
 /** Nombres de los campos en el formulario (atributo `name`). */
 export const CONTACT_FIELDS = {
   email: 'email',
@@ -116,9 +129,6 @@ export const CONTACT_TEXT = {
     email: 'Email',
     phone: 'Teléfono',
     message: 'Mensaje',
-    /** Va seguido del enlace a /privacidad. */
-    privacyBefore: 'Al enviar aceptas la',
-    privacyLink: 'política de privacidad',
     turnstile: 'Comprobación anti-spam',
   },
 } as const;

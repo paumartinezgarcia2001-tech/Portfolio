@@ -1,8 +1,14 @@
 ---
 /**
- * C17 · Contact — formulario, correo, redes y pie legal (fase 5).
+ * C17 · Contact — correo y redes (fase 5, D60).
  *
- * Dos formas de enviar, según dónde esté la web (ver ContactForm.astro):
+ * **Ahora mismo no hay formulario** (`CONTACT_FORM_ENABLED`, Luna ✓
+ * 03-10-2026): donde estaba, el email de Pau como enlace `mailto:`. Debajo, el
+ * reproductor de SoundCloud y las publicaciones de Instagram, cada uno con su
+ * enlace (D59).
+ *
+ * Con el interruptor en `true` vuelve el formulario, con sus dos formas de
+ * enviar según dónde esté la web (ver ContactForm.astro):
  * - **Cloudflare**: Action `contact.send`. Con JavaScript, sin recargar; sin
  *   JavaScript, con un POST normal, y al salir bien se redirige a
  *   /mensaje-enviado (así recargar no reenvía). Si falla, la página se vuelve a
@@ -22,6 +28,7 @@ import InstagramPosts from '../components/InstagramPosts.astro';
 import SocialLinks from '../components/SocialLinks.astro';
 import SoundCloudEmbed from '../components/SoundCloudEmbed.astro';
 import {
+  CONTACT_FORM_ENABLED,
   CONTACT_SENT_PATH,
   CONTACT_TEXT as TEXT,
   warnMissingTurnstileSiteKey,
@@ -44,11 +51,12 @@ const errorCode = error && !isInputError(error) ? error.message : undefined;
 const values = error ? await readContactValues(Astro.request) : undefined;
 if (error) Astro.response.status = error.status;
 
-// Sin servidor manda Web3Forms; con servidor, la Action y Turnstile.
+// Sin servidor manda Web3Forms; con servidor, la Action y Turnstile. Sin
+// formulario no hace falta ninguna de las dos claves, así que tampoco se avisa.
 const siteKey = STATIC_BUILD ? undefined : PUBLIC_TURNSTILE_SITE_KEY;
 const accessKey = STATIC_BUILD ? PUBLIC_WEB3FORMS_KEY : undefined;
-if (STATIC_BUILD && !accessKey) warnMissingWeb3FormsKey();
-if (!STATIC_BUILD && !siteKey) warnMissingTurnstileSiteKey();
+if (CONTACT_FORM_ENABLED && STATIC_BUILD && !accessKey) warnMissingWeb3FormsKey();
+if (CONTACT_FORM_ENABLED && !STATIC_BUILD && !siteKey) warnMissingTurnstileSiteKey();
 
 /**
  * Dirección absoluta de /mensaje-enviado para el campo `redirect` de Web3Forms
@@ -70,32 +78,34 @@ const formAvailable = STATIC_BUILD ? Boolean(web3forms) : Boolean(siteKey);
   <div class="contact">
     <p class="contact__intro">{TEXT.intro}</p>
 
-    {/* Con JavaScript, al enviarse bien el script cambia el formulario por esto. */}
-    <p class="contact__sent" role="status" tabindex="-1" data-contact-sent hidden>{TEXT.success}</p>
+    {/* Sin formulario (D60): se escribe al email, que va aquí mismo. */}
+    {!CONTACT_FORM_ENABLED && <SocialLinks />}
 
     {
-      formAvailable && (
-        <ContactForm
-          web3forms={web3forms}
-          siteKey={siteKey}
-          values={values}
-          fieldErrors={fieldErrors}
-          errorCode={errorCode}
-        />
+      CONTACT_FORM_ENABLED && (
+        <>
+          {/* Con JavaScript, al enviarse bien el script cambia el formulario por esto. */}
+          <p class="contact__sent" role="status" tabindex="-1" data-contact-sent hidden>
+            {TEXT.success}
+          </p>
+
+          {formAvailable && (
+            <ContactForm
+              web3forms={web3forms}
+              siteKey={siteKey}
+              values={values}
+              fieldErrors={fieldErrors}
+              errorCode={errorCode}
+            />
+          )}
+          {!formAvailable && <p class="contact__unavailable">{TEXT.unavailable}</p>}
+        </>
       )
     }
-    {!formAvailable && <p class="contact__unavailable">{TEXT.unavailable}</p>}
 
-    {/* D59: los dos se cargan solo si alguien los pide (ver src/config/social.ts). */}
+    {/* D59: cada widget con su enlace a la red justo debajo. */}
     <SoundCloudEmbed />
     <InstagramPosts />
-
-    <SocialLinks />
-
-    <p class="contact__legal">
-      <a class="contact__legal-link hl" href={withBase('/aviso-legal')}>aviso legal</a><span aria-hidden="true"> · </span
-      ><a class="contact__legal-link hl" href={withBase('/privacidad')}>privacidad</a>
-    </p>
   </div>
 </BaseLayout>
 
@@ -110,8 +120,7 @@ const formAvailable = STATIC_BUILD ? Boolean(web3forms) : Boolean(siteKey);
     }
 
     .contact__intro,
-    .contact__unavailable,
-    .contact__legal {
+    .contact__unavailable {
       font-size: var(--fs-small);
       line-height: var(--lh-paragraph);
     }
@@ -127,15 +136,6 @@ const formAvailable = STATIC_BUILD ? Boolean(web3forms) : Boolean(siteKey);
 
     .contact__sent:focus-visible {
       outline-offset: 0.1em;
-    }
-
-    .contact__legal {
-      margin-top: var(--pad);
-    }
-
-    /* Pie discreto: el rotulador (D39) solo al pasar el ratón o con el foco. */
-    .contact__legal-link:not(:hover, :focus-visible) {
-      background: none;
     }
   }
 </style>

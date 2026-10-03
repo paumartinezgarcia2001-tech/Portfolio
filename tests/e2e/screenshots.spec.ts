@@ -1,5 +1,6 @@
 import { test } from '@playwright/test';
 import { fillContact, mockTurnstile, submitButton, uniqueIp, waitForTurnstileToken } from './contact-helpers';
+import { CONTACT_FORM_ENABLED } from '../../src/config/contact';
 import { SECTION_CASES, isMobile, openMobileMenu, showMobilePage, withMusicPaused } from './helpers';
 
 /**
@@ -14,7 +15,7 @@ test.describe('Capturas', () => {
       // Contact lleva el widget de Turnstile (simulado, fase 5).
       if (section.key === 'contact') await mockTurnstile(page);
       await page.goto(section.path);
-      if (section.key === 'contact') await waitForTurnstileToken(page);
+      if (section.key === 'contact' && CONTACT_FORM_ENABLED) await waitForTurnstileToken(page);
       // En móvil las secciones abren en el menú (D44): aquí, la página, con la
       // mini-barra del reproductor. El menú tiene su propia captura.
       await showMobilePage(page);
@@ -38,9 +39,10 @@ test.describe('Capturas', () => {
   });
 });
 
-/** Fase 5: estados del formulario y páginas legales. */
+/** Fase 5: estados del formulario (D60: ahora mismo no hay, así que se saltan). */
 test.describe('Capturas del contacto', () => {
   test.use({ reducedMotion: 'reduce' });
+  test.skip(!CONTACT_FORM_ENABLED, 'Sin formulario (D60): se escribe al email.');
 
   test.beforeEach(async ({ page }) => {
     await withMusicPaused(page);
@@ -71,15 +73,4 @@ test.describe('Capturas del contacto', () => {
     await page.locator('[data-contact-sent]').waitFor();
     await page.screenshot({ path: `test-results/screenshots/${testInfo.project.name}/contact-enviado.png` });
   });
-
-  for (const page_ of [
-    { key: 'aviso-legal', path: '/aviso-legal' },
-    { key: 'privacidad', path: '/privacidad' },
-  ]) {
-    test(`captura de ${page_.key}`, async ({ page }, testInfo) => {
-      await page.goto(page_.path);
-      await page.evaluate(() => document.fonts.ready);
-      await page.screenshot({ path: `test-results/screenshots/${testInfo.project.name}/${page_.key}.png`, fullPage: true });
-    });
-  }
 });

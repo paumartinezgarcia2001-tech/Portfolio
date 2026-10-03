@@ -26,7 +26,6 @@ import {
 } from '../config/contact';
 import type { ContactValues } from '../lib/contact/values';
 import { WEB3FORMS_ENDPOINT, WEB3FORMS_FIELDS, WEB3FORMS_FROM_NAME, WEB3FORMS_SUBJECT } from '../lib/contact/web3forms';
-import { withBase } from '../lib/url';
 
 interface Props {
   /**
@@ -201,9 +200,6 @@ const firstInvalid = [FIELD.email, FIELD.phone, FIELD.message].find((field) => e
     <p class="visually-hidden" id="contact-form-status" role="status" aria-live="polite" data-status></p>
   </div>
 
-  <p class="contact-form__privacy">
-    {TEXT.labels.privacyBefore} <a class="hl" href={withBase('/privacidad')}>{TEXT.labels.privacyLink}</a>.
-  </p>
 </form>
 
 <script>
@@ -287,8 +283,7 @@ const firstInvalid = [FIELD.email, FIELD.phone, FIELD.message].find((field) => e
       min-height: 65px;
     }
 
-    .contact-form__noscript,
-    .contact-form__privacy {
+    .contact-form__noscript {
       max-width: 34rem;
       font-size: var(--fs-small);
       line-height: var(--lh-paragraph);

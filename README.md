@@ -5,7 +5,7 @@ Web de **travest15m0**, DJ y productora de eventos afincada en Madrid.
 Astro 7 sobre Cloudflare Workers, sin React ni Tailwind. En construcción por fases:
 hechas la 1 (estructura, navegación e Info), la 2 (bolos desde Supabase: next dates,
 archive y barra de noticias), la 3 (vídeo de Media en HLS y transición de píxeles),
-la 4 (reproductor de mixes), la 5 (formulario de contacto, redes y páginas legales) y la
+la 4 (reproductor de mixes), la 5 (contacto y redes) y la
 6 (panel oculto para cambiar la barra de noticias, los bolos, los mixes, Info y el vídeo
 sin tocar código). Falta el despliegue definitivo.
 
@@ -157,11 +157,20 @@ Para oírlos en local sin R2: copia esa carpeta `mixes/` dentro de `.media/`, ar
 `npm run media:serve` y pon `PUBLIC_MEDIA_BASE_URL=http://localhost:4322` en `.env`. Para
 quitarlos cuando lleguen los mixes de verdad: bórralos (o despublícalos) en Supabase.
 
-## Formulario de contacto
+## Contacto
 
-`/contact` tiene el formulario, el email de Pau como enlace `mailto:`, los enlaces a
-SoundCloud e Instagram y el pie con las páginas legales. El mensaje **no se guarda en
-ninguna base de datos**: se envía por email y «responder» apunta a quien escribe.
+> **Ahora mismo no hay formulario** (D60, Luna ✓ 03-10-2026). `/contact` tiene el email de
+> Pau como enlace `mailto:` donde antes estaba el formulario, y debajo el reproductor de
+> SoundCloud y las publicaciones de Instagram, cada uno con su enlace. Así la web **no
+> recoge ningún dato** ni manda nada a terceros al escribir.
+>
+> El formulario entero sigue en el repo —Action, zod, Turnstile, KV, Resend y el camino de
+> Web3Forms—, apagado con un interruptor: `CONTACT_FORM_ENABLED` en `src/config/contact.ts`.
+> Poniéndolo en `true` vuelve tal cual, y con él sus tests, que mientras tanto se saltan
+> solos. Lo que queda de esta sección describe ese formulario.
+
+El mensaje **no se guarda en ninguna base de datos**: se envía por email y «responder»
+apunta a quien escribe.
 
 **Tres campos y nada más** (D58): email de contacto, teléfono (opcional) y mensaje. Al
 enviarse bien, con JavaScript el aviso sale en la propia página y no se navega; sin
@@ -232,11 +241,11 @@ con la marca `v` y, si no compila, **se salta el `pattern` sin avisar**. Lo vigi
 
 ### SoundCloud e Instagram en contact
 
-Debajo del formulario hay un reproductor de SoundCloud y tres publicaciones destacadas de
-Instagram. **Los dos se cargan al abrir la página**, y el formulario y los dos widgets
-**ocupan todo el ancho de la columna** (que ya no tiene `max-width` propio). Debajo de cada
-widget va su enlace al perfil —«soundcloud ↗» e «instagram ↗»—; al final de contact ya solo
-queda el email (`SocialLinks.astro`).
+Debajo del email hay un reproductor de SoundCloud y tres publicaciones destacadas de
+Instagram. **Los dos se cargan al abrir la página** y **ocupan todo el ancho de la columna**
+(que ya no tiene `max-width` propio). Debajo de cada widget va su enlace al perfil
+—«soundcloud ↗» e «instagram ↗»—. El email va arriba del todo, donde estaba el formulario
+(`SocialLinks.astro`).
 
 - **SoundCloud**: reproductor visual oficial, sin registro ni clave. Ahora mismo incrusta el
   **perfil entero**, porque `SOUNDCLOUD.trackUrl` (`src/config/social.ts`) está vacío; con
@@ -270,19 +279,25 @@ esta selección, con un enlace al perfil debajo.
 
 Como los dos se cargan de entrada, **SoundCloud y Meta pueden poner sus cookies en cuanto se
 abre contact**. No hay avisos debajo de cada widget (los dos llevan dentro sus propios
-enlaces legales): está explicado en `/privacidad`, que es donde toca. Si alguna vez se quiere
-volver a «no cargar nada sin pedirlo», `SOUNDCLOUD.eager: false` hace la mitad del trabajo.
+enlaces legales) y, desde D60, tampoco hay página de privacidad donde contarlo: ver «Páginas
+legales» más abajo. Si alguna vez se quiere volver a «no cargar nada sin pedirlo»,
+`SOUNDCLOUD.eager: false` hace la mitad del trabajo.
 
 Los dos orígenes están en `script-src` y `frame-src` de la CSP (`src/lib/security-headers.ts`),
 declarados una sola vez y reutilizados desde la configuración.
 
-### Páginas legales
+### Páginas legales: quitadas
 
-`/aviso-legal` y `/privacidad` están **sin terminar a propósito**: son plantillas con los
-apartados que pide la ley y con `TODO` a la vista donde faltan los datos de Pau (nombre,
-NIF, domicilio, dirección de contacto, plazos de conservación…). La parte técnica sí es
-exacta: describe lo que hace la web hoy. Hay que completarlas y revisarlas antes de
-publicar la web en su dominio; esto no es asesoramiento legal.
+`/aviso-legal` y `/privacidad` **ya no existen** (Luna ✓ 03-10-2026): se borraron
+`src/pages/aviso-legal.astro`, `src/pages/privacidad.astro` y `src/components/LegalPage.astro`,
+y con ellos el pie de contact que las enlazaba.
+
+Conviene saber qué se ha ido con ellas, porque la web sigue cargando **SoundCloud e
+Instagram** nada más abrir contact, y esos dos pueden poner cookies de terceros; en la UE
+eso normalmente pide avisarlo en alguna parte. Y en España la LSSI-CE pide un aviso legal a
+quien hace actividad económica por internet, que es discutible en un portafolio pero no es
+descabellado para alguien que coge bolos. Esto **no es asesoramiento legal**: si algún día
+se quieren recuperar, están en el historial de git (`git show <commit>:src/pages/privacidad.astro`).
 
 ## Panel oculto
 

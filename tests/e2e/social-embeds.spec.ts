@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { CONTACT_FORM_ENABLED } from '../../src/config/contact';
 import { SOCIAL_TEXT, SOUNDCLOUD, instagramPosts, soundcloudPlayerUrl } from '../../src/config/social';
 import { INSTAGRAM_ORIGIN, SOUNDCLOUD_ORIGIN, openContact, stubSocialWidgets as stubThirdParties } from './contact-helpers';
 import { ensureMusic, isMobileViewport, player, showMobilePage, withMusicPaused } from './helpers';
@@ -11,7 +12,7 @@ import { ensureMusic, isMobileViewport, player, showMobilePage, withMusicPaused 
  *   la música de la web (D43), y que cuando sí suena, la música se pausa y
  *   vuelve al salir.
  * - **Instagram** es una fachada: hasta que se pulsa, nada de Meta. Eso es lo
- *   que sostiene lo que promete /privacidad.
+ *   que sostiene lo que se prometía en /privacidad (D60: ya no hay esa página).
  *
  * Ni los scripts ni los iframes se piden de verdad: se interceptan, igual que
  * Turnstile y Resend (tests/e2e/contact-helpers.ts), porque el contenedor no
@@ -102,7 +103,7 @@ test.describe('Reproductor de SoundCloud', () => {
     await context.close();
   });
 
-  test('sin aviso de cookies debajo (Luna ✓ 02-10): lo cuenta /privacidad', async ({ page }) => {
+  test('sin aviso de cookies debajo (Luna ✓ 02-10): lo dicen los propios widgets', async ({ page }) => {
     await stubThirdParties(page);
     await withMusicPaused(page);
     await openContact(page);
@@ -111,25 +112,30 @@ test.describe('Reproductor de SoundCloud', () => {
     await expect(page.locator('soundcloud-embed')).not.toContainText(/cookies/i);
   });
 
-  test('el formulario y los dos widgets ocupan todo el ancho de la columna', async ({ page }) => {
+  test('los dos widgets ocupan todo el ancho de la columna', async ({ page }) => {
     await stubThirdParties(page);
     await withMusicPaused(page);
     await openContact(page);
     await showMobilePage(page);
-    const anchos = await page.evaluate(() => {
+    const anchos = await page.evaluate((conFormulario) => {
       const ancho = (selector: string) => {
         const element = document.querySelector(selector);
         return element ? Math.round(element.getBoundingClientRect().width) : 0;
       };
       return {
         columna: ancho('#panel .contact'),
-        formulario: ancho('.contact-form'),
+        // Con formulario (CONTACT_FORM_ENABLED) también se mide él. El email no:
+        // es un enlace y ocupa lo que ocupa su texto.
+        formulario: conFormulario ? ancho('.contact-form') : 0,
         escucha: ancho('soundcloud-embed'),
         instagram: ancho('instagram-posts'),
       };
-    });
+    }, CONTACT_FORM_ENABLED);
     expect(anchos.columna).toBeGreaterThan(0);
-    for (const clave of ['formulario', 'escucha', 'instagram'] as const) {
+    const aMedir = CONTACT_FORM_ENABLED
+      ? (['formulario', 'escucha', 'instagram'] as const)
+      : (['escucha', 'instagram'] as const);
+    for (const clave of aMedir) {
       expect(Math.abs(anchos[clave] - anchos.columna), clave).toBeLessThanOrEqual(1);
     }
   });

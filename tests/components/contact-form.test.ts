@@ -61,10 +61,10 @@ describe('ContactForm', () => {
     expect(html).toContain(TEXT.noscript);
   });
 
-  it('enlaza la política de privacidad sin casilla que marcar', async () => {
+  it('sin páginas legales que enlazar (D60) y sin casilla que marcar', async () => {
     const html = await render();
-    expect(html).toContain('href="/privacidad"');
-    expect(html).toContain(TEXT.labels.privacyBefore);
+    expect(html).not.toContain('/privacidad');
+    expect(html).not.toContain('/aviso-legal');
     expect(html).not.toContain('type="checkbox" required');
   });
 

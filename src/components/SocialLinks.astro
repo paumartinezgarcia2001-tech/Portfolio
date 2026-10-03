@@ -1,12 +1,13 @@
 ---
 /**
- * C17 · SocialLinks — el email de Pau al final de contact (fase 5, D58, D59).
+ * C17 · SocialLinks — el email de Pau en contact (fase 5, D58, D59, D60).
  *
- * Desde D58 aquí está el email como enlace `mailto:` (Luna, 25-09-2026), que
- * abre el programa de correo y por eso no lleva `target`. Los enlaces a
- * SoundCloud y a Instagram **ya no están aquí**: desde el 02-10-2026 (Luna ✓)
- * cada uno va justo debajo de su widget, dentro de SoundCloudEmbed.astro y de
- * InstagramPosts.astro.
+ * Desde D60 (Luna ✓ 03-10-2026) **no hay formulario**: este enlace `mailto:` es
+ * la forma de escribir a Pau, y por eso va donde estaba el formulario y en
+ * grande. Abre el programa de correo, así que no lleva `target`.
+ *
+ * Los enlaces a SoundCloud y a Instagram no están aquí: desde D59 cada uno va
+ * justo debajo de su widget (SoundCloudEmbed.astro e InstagramPosts.astro).
  */
 import { SITE } from '../config/site';
 ---
@@ -19,9 +20,10 @@ import { SITE } from '../config/site';
   @layer components {
     .social {
       margin: 0;
-      /* El email es largo: en móvil tiene que poder partirse. */
-      font-size: var(--fs-paragraph);
+      /* Es la llamada a la acción de la página: en grande, como las redes. */
+      font-size: calc(var(--fs-paragraph) * 1.4);
       line-height: var(--lh-paragraph);
+      /* El email es largo: en móvil tiene que poder partirse. */
       overflow-wrap: anywhere;
     }
 

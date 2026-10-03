@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { CONTACT_RATE_LIMIT, CONTACT_TEXT as TEXT } from '../../src/config/contact';
+import { CONTACT_FORM_ENABLED, CONTACT_RATE_LIMIT, CONTACT_TEXT as TEXT } from '../../src/config/contact';
 import { SITE } from '../../src/config/site';
 import {
   DUMMY_TOKEN,
@@ -26,6 +26,10 @@ import { isMobileViewport, menu, menuLink, showMobilePage, withMusicPaused } fro
  * Estos tests corren contra el build de Cloudflare (`npm run build`), el que
  * tiene Actions. El camino de GitHub Pages (Web3Forms) se prueba con tests
  * unitarios y de componente.
+ *
+ * **D60**: ahora mismo no hay formulario (`CONTACT_FORM_ENABLED`), así que todo
+ * lo que va de enviar se salta solo. Volviendo a poner el interruptor en
+ * `true`, estos tests vuelven a correr tal cual.
  */
 
 test.beforeEach(async ({ page }) => {
@@ -34,6 +38,8 @@ test.beforeEach(async ({ page }) => {
 });
 
 test.describe('Envío correcto', () => {
+  test.skip(!CONTACT_FORM_ENABLED, 'Sin formulario (D60): se escribe al email.');
+
   test('envía el mensaje y cambia el formulario por el aviso de enviado', async ({ page, request }) => {
     const marker = uniqueMarker();
     await openContact(page);
@@ -79,6 +85,8 @@ test.describe('Envío correcto', () => {
 });
 
 test.describe('Teclado (§10)', () => {
+  test.skip(!CONTACT_FORM_ENABLED, 'Sin formulario (D60): se escribe al email.');
+
   test('se completa y se envía solo con el teclado', async ({ page, request }) => {
     const marker = uniqueMarker();
     await openContact(page);
@@ -125,6 +133,8 @@ test.describe('Teclado (§10)', () => {
 });
 
 test.describe('Errores de validación', () => {
+  test.skip(!CONTACT_FORM_ENABLED, 'Sin formulario (D60): se escribe al email.');
+
   test('campos vacíos: los dice y no envía nada', async ({ page, request }) => {
     const marker = uniqueMarker();
     await openContact(page);
@@ -199,6 +209,8 @@ test.describe('Errores de validación', () => {
 });
 
 test.describe('Anti-spam', () => {
+  test.skip(!CONTACT_FORM_ENABLED, 'Sin formulario (D60): se escribe al email.');
+
   test('honeypot marcado: responde como si se hubiera enviado, pero no envía', async ({ page, request }) => {
     const marker = uniqueMarker();
     await openContact(page);
@@ -270,6 +282,8 @@ test.describe('Anti-spam', () => {
 });
 
 test.describe('Si falla el envío', () => {
+  test.skip(!CONTACT_FORM_ENABLED, 'Sin formulario (D60): se escribe al email.');
+
   test('muestra el aviso y deja reintentar', async ({ page, request }) => {
     const marker = uniqueMarker();
     await openContact(page);
@@ -314,6 +328,8 @@ test.describe('Si falla el envío', () => {
 });
 
 test.describe('Sin JavaScript', () => {
+  test.skip(!CONTACT_FORM_ENABLED, 'Sin formulario (D60): se escribe al email.');
+
   test.use({ javaScriptEnabled: false });
 
   test('el POST funciona y acaba en /mensaje-enviado', async ({ page, request }) => {
@@ -382,11 +398,10 @@ test.describe('Sin JavaScript', () => {
   });
 });
 
-test.describe('Correo, redes y pie legal', () => {
+test.describe('Correo y redes', () => {
   test('soundcloud e instagram, cada uno debajo de su widget (Luna ✓ 02-10)', async ({ page }) => {
     await openContact(page);
     await showMobilePage(page);
-    await waitForTurnstileToken(page);
     for (const [label, href] of [
       ['soundcloud', 'https://soundcloud.com/travest15m0'],
       ['instagram', 'https://www.instagram.com/travest15m0/'],
@@ -413,37 +428,38 @@ test.describe('Correo, redes y pie legal', () => {
     expect(await page.content()).not.toMatch(/tel:|\+34\s?\d{2}\s?\d{2}/);
   });
 
-  test('el pie lleva al aviso legal y a la privacidad, con sus TODO a la vista', async ({ page }) => {
+  test('el email es lo que hay para escribir: no hay formulario (D60)', async ({ page }) => {
     await openContact(page);
     await showMobilePage(page);
-    // Con el widget ya pintado, el pie no se mueve mientras se pulsa.
-    await waitForTurnstileToken(page);
-    // Desde D59 el pie queda debajo del iframe de SoundCloud. Hay que esperar a
-    // que ese iframe haya cargado antes de pulsar: mientras no lo esté, su
-    // tamaño puede cambiar por encima del pie y el navegador corrige el
-    // desplazamiento (scroll anchoring), con lo que el enlace se mueve bajo el
-    // puntero justo al pulsar y el clic se pierde.
-    await expect
-      .poll(() => page.frames().some((frame) => frame.url().startsWith('https://w.soundcloud.com')), { timeout: 15_000 })
-      .toBe(true);
-    const privacidad = page.getByRole('link', { name: 'privacidad', exact: true }).first();
-    await privacidad.scrollIntoViewIfNeeded();
-    await privacidad.click();
-    await expect(page).toHaveURL(/\/privacidad\/?$/);
-    await expect(page.locator('html')).toHaveAttribute('data-section', 'none');
-    await expect(page.locator('.todo').first()).toBeVisible();
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText('privacidad');
+    expect(CONTACT_FORM_ENABLED).toBe(false);
+    await expect(page.locator('form')).toHaveCount(0);
+    await expect(page.locator('[data-turnstile]')).toHaveCount(0);
+    // Y el email va arriba, donde estaba el formulario: antes que los widgets.
+    const orden = await page.evaluate(() => {
+      const nodos = [...document.querySelectorAll('#panel .contact > *')];
+      return {
+        email: nodos.findIndex((n) => n.querySelector('a[href^="mailto:"]')),
+        escucha: nodos.findIndex((n) => n.querySelector('soundcloud-embed')),
+      };
+    });
+    expect(orden.email).toBeGreaterThanOrEqual(0);
+    expect(orden.email).toBeLessThan(orden.escucha);
+  });
 
-    await page.goto('/aviso-legal');
-    await expect(page.locator('.todo').first()).toBeVisible();
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText('aviso legal');
-    // Enlaza de vuelta a contact.
-    await page.getByRole('link', { name: 'volver a contact' }).click();
-    await expect(page).toHaveURL(/\/contact\/?$/);
+  test('ya no hay aviso legal ni política de privacidad (Luna ✓ 03-10)', async ({ page }) => {
+    await openContact(page);
+    await showMobilePage(page);
+    await expect(page.getByRole('link', { name: /privacidad|aviso legal/i })).toHaveCount(0);
+    for (const ruta of ['/privacidad', '/aviso-legal']) {
+      const response = await page.goto(ruta);
+      expect(response?.status(), ruta).toBe(404);
+    }
   });
 });
 
 test.describe('Cursor sobre el widget (C10)', () => {
+  test.skip(!CONTACT_FORM_ENABLED, 'Sin formulario (D60): se escribe al email.');
+
   test.skip(({ viewport }) => isMobileViewport(viewport), 'Solo escritorio (hay cursor)');
 
   test('el círculo se oculta y vuelve el cursor del sistema', async ({ page }) => {
@@ -491,7 +507,7 @@ test.describe('Cabeceras de seguridad (§11)', () => {
 
     // Con el widget puesto (script e iframe de challenges.cloudflare.com).
     await showMobilePage(page);
-    await waitForTurnstileToken(page);
+    if (CONTACT_FORM_ENABLED) await waitForTurnstileToken(page);
 
     // Y recorriendo la web: la CSP de la primera página es la que manda en
     // todas (el ClientRouter no recarga), incluido el vídeo de Media, que usa
@@ -513,8 +529,8 @@ test.describe('Cabeceras de seguridad (§11)', () => {
     expect(violations).toEqual([]);
   });
 
-  test('las páginas legales, que son estáticas, también llevan las cabeceras', async ({ page }) => {
-    const response = await page.goto('/privacidad');
+  test('las páginas estáticas también llevan las cabeceras', async ({ page }) => {
+    const response = await page.goto('/mensaje-enviado');
     expect(response?.headers()['content-security-policy']).toContain('https://challenges.cloudflare.com');
     expect(response?.headers()['x-content-type-options']).toBe('nosniff');
   });

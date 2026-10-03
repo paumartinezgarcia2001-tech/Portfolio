@@ -11,7 +11,7 @@ import { SOCIAL_TEXT, SOUNDCLOUD } from '../../src/config/social';
  * - SoundCloud va puesto (`SOUNDCLOUD.eager`), pero **sin arrancar solo**: eso
  *   es lo que hay que vigilar, porque la web ya tiene su propia música (D43).
  * - Instagram es una **fachada**: en el HTML no puede haber nada de Meta. Eso
- *   es lo que sostiene lo que promete /privacidad.
+ *   es lo que sostenía lo que prometía /privacidad (D60: ya no hay esa página).
  */
 
 let container: AstroContainer;
@@ -51,7 +51,7 @@ describe('SoundCloudEmbed', () => {
     expect(html).toContain('data-native-cursor');
   });
 
-  it('sin aviso de cookies debajo: lo cuenta /privacidad (Luna ✓ 02-10)', async () => {
+  it('sin aviso de cookies debajo: lo dicen los propios widgets (Luna ✓ 02-10)', async () => {
     const html = await container.renderToString(SoundCloudEmbed);
     expect(html).not.toContain('embed__notice');
     expect(html).not.toMatch(/cookies/i);
