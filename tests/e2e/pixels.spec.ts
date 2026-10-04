@@ -1,7 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
+import { PIXEL } from '../../src/config/pixel';
 import { isMobileViewport, menuLink, openMobileMenu } from './helpers';
 
-/** C11 · Filtro pixelado: transición de píxeles (C11c) y textura LCD (C11a). */
+/** C11 · Filtro pixelado: transición de píxeles (C11c) y textura LCD (C11a, apagada). */
 
 interface LayerRecord {
   type: 'add' | 'remove';
@@ -97,35 +98,9 @@ test.describe('Transición de píxeles', () => {
 });
 
 test.describe('Textura LCD', () => {
-  test('cubre toda la ventana, también el vídeo de Media, sin recibir clics', async ({ page }) => {
+  test('está apagada: no hay rejilla encima de la web (Luna, 04-10-2026)', async ({ page }) => {
+    expect(PIXEL.overlay.enabled).toBe(false);
     await page.goto('/media');
-    const overlay = page.locator('.pixel-overlay');
-    await expect(overlay).toBeVisible();
-    const info = await overlay.evaluate((el) => {
-      const box = el.getBoundingClientRect();
-      const style = getComputedStyle(el);
-      return {
-        box: [box.x, box.y, box.width, box.height],
-        viewport: [window.innerWidth, window.innerHeight],
-        position: style.position,
-        zIndex: Number(style.zIndex),
-        pointerEvents: style.pointerEvents,
-        opacity: Number(style.opacity),
-      };
-    });
-    expect(info.position).toBe('fixed');
-    expect(info.box).toEqual([0, 0, ...info.viewport]);
-    expect(info.zIndex).toBe(30);
-    expect(info.pointerEvents).toBe('none');
-    expect(info.opacity).toBeCloseTo(0.12, 2);
-  });
-
-  test.describe('con prefers-contrast: more', () => {
-    test.use({ contrast: 'more' });
-
-    test('desaparece', async ({ page }) => {
-      await page.goto('/');
-      await expect(page.locator('.pixel-overlay')).toBeHidden();
-    });
+    await expect(page.locator('.pixel-overlay')).toHaveCount(0);
   });
 });

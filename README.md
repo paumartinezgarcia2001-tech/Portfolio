@@ -367,6 +367,62 @@ El código: `src/pages/[admin]/`, `src/layouts/AdminLayout.astro`,
 `src/components/admin/`, `src/actions/admin.ts`, `src/lib/admin/`,
 `src/scripts/admin/` y `src/styles/admin.css`; textos y límites en `src/config/admin.ts`.
 
+## Despliegue en Cloudflare (Workers Builds)
+
+La web definitiva es un **Worker** llamado `portfolio` (el mismo `name` que en
+`wrangler.jsonc`), conectado al repo con **Workers Builds**:
+<https://portfolio.pau-martinez-garcia-2001.workers.dev> mientras no haya dominio.
+
+- **Compilación** (*Settings → Build*): comando de build `npm run build`, comando de
+  despliegue `npx wrangler deploy`, carpeta raíz vacía (`/`). Rama de producción: `main`;
+  el resto de ramas, como versión de prueba (*preview*).
+- **Node**: `.nvmrc` fija la versión; Workers Builds la lee sola.
+
+### Variables: dos sitios distintos
+
+Hay **dos tipos** y van en **dos pantallas distintas** del Worker. Confundirlas es el
+fallo más habitual: la web compila, pero sale vacía.
+
+| Dónde (en *Workers & Pages → portfolio → Settings*) | Qué va | Cuándo cuenta |
+|---|---|---|
+| **Build → Variables and secrets** | todas las `PUBLIC_*` | **al compilar**: quedan escritas en el código. Tras cambiar una, hay que volver a desplegar (*Deployments → … → Retry build*, o un push) |
+| **Variables and Secrets** (la de arriba, de ejecución), tipo **Secret** | `ADMIN_PATH`, `ADMIN_USERNAME`, `ADMIN_EMAIL`, `RESEND_API_KEY`, `CONTACT_TO_EMAIL`, `CONTACT_FROM_EMAIL`, `TURNSTILE_SECRET_KEY`, `R2_*` | **al momento**: guardar crea una versión nueva del Worker, sin recompilar |
+
+En la pantalla de ejecución, siempre tipo **Secret**, nunca *Text*: `npx wrangler deploy`
+borra en cada despliegue las variables de texto que no estén en `wrangler.jsonc`, pero
+respeta los secrets.
+
+De compilación (*Build*), por orden de importancia:
+
+| Variable | Valor | Sin ella |
+|---|---|---|
+| `PUBLIC_SUPABASE_URL` | `https://<proyecto>.supabase.co` | next dates y archive dicen «No se han podido cargar…», `/api/health` da 503 y el panel no funciona |
+| `PUBLIC_SUPABASE_PUBLISHABLE_KEY` | `sb_publishable_…` | lo mismo |
+| `PUBLIC_SITE_URL` | `https://portfolio.pau-martinez-garcia-2001.workers.dev` (luego, el dominio), sin barra final | las URL canónicas y de Open Graph salen de la petición |
+| `PUBLIC_MEDIA_BASE_URL` | dominio público del bucket R2 | Media enseña el aviso y el reproductor dice «reproductor — próximamente» |
+| `PUBLIC_TURNSTILE_SITE_KEY` | clave pública del widget de Turnstile | login del panel con CAPTCHA y formulario (apagado) no funcionan |
+
+No hace falta ninguna otra en *Build*: `DATA_SOURCE`, `DATA_STRICT`, `SITE_NOINDEX` y
+`STATIC_BUILD` ya tienen el valor correcto para Cloudflare, y `PUBLIC_WEB3FORMS_KEY` solo
+la usa GitHub Pages. **Nunca** pongas `SUPABASE_SECRET_KEY` en Cloudflare: es solo para los
+scripts locales.
+
+Los secrets también se pueden poner desde el terminal (van al Worker `portfolio` porque
+es el `name` de `wrangler.jsonc`):
+
+```sh
+npx wrangler secret put ADMIN_PATH
+```
+
+### Comprobar que ha ido bien
+
+1. `https://<web>/api/health` → `{"ok":true,…}` con 200 (Supabase conectado).
+2. `/next-dates` y `/archive` muestran fechas.
+3. En las cabeceras de cualquier página, la `Content-Security-Policy` incluye el dominio de
+   Supabase en `connect-src` y el de R2 en `img-src`/`media-src` (si no, las `PUBLIC_*` no
+   llegaron al build).
+4. `/<ADMIN_PATH>` enseña el login del panel; cualquier otra ruta, el 404.
+
 ## Despliegue provisional (GitHub Pages)
 
 Hasta que la web esté en Cloudflare (fase 7), lo construido se publica como web

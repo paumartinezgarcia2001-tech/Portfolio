@@ -1,6 +1,6 @@
 {
 	"$schema": "./node_modules/wrangler/config-schema.json",
-	"name": "travest15m0-web",
+	"name": "portfolio",
 	"main": "@astrojs/cloudflare/entrypoints/server",
 	"compatibility_date": "2026-09-16",
 	"compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],

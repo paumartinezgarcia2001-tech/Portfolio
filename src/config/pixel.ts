@@ -2,14 +2,19 @@
  * Filtro pixelado (C11). Valores revisados en la fase 3 (18-09-2026).
  *
  * El vídeo de Media NO se pixela (D40, decisión de Luna del 18-09-2026): se ve
- * nítido y solo le pasa por encima la rejilla LCD, como al resto de la web.
- * Por eso ya no hay ajustes de `media`.
+ * nítido. Por eso ya no hay ajustes de `media`.
+ *
+ * La rejilla LCD (C11a) está **apagada** (Luna, 04-10-2026): con su
+ * transparencia ensuciaba toda la web. La transición de píxeles al cambiar de
+ * apartado (C11c) sigue igual. Para recuperarla: `overlay.enabled: true`.
  */
 export const PIXEL = {
   /** Interruptor general de los efectos. */
   enabled: true,
   /** C11a · rejilla tipo LCD encima de toda la web (vídeo incluido). */
   overlay: {
+    /** Apagada (Luna, 04-10-2026). No afecta a `transition`. */
+    enabled: false,
     /** Lado de cada celda, en px CSS. */
     cell: 3,
     /** Grosor de las líneas entre celdas, en px CSS. */

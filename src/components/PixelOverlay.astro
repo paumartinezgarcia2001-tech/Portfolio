@@ -1,6 +1,7 @@
 ---
 /**
  * C11a · PixelOverlay — rejilla tipo pantalla LCD sobre toda la web.
+ * **Apagada** (`PIXEL.overlay.enabled`, Luna 04-10-2026): no se pinta nada.
  * No recibe eventos. Se desactiva con `prefers-contrast: more`, con colores
  * forzados y en el panel oculto (que no usa este layout).
  */
@@ -11,7 +12,7 @@ const style = `--px-period: ${cell + line}px; --px-line: ${line}px; --px-opacity
 ---
 
 {
-  PIXEL.enabled && (
+  PIXEL.enabled && PIXEL.overlay.enabled && (
     <div class="pixel-overlay" aria-hidden="true" style={style} transition:persist="pixel-overlay" />
   )
 }
