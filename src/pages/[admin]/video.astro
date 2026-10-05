@@ -7,7 +7,7 @@
  * Se guarda en `site_settings.video`. Mientras esté vacío, la web usa el vídeo
  * de src/config/media.ts. Sin pixelado (D40): no hay tamaño de píxel.
  */
-import { PUBLIC_MEDIA_BASE_URL } from 'astro:env/client';
+import { publicVar } from '../../lib/public-env';
 import { ADMIN_TEXT } from '../../config/admin';
 import { MEDIA_VIDEO } from '../../config/media';
 import AdminLayout from '../../layouts/AdminLayout.astro';
@@ -16,6 +16,8 @@ import { getAdminSettings } from '../../lib/admin/data';
 import { adminPage } from '../../lib/admin/page';
 import { parseStoredVideo } from '../../lib/admin/video';
 import { resolveMediaUrl } from '../../lib/media';
+
+const PUBLIC_MEDIA_BASE_URL = publicVar('PUBLIC_MEDIA_BASE_URL');
 
 export const prerender = false;
 

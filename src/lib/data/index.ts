@@ -8,7 +8,7 @@
  * estática el aviso se quedaría publicado hasta el siguiente build; así sigue
  * en línea la última versión buena.
  */
-import { PUBLIC_MEDIA_BASE_URL } from 'astro:env/client';
+import { publicVar } from '../public-env';
 import { DATA_SOURCE, DATA_STRICT } from 'astro:env/server';
 import { MEDIA_VIDEO, type MediaVideoConfig } from '../../config/media';
 import { SITE } from '../../config/site';
@@ -192,7 +192,7 @@ export async function getTickerText(now: Date = new Date()): Promise<DataResult<
  * «reproductor — próximamente».
  */
 export async function getPublishedMixes(): Promise<DataResult<Mix[]>> {
-  if (useFixtures) return { data: toMixes(FIXTURE_MIXES, PUBLIC_MEDIA_BASE_URL), ok: true };
+  if (useFixtures) return { data: toMixes(FIXTURE_MIXES, publicVar('PUBLIC_MEDIA_BASE_URL')), ok: true };
   if (!isSupabaseConfigured()) return notConfigured<Mix[]>([]);
 
   const supabase = createSupabasePublicClient();
@@ -209,7 +209,7 @@ export async function getPublishedMixes(): Promise<DataResult<Mix[]>> {
     [],
     { label: 'mixes', timeoutMs },
   );
-  return checked({ data: toMixes(result.data, PUBLIC_MEDIA_BASE_URL), ok: result.ok }, 'mixes');
+  return checked({ data: toMixes(result.data, publicVar('PUBLIC_MEDIA_BASE_URL')), ok: result.ok }, 'mixes');
 }
 
 /** Consulta mínima para /api/health (keep-alive de Supabase). */
@@ -251,9 +251,9 @@ export async function getInfoMarkdown(): Promise<DataResult<string | null>> {
  * desde el panel (P2, fase 6) y es válido; si no, de `src/config/media.ts`.
  */
 export async function getMediaVideo(): Promise<ResolvedMediaVideo | null> {
-  if (useFixtures) return resolveMediaVideo(FIXTURE_VIDEO, PUBLIC_MEDIA_BASE_URL);
+  if (useFixtures) return resolveMediaVideo(FIXTURE_VIDEO, publicVar('PUBLIC_MEDIA_BASE_URL'));
   const stored = await getStoredVideo();
-  return resolveMediaVideo(stored.data ?? MEDIA_VIDEO, PUBLIC_MEDIA_BASE_URL);
+  return resolveMediaVideo(stored.data ?? MEDIA_VIDEO, publicVar('PUBLIC_MEDIA_BASE_URL'));
 }
 
 /** El vídeo guardado desde el panel, o `null` (se usa el del código). */

@@ -8,6 +8,9 @@
 		"directory": "./dist",
 		"binding": "ASSETS"
 	},
+	// Las variables de texto puestas en el panel (Settings → Variables and
+	// Secrets) no se borran en cada `wrangler deploy` de Workers Builds.
+	"keep_vars": true,
 	"observability": {
 		"enabled": true
 	},

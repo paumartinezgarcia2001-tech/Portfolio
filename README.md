@@ -378,21 +378,25 @@ La web definitiva es un **Worker** llamado `portfolio` (el mismo `name` que en
   el resto de ramas, como versión de prueba (*preview*).
 - **Node**: `.nvmrc` fija la versión; Workers Builds la lee sola.
 
-### Variables: dos sitios distintos
+### Variables: dónde ponerlas
 
-Hay **dos tipos** y van en **dos pantallas distintas** del Worker. Confundirlas es el
-fallo más habitual: la web compila, pero sale vacía.
+Las `PUBLIC_*` sirven en **cualquiera de los dos sitios** del Worker (*Workers & Pages →
+portfolio → Settings*):
 
-| Dónde (en *Workers & Pages → portfolio → Settings*) | Qué va | Cuándo cuenta |
-|---|---|---|
-| **Build → Variables and secrets** | todas las `PUBLIC_*` | **al compilar**: quedan escritas en el código. Tras cambiar una, hay que volver a desplegar (*Deployments → … → Retry build*, o un push) |
-| **Variables and Secrets** (la de arriba, de ejecución), tipo **Secret** | `ADMIN_PATH`, `ADMIN_USERNAME`, `ADMIN_EMAIL`, `RESEND_API_KEY`, `CONTACT_TO_EMAIL`, `CONTACT_FROM_EMAIL`, `TURNSTILE_SECRET_KEY`, `R2_*` | **al momento**: guardar crea una versión nueva del Worker, sin recompilar |
+| Dónde | Cuándo cuenta |
+|---|---|
+| **Variables and Secrets** (ejecución) — **recomendado** | al momento: guardar crea una versión nueva del Worker, sin recompilar. Si una `PUBLIC_*` no llegó al build, el servidor la lee de aquí (`src/lib/public-env.ts`) |
+| **Build → Variables and secrets** (compilación) | al compilar: quedan escritas en el código y mandan sobre las de ejecución. Tras cambiar una, hay que volver a desplegar (*Deployments → … → Retry build*, o un push). Son las únicas que ven las páginas estáticas (las legales y «mensaje enviado») en sus cabeceras |
 
-En la pantalla de ejecución, siempre tipo **Secret**, nunca *Text*: `npx wrangler deploy`
-borra en cada despliegue las variables de texto que no estén en `wrangler.jsonc`, pero
-respeta los secrets.
+Las secretas (`ADMIN_PATH`, `ADMIN_USERNAME`, `ADMIN_EMAIL`, `RESEND_API_KEY`,
+`CONTACT_TO_EMAIL`, `CONTACT_FROM_EMAIL`, `TURNSTILE_SECRET_KEY`, `R2_*`) van **solo** en
+*Variables and Secrets*, tipo **Secret**.
 
-De compilación (*Build*), por orden de importancia:
+`wrangler.jsonc` lleva `"keep_vars": true`: sin eso, cada `wrangler deploy` de Workers
+Builds borraba las variables de tipo *Text* puestas en el panel (los secrets nunca se
+borran).
+
+Las `PUBLIC_*`, por orden de importancia:
 
 | Variable | Valor | Sin ella |
 |---|---|---|
@@ -402,7 +406,7 @@ De compilación (*Build*), por orden de importancia:
 | `PUBLIC_MEDIA_BASE_URL` | dominio público del bucket R2 | Media enseña el aviso y el reproductor dice «reproductor — próximamente» |
 | `PUBLIC_TURNSTILE_SITE_KEY` | clave pública del widget de Turnstile | login del panel con CAPTCHA y formulario (apagado) no funcionan |
 
-No hace falta ninguna otra en *Build*: `DATA_SOURCE`, `DATA_STRICT`, `SITE_NOINDEX` y
+No hace falta ninguna otra: `DATA_SOURCE`, `DATA_STRICT`, `SITE_NOINDEX` y
 `STATIC_BUILD` ya tienen el valor correcto para Cloudflare, y `PUBLIC_WEB3FORMS_KEY` solo
 la usa GitHub Pages. **Nunca** pongas `SUPABASE_SECRET_KEY` en Cloudflare: es solo para los
 scripts locales.
@@ -419,8 +423,8 @@ npx wrangler secret put ADMIN_PATH
 1. `https://<web>/api/health` → `{"ok":true,…}` con 200 (Supabase conectado).
 2. `/next-dates` y `/archive` muestran fechas.
 3. En las cabeceras de cualquier página, la `Content-Security-Policy` incluye el dominio de
-   Supabase en `connect-src` y el de R2 en `img-src`/`media-src` (si no, las `PUBLIC_*` no
-   llegaron al build).
+   Supabase en `connect-src` y el de R2 en `img-src`/`media-src` (si no, el Worker no ve
+   las `PUBLIC_*`).
 4. `/<ADMIN_PATH>` enseña el login del panel; cualquier otra ruta, el 404.
 
 ## Despliegue provisional (GitHub Pages)

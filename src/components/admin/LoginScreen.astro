@@ -7,7 +7,7 @@
  * redirección); con Turnstile, el widget necesita JavaScript (D48).
  */
 import { actions } from 'astro:actions';
-import { PUBLIC_TURNSTILE_SITE_KEY } from 'astro:env/client';
+import { publicVar } from '../../lib/public-env';
 import { ADMIN_TEXT } from '../../config/admin';
 
 interface Props {
@@ -18,7 +18,7 @@ interface Props {
 const admin = Astro.locals.admin;
 const configured = Boolean(admin?.supabase);
 const mfaStep = admin?.state.kind === 'admin' && admin.state.session.needsMfa;
-const siteKey = PUBLIC_TURNSTILE_SITE_KEY;
+const siteKey = publicVar('PUBLIC_TURNSTILE_SITE_KEY');
 const { error } = Astro.props;
 ---
 

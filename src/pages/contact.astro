@@ -21,7 +21,7 @@
  * aparece «formulario — próximamente» y quedan el correo y las redes.
  */
 import { actions, isInputError } from 'astro:actions';
-import { PUBLIC_SITE_URL, PUBLIC_TURNSTILE_SITE_KEY, PUBLIC_WEB3FORMS_KEY } from 'astro:env/client';
+import { PUBLIC_WEB3FORMS_KEY } from 'astro:env/client';
 import { STATIC_BUILD } from 'astro:env/server';
 import ContactForm from '../components/ContactForm.astro';
 import InstagramPosts from '../components/InstagramPosts.astro';
@@ -36,6 +36,7 @@ import {
 } from '../config/contact';
 import BaseLayout from '../layouts/BaseLayout.astro';
 import { readContactValues } from '../lib/contact/values';
+import { publicVar } from '../lib/public-env';
 import { withBase } from '../lib/url';
 
 const result = Astro.getActionResult(actions.contact.send);
@@ -53,7 +54,7 @@ if (error) Astro.response.status = error.status;
 
 // Sin servidor manda Web3Forms; con servidor, la Action y Turnstile. Sin
 // formulario no hace falta ninguna de las dos claves, así que tampoco se avisa.
-const siteKey = STATIC_BUILD ? undefined : PUBLIC_TURNSTILE_SITE_KEY;
+const siteKey = STATIC_BUILD ? undefined : publicVar('PUBLIC_TURNSTILE_SITE_KEY');
 const accessKey = STATIC_BUILD ? PUBLIC_WEB3FORMS_KEY : undefined;
 if (CONTACT_FORM_ENABLED && STATIC_BUILD && !accessKey) warnMissingWeb3FormsKey();
 if (CONTACT_FORM_ENABLED && !STATIC_BUILD && !siteKey) warnMissingTurnstileSiteKey();
@@ -63,7 +64,7 @@ if (CONTACT_FORM_ENABLED && !STATIC_BUILD && !siteKey) warnMissingTurnstileSiteK
  * (su plan gratuito solo admite el mismo dominio). Con `build.format: 'file'`
  * las páginas son archivos `.html`, y ahí `Astro.url.pathname` ya lo lleva.
  */
-const origin = PUBLIC_SITE_URL ?? Astro.site?.origin ?? Astro.url.origin;
+const origin = publicVar('PUBLIC_SITE_URL') ?? Astro.site?.origin ?? Astro.url.origin;
 const sentPath = `${withBase(CONTACT_SENT_PATH)}${Astro.url.pathname.endsWith('.html') ? '.html' : ''}`;
 const web3forms = accessKey ? { accessKey, redirect: new URL(sentPath, origin).href } : undefined;
 const formAvailable = STATIC_BUILD ? Boolean(web3forms) : Boolean(siteKey);

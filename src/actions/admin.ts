@@ -11,7 +11,7 @@
  *   Pages no hay Actions (astro.config.pages.mjs).
  */
 import { ActionError, defineAction } from 'astro:actions';
-import { PUBLIC_TURNSTILE_SITE_KEY } from 'astro:env/client';
+import { publicVar } from '../lib/public-env';
 import {
   ADMIN_EMAIL,
   ADMIN_USERNAME,
@@ -134,7 +134,7 @@ export const admin = {
     handler: async (input, context) => {
       if (!isSupabaseConfigured()) throw new ActionError({ code: 'INTERNAL_SERVER_ERROR', message: TEXT.notConfigured });
       const captchaToken = input['cf-turnstile-response']?.trim() || undefined;
-      if (PUBLIC_TURNSTILE_SITE_KEY && !captchaToken) {
+      if (publicVar('PUBLIC_TURNSTILE_SITE_KEY') && !captchaToken) {
         throw new ActionError({ code: 'BAD_REQUEST', message: TEXT.captchaMissing });
       }
       const failed = () => new ActionError({ code: 'UNAUTHORIZED', message: TEXT.loginFailed });

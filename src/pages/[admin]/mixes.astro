@@ -6,7 +6,7 @@
  * La subida no normaliza el volumen: para dejarlo a −14 LUFS (§7.5) se sigue
  * usando `npm run media:mix` en el ordenador y aquí solo se publica.
  */
-import { PUBLIC_MEDIA_BASE_URL } from 'astro:env/client';
+import { publicVar } from '../../lib/public-env';
 import { R2_ACCESS_KEY_ID, R2_ACCOUNT_ID, R2_BUCKET, R2_SECRET_ACCESS_KEY } from 'astro:env/server';
 import { ADMIN_LIMITS, ADMIN_TEXT, MIX_ARTWORK_TYPES, MIX_AUDIO_TYPES } from '../../config/admin';
 import AdminLayout from '../../layouts/AdminLayout.astro';
@@ -14,6 +14,8 @@ import LoginScreen from '../../components/admin/LoginScreen.astro';
 import { getAdminMixes } from '../../lib/admin/data';
 import { adminPage } from '../../lib/admin/page';
 import { resolveMediaUrl } from '../../lib/media';
+
+const PUBLIC_MEDIA_BASE_URL = publicVar('PUBLIC_MEDIA_BASE_URL');
 
 export const prerender = false;
 

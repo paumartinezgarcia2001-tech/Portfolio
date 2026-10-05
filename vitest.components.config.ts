@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url';
 import { getViteConfig } from 'astro/config';
 
 /**
@@ -6,6 +7,10 @@ import { getViteConfig } from 'astro/config';
  * (vitest.config.ts).
  */
 export default getViteConfig({
+  resolve: {
+    // Solo existe dentro del Worker (src/lib/public-env.ts lo importa).
+    alias: { 'cloudflare:workers': fileURLToPath(new URL('./tests/stubs/cloudflare-workers.ts', import.meta.url)) },
+  },
   test: {
     name: 'components',
     include: ['tests/components/**/*.test.ts'],

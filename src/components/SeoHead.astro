@@ -3,7 +3,7 @@
  * C20 · SeoHead — título, descripción, canonical, Open Graph y JSON-LD `Person`.
  * La imagen OG pixelada (1200×630) está pendiente de diseñar.
  */
-import { PUBLIC_SITE_URL } from 'astro:env/client';
+import { publicVar } from '../lib/public-env';
 import { SITE_NOINDEX } from 'astro:env/server';
 import { SITE } from '../config/site';
 import { cleanPathname, withBase } from '../lib/url';
@@ -20,7 +20,7 @@ const { title, description = SITE.description } = Astro.props;
 const noindex = (Astro.props.noindex ?? false) || SITE_NOINDEX;
 
 const fullTitle = `${title} — ${SITE.name}`;
-const origin = PUBLIC_SITE_URL ?? Astro.site?.origin ?? Astro.url.origin;
+const origin = publicVar('PUBLIC_SITE_URL') ?? Astro.site?.origin ?? Astro.url.origin;
 // `Astro.url.pathname` ya incluye el `base`. `originPathname`: la ruta que se
 // pidió, también cuando el middleware reescribe a la 404 (panel, fase 6), para
 // que esa 404 sea idéntica a la de cualquier otra ruta.

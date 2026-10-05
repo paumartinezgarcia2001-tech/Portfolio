@@ -11,20 +11,27 @@
 import { createServerClient, parseCookieHeader } from '@supabase/ssr';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { AstroCookies } from 'astro';
-import { PUBLIC_SUPABASE_PUBLISHABLE_KEY, PUBLIC_SUPABASE_URL } from 'astro:env/client';
+import { publicVar } from '../public-env';
 import type { Database } from './types';
 
 export type TypedSupabaseClient = SupabaseClient<Database>;
 
+/** Las de compilación o, si faltan, las del Worker (src/lib/public-env.ts). */
+function supabaseConfig(): { url: string | undefined; key: string | undefined } {
+  return { url: publicVar('PUBLIC_SUPABASE_URL'), key: publicVar('PUBLIC_SUPABASE_PUBLISHABLE_KEY') };
+}
+
 export function isSupabaseConfigured(): boolean {
-  return Boolean(PUBLIC_SUPABASE_URL && PUBLIC_SUPABASE_PUBLISHABLE_KEY);
+  const { url, key } = supabaseConfig();
+  return Boolean(url && key);
 }
 
 function requireConfig(): { url: string; key: string } {
-  if (!PUBLIC_SUPABASE_URL || !PUBLIC_SUPABASE_PUBLISHABLE_KEY) {
+  const { url, key } = supabaseConfig();
+  if (!url || !key) {
     throw new Error('Faltan PUBLIC_SUPABASE_URL o PUBLIC_SUPABASE_PUBLISHABLE_KEY.');
   }
-  return { url: PUBLIC_SUPABASE_URL, key: PUBLIC_SUPABASE_PUBLISHABLE_KEY };
+  return { url, key };
 }
 
 export function createSupabasePublicClient(): TypedSupabaseClient {
