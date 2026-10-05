@@ -281,6 +281,31 @@ test.describe('Publicaciones de Instagram', () => {
     expect(caja!.height).toBeGreaterThan(100);
   });
 
+  test('si el navegador bloquea embed.js (Brave…), los marcos y el aviso salen al momento (05-10)', async ({
+    page,
+  }) => {
+    await stubThirdParties(page);
+    // Como Brave con los escudos puestos: la petición ni llega.
+    await page.route(`${INSTAGRAM_ORIGIN}/embed.js`, (route) => route.abort('blockedbyclient'));
+    await openContact(page);
+    await showMobilePage(page);
+
+    const fila = page.locator('instagram-posts');
+    // Mucho antes de los 8 s de margen que se dan a un embed lento.
+    await expect(fila).toHaveAttribute('data-state', 'error', { timeout: 4_000 });
+    await expect(fila.locator('blockquote.ig__fallback')).toHaveCount(instagramPosts().length, { timeout: 1_000 });
+    await expect(page.locator('[data-ig-blocked]')).toBeVisible();
+    await expect(page.locator('[data-ig-blocked]')).toHaveText(SOCIAL_TEXT.instagram.blocked);
+  });
+
+  test('si embed.js carga, el aviso de bloqueo no sale', async ({ page }) => {
+    await stubThirdParties(page);
+    await openContact(page);
+    await showMobilePage(page);
+    await expect(page.locator('instagram-posts')).toHaveAttribute('data-state', 'ready');
+    await expect(page.locator('[data-ig-blocked]')).toBeHidden();
+  });
+
   test('sin JavaScript quedan los enlaces de cada publicación', async ({ browser }) => {
     const context = await browser.newContext({ javaScriptEnabled: false });
     const noJs = await context.newPage();

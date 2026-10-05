@@ -54,6 +54,11 @@ const posts = Astro.props.posts
         ))}
       </instagram-posts>
 
+      {/* Solo si el navegador bloquea embed.js (src/scripts/instagram-posts.ts). */}
+      <p class="ig__blocked" role="status" data-ig-blocked hidden>
+        {TEXT.blocked}
+      </p>
+
       {/* El enlace al perfil, justo debajo de las publicaciones (Luna ✓ 02-10-2026). */}
       <p class="embed__link">
         <a class="hl" href={SITE.social.instagram} target="_blank" rel="noopener">
@@ -119,6 +124,16 @@ const posts = Astro.props.posts
       max-width: 100% !important;
       margin: 0 !important;
       scroll-snap-align: start;
+    }
+
+    .ig__blocked {
+      margin: 0;
+      font-size: var(--fs-small);
+      line-height: var(--lh-paragraph);
+    }
+
+    .ig__blocked[hidden] {
+      display: none;
     }
 
     /* El rotulador (D39) solo al pasar el ratón o con el foco. */

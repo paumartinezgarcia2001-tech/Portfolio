@@ -166,5 +166,10 @@ export const SOCIAL_TEXT = {
     postLabel: (index: number) => `publicación ${index}`,
     /** Debajo de las publicaciones, al perfil de Instagram. */
     profileLabel: 'instagram',
+    /**
+     * Cuando el navegador no deja cargar `embed.js` (Brave con los escudos
+     * puestos, bloqueadores de anuncios…). Va debajo de los marcos.
+     */
+    blocked: 'Tu navegador ha bloqueado las publicaciones de Instagram: ábrelas con su enlace.',
   },
 } as const;

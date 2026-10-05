@@ -3,6 +3,7 @@
     {
       "allowed": {
         "origins": [
+          "https://portfolio.pau-martinez-garcia-2001.workers.dev",
           "https://paumartinezgarcia2001-tech.github.io",
           "http://localhost:4321",
           "http://127.0.0.1:4321"
@@ -15,7 +16,11 @@
     },
     {
       "allowed": {
-        "origins": ["http://localhost:4321", "http://127.0.0.1:4321"],
+        "origins": [
+          "https://portfolio.pau-martinez-garcia-2001.workers.dev",
+          "http://localhost:4321",
+          "http://127.0.0.1:4321"
+        ],
         "methods": ["PUT"],
         "headers": ["Content-Type", "Cache-Control"]
       },

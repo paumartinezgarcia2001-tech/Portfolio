@@ -15,6 +15,11 @@
  * `blockquote`. Eso se veía como un hueco roto en mitad de la fila, así que
  * pasado `FALLBACK_MS` se tira ese iframe y el enlace se queda dentro de un
  * marco del tamaño de las demás (`.ig__fallback`).
+ *
+ * Si el navegador no deja cargar `embed.js` (Brave con los escudos puestos,
+ * bloqueadores de anuncios…), no hay nada que esperar: los marcos salen al
+ * momento y aparece el aviso `[data-ig-blocked]` (Luna, 05-10-2026: en Brave
+ * se veían solo los enlaces sueltos y, pasados 8 s, los marcos vacíos).
  */
 import { INSTAGRAM_EMBED_SCRIPT } from '../config/social';
 import { loadExternalScript } from './external-script';
@@ -52,9 +57,13 @@ export class InstagramPostsElement extends HTMLElement {
       if (alreadyLoaded) window.instgrm?.Embeds?.process();
       this.dataset.state = 'ready';
     } catch (error) {
-      // Quedan los enlaces de dentro de cada `blockquote`.
-      console.error('[instagram] No se ha podido cargar el embed; quedan los enlaces.', error);
+      // Quedan los enlaces de dentro de cada `blockquote`, ya en su marco.
+      console.warn('[instagram] El navegador no ha dejado cargar el embed; quedan los enlaces.', error);
       this.dataset.state = 'error';
+      this.tidyUnrendered();
+      const notice = this.parentElement?.querySelector<HTMLElement>('[data-ig-blocked]');
+      if (notice) notice.hidden = false;
+      return;
     }
     this.#timer = setTimeout(() => this.tidyUnrendered(), FALLBACK_MS);
   }

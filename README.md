@@ -113,8 +113,10 @@ de escritura en el bucket (sus datos van en `.env`, ver `.env.example`) y config
 npx wrangler r2 bucket cors set travest15m0-media --file r2/cors.json
 ```
 
-`r2/cors.json` permite `GET` y `HEAD` desde GitHub Pages y `localhost:4321`, y `PUT`
-(la subida de mixes desde el panel, fase 6) desde `localhost:4321`. Cuando haya dominio,
+`r2/cors.json` permite `GET` y `HEAD` desde el Worker
+(`portfolio.pau-martinez-garcia-2001.workers.dev`), GitHub Pages y `localhost:4321`, y `PUT`
+(la subida de mixes desde el panel, fase 6) desde el Worker y `localhost:4321`. Sin el
+origen del Worker, el reproductor no suena allí: el navegador bloquea los MP3 por CORS. Cuando haya dominio,
 añade `https://<dominio>` a los `origins` de las dos reglas y vuelve a ejecutar el comando.
 
 ## Reproductor de mixes
@@ -417,6 +419,11 @@ es el `name` de `wrangler.jsonc`):
 ```sh
 npx wrangler secret put ADMIN_PATH
 ```
+
+El **panel oculto** solo existe si el Worker ve `ADMIN_PATH` **en ejecución** (*Variables
+and Secrets*, tipo Secret). Puesta solo en *Build*, o con otras mayúsculas que la URL,
+`/<ADMIN_PATH>` da 404 como cualquier otra ruta (a propósito: no se distingue de una página
+que no existe).
 
 ### Comprobar que ha ido bien
 
