@@ -30,6 +30,15 @@ describe('acceso', () => {
     expect(matchesAdminPath('', 'panel-secreto')).toBe(false);
   });
 
+  it('ADMIN_PATH pegado con barras o espacios alrededor también vale (05-10)', () => {
+    expect(matchesAdminPath('panel-secreto', '/panel-secreto')).toBe(true);
+    expect(matchesAdminPath('panel-secreto', ' panel-secreto\n')).toBe(true);
+    expect(matchesAdminPath('panel-secreto', '/panel-secreto/')).toBe(true);
+    // Lo de dentro sigue contando entero.
+    expect(matchesAdminPath('panel', '/panel-secreto')).toBe(false);
+    expect(matchesAdminPath('', '/')).toBe(false);
+  });
+
   it('sin ADMIN_PATH, el panel no existe', () => {
     expect(matchesAdminPath('lo-que-sea', undefined)).toBe(false);
     expect(matchesAdminPath('', '')).toBe(false);

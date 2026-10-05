@@ -3,14 +3,26 @@
  */
 
 /**
+ * `ADMIN_PATH` tal como se compara con la URL: sin espacios ni saltos de línea
+ * alrededor y sin barras al principio o al final. Así da igual pegar en
+ * Cloudflare `paneloculto`, `/paneloculto` o `paneloculto ` (Luna, 05-10-2026:
+ * el panel daba 404 con el secreto puesto).
+ */
+export function normalizeAdminPath(secret: string | undefined): string | undefined {
+  const value = secret?.trim().replace(/^\/+|\/+$/g, '');
+  return value || undefined;
+}
+
+/**
  * ¿El parámetro de la URL es el nombre secreto del panel (`ADMIN_PATH`)?
  * Compara en tiempo constante para no dar pistas por lo que tarda. Sin
  * secreto configurado, el panel no existe (siempre `false`).
  */
 export function matchesAdminPath(param: string | undefined, secret: string | undefined): boolean {
-  if (!secret || !param) return false;
+  const expected = normalizeAdminPath(secret);
+  if (!expected || !param) return false;
   const a = new TextEncoder().encode(param);
-  const b = new TextEncoder().encode(secret);
+  const b = new TextEncoder().encode(expected);
   let diff = a.length ^ b.length;
   const length = Math.max(a.length, b.length);
   for (let i = 0; i < length; i += 1) diff |= (a[i] ?? 0) ^ (b[i] ?? 0);
