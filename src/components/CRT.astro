@@ -1,0 +1,139 @@
+---
+/**
+ * C11d · CRT — capa de monitor de tubo encima de toda la web pública.
+ * Configuración y niveles del efecto: src/config/crt.ts.
+ *
+ * La capa no recibe eventos (`pointer-events: none`) y persiste entre
+ * navegaciones (`transition:persist`). Va por encima de todo, cursor incluido:
+ * es «la pantalla».
+ */
+import { CRT as CONFIG } from '../config/crt';
+---
+
+{
+  CONFIG.enabled && (
+    <div
+      class="crt-overlay"
+      data-flicker={String(CONFIG.flicker)}
+      aria-hidden="true"
+      transition:persist="crt-overlay"
+    />
+  )
+}
+{
+  CONFIG.enabled && CONFIG.curvature.enabled && (
+    <svg class="crt-filters" aria-hidden="true" focusable="false" transition:persist="crt-filters">
+      <filter
+        id="crt-barrel"
+        x="0"
+        y="0"
+        width="1"
+        height="1"
+        filterUnits="objectBoundingBox"
+        primitiveUnits="userSpaceOnUse"
+        color-interpolation-filters="sRGB"
+      >
+        {/* El mapa de desplazamiento lo genera src/scripts/crt.ts con un <canvas>. */}
+        <feImage x="0" y="0" width="1" height="1" preserveAspectRatio="none" result="map" />
+        <feDisplacementMap
+          in="SourceGraphic"
+          in2="map"
+          scale="0"
+          xChannelSelector="R"
+          yChannelSelector="G"
+          result="bent"
+        />
+        {/* Canales separados: el rojo a un lado y el azul al otro. */}
+        <feColorMatrix in="bent" type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="red" />
+        <feOffset in="red" dx={CONFIG.curvature.rgbShift} result="red-shifted" />
+        <feColorMatrix in="bent" type="matrix" values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0" result="green" />
+        <feColorMatrix in="bent" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0" result="blue" />
+        <feOffset in="blue" dx={-CONFIG.curvature.rgbShift} result="blue-shifted" />
+        <feBlend in="red-shifted" in2="green" mode="screen" result="red-green" />
+        <feBlend in="red-green" in2="blue-shifted" mode="screen" />
+      </filter>
+    </svg>
+  )
+}
+
+<script>
+  import '../scripts/crt';
+</script>
+
+<style is:global>
+  @layer components {
+    /* Resplandor y aberración cromática del texto (rojo a un lado, cian al otro). */
+    html[data-crt] body {
+      text-shadow:
+        0.06rem 0 1px rgb(255 0 80 / 0.35),
+        -0.06rem 0 1px rgb(0 220 255 / 0.35),
+        0 0 4px currentColor;
+    }
+
+    .crt-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: var(--z-crt);
+      pointer-events: none;
+      /* De arriba abajo: viñeta, scanlines y máscara de fósforo RGB. */
+      background:
+        radial-gradient(ellipse at center, transparent 60%, rgb(0 0 0 / 0.55) 100%),
+        repeating-linear-gradient(to bottom, rgb(0 0 0 / 0.25) 0 1px, transparent 1px 3px),
+        repeating-linear-gradient(
+          to right,
+          rgb(255 0 0 / 0.06) 0 1px,
+          rgb(0 255 0 / 0.06) 1px 2px,
+          rgb(0 0 255 / 0.06) 2px 3px
+        );
+      /* En las view transitions queda encima de todo (src/styles/global.css). */
+      view-transition-name: crt-overlay;
+    }
+
+    .crt-overlay[data-flicker='true'] {
+      animation: crt-flicker 0.12s infinite alternate;
+    }
+
+    @keyframes crt-flicker {
+      from {
+        opacity: 0.95;
+      }
+
+      to {
+        opacity: 1;
+      }
+    }
+
+    /* Nivel 2 · curvatura (src/scripts/crt.ts pone `data-crt-curved`). */
+    .crt-filters {
+      position: absolute;
+      width: 0;
+      height: 0;
+      overflow: hidden;
+    }
+
+    html[data-crt-curved] body {
+      filter: url('#crt-barrel');
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .crt-overlay {
+        animation: none !important;
+      }
+    }
+
+    /* Contraste: sin efecto. */
+    @media (prefers-contrast: more), (forced-colors: active), print {
+      .crt-overlay {
+        display: none;
+      }
+
+      html[data-crt] body {
+        text-shadow: none;
+      }
+
+      html[data-crt-curved] body {
+        filter: none;
+      }
+    }
+  }
+</style>
