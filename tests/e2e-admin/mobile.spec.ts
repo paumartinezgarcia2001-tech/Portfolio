@@ -14,7 +14,7 @@ test.beforeEach(async ({ request }) => {
 test('a 375 px: sin scroll horizontal y con zonas táctiles de 44 px', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'admin-mobile', 'Solo en móvil');
   await signInAsPau(page);
-  for (const path of ['', 'archivo', 'mixes', 'info', 'video', 'seguridad']) {
+  for (const path of ['', 'archivo', 'mixes', 'info', 'video']) {
     await page.goto(adminUrl(path));
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     expect(overflow, `scroll horizontal en /${path}`).toBeLessThanOrEqual(0);

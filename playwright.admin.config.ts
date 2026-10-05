@@ -7,7 +7,7 @@ import { defineConfig, devices } from '@playwright/test';
  * lee de Supabase (DATA_SOURCE=supabase) para comprobar que lo que se guarda
  * en el panel aparece en la web pública. Supabase está simulado
  * (tests/e2e-admin/mock-supabase.mjs, puerto 4324) con las mismas reglas que
- * las políticas RLS; Turnstile se simula en el navegador como en contacto.
+ * las políticas RLS. El login es solo usuario y contraseña (D61).
  *
  * - El nombre del panel en los tests es `E2E_ADMIN_PATH` (por defecto
  *   `panel-e2e`): el de verdad no se escribe en ningún archivo del repo.
@@ -73,7 +73,6 @@ export default defineConfig({
         DATA_SOURCE: 'supabase',
         PUBLIC_SUPABASE_URL: supabaseURL,
         PUBLIC_SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_e2e_0000000000000000',
-        PUBLIC_TURNSTILE_SITE_KEY: '1x00000000000000000000AA',
         PUBLIC_MEDIA_BASE_URL: 'http://localhost:4322',
       },
     },

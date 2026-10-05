@@ -1,13 +1,12 @@
 ---
 /**
- * C19 · Entrada al panel: usuario y contraseña (+ Turnstile) o, si la cuenta
- * tiene TOTP y la sesión aún no lo ha usado, el código de seis cifras.
+ * C19 · Entrada al panel: usuario (alias o email) y contraseña. Nada más:
+ * sin CAPTCHA ni verificación en dos pasos (D61).
  *
- * Funciona sin JavaScript si Turnstile no está configurado (POST a la Action y
- * redirección); con Turnstile, el widget necesita JavaScript (D48).
+ * Funciona sin JavaScript (POST a la Action y redirección); con JavaScript,
+ * el envío se hace sin recargar (src/scripts/admin/login.ts).
  */
 import { actions } from 'astro:actions';
-import { publicVar } from '../../lib/public-env';
 import { ADMIN_TEXT } from '../../config/admin';
 
 interface Props {
@@ -15,10 +14,7 @@ interface Props {
   error?: string | undefined;
 }
 
-const admin = Astro.locals.admin;
-const configured = Boolean(admin?.supabase);
-const mfaStep = admin?.state.kind === 'admin' && admin.state.session.needsMfa;
-const siteKey = publicVar('PUBLIC_TURNSTILE_SITE_KEY');
+const configured = Boolean(Astro.locals.admin?.supabase);
 const { error } = Astro.props;
 ---
 
@@ -27,15 +23,8 @@ const { error } = Astro.props;
   {!configured && <p class="a-alert">{ADMIN_TEXT.notConfigured}</p>}
 
   {
-    configured && !mfaStep && (
-      <form
-        class="a-form"
-        method="post"
-        action={actions.admin.login}
-        data-admin-login
-        data-turnstile-sitekey={siteKey}
-        novalidate
-      >
+    configured && (
+      <form class="a-form" method="post" action={actions.admin.login} data-admin-login novalidate>
         <div class="a-field" data-field="usuario">
           <label class="a-label" for="login-usuario">
             usuario
@@ -68,7 +57,6 @@ const { error } = Astro.props;
           />
           <p class="a-field__error" id="login-password-error" data-error-for="password" hidden />
         </div>
-        {siteKey && <div class="a-turnstile" data-turnstile />}
         <p class="a-alert" role="alert" data-form-error hidden={!error}>
           {error}
         </p>
@@ -77,44 +65,6 @@ const { error } = Astro.props;
             entrar
           </button>
         </div>
-      </form>
-    )
-  }
-
-  {
-    configured && mfaStep && (
-      <form class="a-form" method="post" action={actions.admin.verifyMfa} data-admin-mfa novalidate>
-        <p class="a-lead">Escribe el código de seis cifras de tu app de autenticación.</p>
-        <div class="a-field" data-field="codigo">
-          <label class="a-label" for="mfa-codigo">
-            código
-          </label>
-          <input
-            class="a-input"
-            id="mfa-codigo"
-            name="codigo"
-            type="text"
-            inputmode="numeric"
-            autocomplete="one-time-code"
-            pattern="[0-9 ]*"
-            maxlength="7"
-            required
-          />
-          <p class="a-field__error" data-error-for="codigo" hidden />
-        </div>
-        <p class="a-alert" role="alert" data-form-error hidden={!error}>
-          {error}
-        </p>
-        <div class="a-actions">
-          <button class="a-btn" type="submit" data-submit>
-            continuar
-          </button>
-        </div>
-      </form>
-      <form method="post" action={actions.admin.logout} data-admin-logout>
-        <button class="a-btn a-btn--ghost a-btn--small" type="submit">
-          salir
-        </button>
       </form>
     )
   }

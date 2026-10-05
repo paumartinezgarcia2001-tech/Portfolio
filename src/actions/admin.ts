@@ -11,7 +11,6 @@
  *   Pages no hay Actions (astro.config.pages.mjs).
  */
 import { ActionError, defineAction } from 'astro:actions';
-import { publicVar } from '../lib/public-env';
 import {
   ADMIN_EMAIL,
   ADMIN_USERNAME,
@@ -41,7 +40,6 @@ import {
   gigUpdateSchema,
   infoSchema,
   loginSchema,
-  mfaCodeSchema,
   mixCreateSchema,
   mixDeleteSchema,
   mixUpdateSchema,
@@ -69,12 +67,12 @@ interface AuthorizedAdmin {
 }
 
 /**
- * La petición tiene que venir de una administradora con la sesión completa
- * (con TOTP, si lo tiene). Si no, `UNAUTHORIZED` y ningún dato.
+ * La petición tiene que venir de una administradora con sesión. Si no,
+ * `UNAUTHORIZED` y ningún dato.
  */
-async function requireAdmin(context: RequestContext, options: { allowPendingMfa?: boolean } = {}): Promise<AuthorizedAdmin> {
+async function requireAdmin(context: RequestContext): Promise<AuthorizedAdmin> {
   const { supabase, state } = await openAdminContext(context);
-  if (!supabase || state.kind !== 'admin' || (state.session.needsMfa && !options.allowPendingMfa)) {
+  if (!supabase || state.kind !== 'admin') {
     throw new ActionError({ code: 'UNAUTHORIZED', message: TEXT.sessionExpired });
   }
   return { supabase, session: state.session };
@@ -133,24 +131,18 @@ export const admin = {
     input: loginSchema,
     handler: async (input, context) => {
       if (!isSupabaseConfigured()) throw new ActionError({ code: 'INTERNAL_SERVER_ERROR', message: TEXT.notConfigured });
-      const captchaToken = input['cf-turnstile-response']?.trim() || undefined;
-      if (publicVar('PUBLIC_TURNSTILE_SITE_KEY') && !captchaToken) {
-        throw new ActionError({ code: 'BAD_REQUEST', message: TEXT.captchaMissing });
-      }
       const failed = () => new ActionError({ code: 'UNAUTHORIZED', message: TEXT.loginFailed });
 
       const email = resolveLoginEmail(input.usuario, { username: ADMIN_USERNAME, email: ADMIN_EMAIL });
       if (!email) throw failed();
 
       const { supabase } = createSupabaseServerClient(context);
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password: input.password,
-        ...(captchaToken ? { options: { captchaToken } } : {}),
-      });
+      // Solo usuario y contraseña (D61: sin CAPTCHA ni verificación en dos pasos).
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password: input.password });
       if (error || !data.user) {
         const kind = error ? classifyAuthError(error) : 'credentials';
-        if (kind === 'captcha') throw new ActionError({ code: 'BAD_REQUEST', message: TEXT.captchaFailed });
+        // Por si alguien vuelve a activar el CAPTCHA en Supabase: el panel ya no lo envía.
+        if (kind === 'captcha') throw new ActionError({ code: 'BAD_REQUEST', message: TEXT.captchaEnabled });
         if (kind === 'rate-limit') throw new ActionError({ code: 'TOO_MANY_REQUESTS', message: TEXT.tooManyAttempts });
         if (kind === 'unavailable') saveFailed('login', error);
         throw failed();
@@ -163,21 +155,7 @@ export const admin = {
         throw failed();
       }
 
-      return { status: 'signed-in' as const, mfa: data.user.factors?.some((factor) => factor.status === 'verified') ?? false };
-    },
-  }),
-
-  verifyMfa: defineAction({
-    accept: 'form',
-    input: mfaCodeSchema,
-    handler: async (input, context) => {
-      const { supabase } = await requireAdmin(context, { allowPendingMfa: true });
-      const { data: factors, error } = await supabase.auth.mfa.listFactors();
-      const factor = factors?.totp.find((item) => item.status === 'verified');
-      if (error || !factor) throw new ActionError({ code: 'BAD_REQUEST', message: TEXT.mfaFailed });
-      const { error: verifyError } = await supabase.auth.mfa.challengeAndVerify({ factorId: factor.id, code: input.codigo });
-      if (verifyError) throw new ActionError({ code: 'BAD_REQUEST', message: TEXT.mfaFailed });
-      return { status: 'signed-in' as const, mfa: false };
+      return { status: 'signed-in' as const };
     },
   }),
 
@@ -188,55 +166,6 @@ export const admin = {
       const { supabase } = createSupabaseServerClient(context);
       await supabase.auth.signOut({ scope: 'local' }).catch(() => undefined);
       return { status: 'signed-out' as const };
-    },
-  }),
-
-  // ----------------------------------------------------------- MFA (TOTP)
-  mfaEnroll: defineAction({
-    accept: 'form',
-    handler: async (_input, context) => {
-      const { supabase } = await requireAdmin(context);
-      // Los intentos a medias (sin verificar) estorban: se quitan antes.
-      const { data: factors } = await supabase.auth.mfa.listFactors();
-      for (const factor of factors?.all ?? []) {
-        if (factor.factor_type === 'totp' && factor.status !== 'verified') {
-          await supabase.auth.mfa.unenroll({ factorId: factor.id });
-        }
-      }
-      const { data, error } = await supabase.auth.mfa.enroll({ factorType: 'totp', friendlyName: `panel ${Date.now()}` });
-      if (error || !data) saveFailed('activar TOTP', error);
-      // supabase-js devuelve `data:image/svg+xml;utf-8,<svg…>` sin codificar: un «#» del
-      // SVG cortaría la URL. Se vuelve a codificar para el <img>.
-      const svg = data.totp.qr_code.replace(/^data:image\/svg\+xml;[^,]*,/, '');
-      const qr = svg.startsWith('<') ? `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}` : data.totp.qr_code;
-      return { factorId: data.id, qr, secret: data.totp.secret };
-    },
-  }),
-
-  mfaConfirm: defineAction({
-    accept: 'form',
-    input: mfaCodeSchema,
-    handler: async (input, context) => {
-      const { supabase } = await requireAdmin(context);
-      if (!input.factorId) throw new ActionError({ code: 'BAD_REQUEST', message: TEXT.mfaFailed });
-      const { error } = await supabase.auth.mfa.challengeAndVerify({ factorId: input.factorId, code: input.codigo });
-      if (error) throw new ActionError({ code: 'BAD_REQUEST', message: TEXT.mfaFailed });
-      return saved('Verificación en dos pasos activada.');
-    },
-  }),
-
-  mfaRemove: defineAction({
-    accept: 'form',
-    handler: async (_input, context) => {
-      const { supabase } = await requireAdmin(context);
-      const { data: factors } = await supabase.auth.mfa.listFactors();
-      for (const factor of factors?.all ?? []) {
-        if (factor.factor_type !== 'totp') continue;
-        const { error } = await supabase.auth.mfa.unenroll({ factorId: factor.id });
-        if (error) saveFailed('quitar TOTP', error);
-      }
-      await supabase.auth.refreshSession();
-      return saved('Verificación en dos pasos desactivada.');
     },
   }),
 

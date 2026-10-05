@@ -101,7 +101,7 @@ const lineupText = z
   );
 
 // --------------------------------------------------------------------------
-// Login y MFA
+// Login (usuario o email + contraseña, D61)
 // --------------------------------------------------------------------------
 
 export const loginSchema = z.object({
@@ -114,15 +114,6 @@ export const loginSchema = z.object({
     .string({ error: MSG.passwordRequired })
     .min(1, { error: MSG.passwordRequired, abort: true })
     .max(LIMITS.passwordMax, MSG.tooLong(LIMITS.passwordMax)),
-  'cf-turnstile-response': z.string().max(2048).optional(),
-});
-
-export const mfaCodeSchema = z.object({
-  codigo: z
-    .string({ error: MSG.codeInvalid })
-    .transform((value) => value.replace(/\s+/g, ''))
-    .pipe(z.string().regex(/^\d{6}$/, MSG.codeInvalid)),
-  factorId: z.string().max(100).optional(),
 });
 
 // --------------------------------------------------------------------------

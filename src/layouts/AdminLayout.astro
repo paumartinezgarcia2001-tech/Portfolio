@@ -21,7 +21,7 @@ interface Props {
 
 const { title, current } = Astro.props;
 const slug = Astro.locals.admin?.slug ?? '';
-const signedIn = Astro.locals.admin?.state.kind === 'admin' && !Astro.locals.admin.state.session.needsMfa;
+const signedIn = Astro.locals.admin?.state.kind === 'admin';
 ---
 
 <!doctype html>

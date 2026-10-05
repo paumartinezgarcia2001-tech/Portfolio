@@ -303,7 +303,8 @@ se quieren recuperar, están en el historial de git (`git show <commit>:src/page
 
 ## Panel oculto
 
-Una página con usuario y contraseña desde la que Pau cambia, sin tocar código:
+Una página con usuario y contraseña —**nada más**: sin CAPTCHA ni verificación en dos
+pasos (D61)— desde la que Pau cambia, sin tocar código:
 
 - el **texto de la barra de noticias** (con vista previa en vivo y la opción de añadir
   sola la próxima fecha);
@@ -315,8 +316,12 @@ Una página con usuario y contraseña desde la que Pau cambia, sin tocar código
 - el **texto de Info** (Markdown sencillo: `## titulillo`, párrafos y
   `[enlaces](https://…)`), con vista previa y botón para volver al de `src/content/info.md`;
 - el **vídeo de Media**: punto focal, enlace «ver set completo» y, al preparar un vídeo
-  nuevo, el bloque que imprime `npm run media:hls`;
-- la **verificación en dos pasos** (TOTP) de su cuenta.
+  nuevo, el bloque que imprime `npm run media:hls`.
+
+**Cómo se entra.** En «usuario» vale el **email** de la cuenta de Supabase o un **alias**
+corto (por ejemplo `pau`): el secret `ADMIN_USERNAME` es el alias y `ADMIN_EMAIL` el email
+al que apunta; el servidor los cambia antes de llamar a Supabase y el alias no distingue
+mayúsculas. Sin esos dos secrets, solo vale el email.
 
 Al guardar, la web pública se actualiza al momento (se purga la caché de Cloudflare por
 etiquetas; como mucho, en 60 s).
@@ -331,12 +336,13 @@ GitHub Pages no existe.
 
 **Puesta en marcha** (una vez, en el dashboard de Supabase y en Cloudflare):
 
-1. Aplicar la migración `supabase/migrations/0005_admin_panel.sql` (quién guarda cada
-   cambio, límites de Info y vídeo, y TOTP obligatorio para escribir si la cuenta lo
-   tiene).
+1. Aplicar las migraciones `supabase/migrations/0005_admin_panel.sql` (quién guarda cada
+   cambio y límites de Info y vídeo) y `0006_drop_admin_mfa.sql` (quita lo de la
+   verificación en dos pasos que añadía la 0005), en ese orden, en el *SQL Editor*.
 2. *Authentication → Sign In / Providers*: **desactivar** «Allow new users to sign up».
-3. *Authentication → Attack Protection*: **CAPTCHA** con Cloudflare Turnstile, con la
-   clave secreta del mismo widget que el formulario de contacto.
+3. *Authentication → Attack Protection*: el **CAPTCHA, desactivado** (si se activa,
+   Supabase rechaza todos los logins del panel, que no manda token: sale «Supabase pide un
+   CAPTCHA…»). El límite de intentos de Supabase sigue funcionando.
 4. *Authentication → Users → Add user*: la cuenta de Pau (email y contraseña robusta,
    «Auto Confirm User»). Luego, darle acceso con `supabase/snippets/add-admin.sql`
    (cambiando el email; no lo guardes con el email real).
@@ -347,21 +353,23 @@ GitHub Pages no existe.
    bucket, «Object Read & Write»).
 6. CORS del bucket (`r2/cors.json`): añadir el dominio de la web a la regla de `PUT`
    para que el navegador pueda subir los mixes.
-7. Recomendado: que Pau active la **verificación en dos pasos** en *seguridad*.
 
 **Seguridad.** Sin sistema de usuarios propio: Supabase Auth con cookies `httpOnly`,
 `secure` y `sameSite=lax` (`@supabase/ssr`), el JWT validado con `getClaims()` y la
 pertenencia a `admins` comprobada en cada petición. Errores genéricos («Usuario o
-contraseña incorrectos.»), CAPTCHA y el límite de intentos de Supabase, protección CSRF
+contraseña incorrectos.»), el límite de intentos de Supabase, protección CSRF
 de Astro (`security.checkOrigin`) y todas las escrituras con la sesión de Pau y la clave
 publicable: las políticas RLS son la última barrera, y la clave secreta de Supabase no
 está en el Worker. No hay «olvidé mi contraseña» público: se cambia desde el dashboard.
+Sin CAPTCHA ni segundo paso (D61, decisión de Luna): lo que protege la entrada es que la
+ruta es secreta, una **contraseña larga y única** y ese límite de intentos.
 
 **Tests.** `npm run test:e2e:admin` compila la web leyendo de un Supabase simulado
 (`tests/e2e-admin/mock-supabase.mjs`, con las mismas reglas que las políticas RLS) y
 prueba el login, los errores, la 404, las cabeceras, la barra, los bolos (y que aparecen
 en la web), los duplicados, las varias fechas, el archivo, Info, el vídeo, la subida de
-mixes (R2 interceptado en el navegador), el TOTP y el uso a 375 px. Las migraciones y
+mixes (R2 interceptado en el navegador), el login con alias (también sin JavaScript) y el
+uso a 375 px. Las migraciones y
 `supabase/tests/rls.sql` se prueban en un Postgres de verdad sin red (PGlite) dentro de
 `npm test` (`tests/unit/rls-sql.test.ts`).
 
@@ -406,7 +414,7 @@ Las `PUBLIC_*`, por orden de importancia:
 | `PUBLIC_SUPABASE_PUBLISHABLE_KEY` | `sb_publishable_…` | lo mismo |
 | `PUBLIC_SITE_URL` | `https://portfolio.pau-martinez-garcia-2001.workers.dev` (luego, el dominio), sin barra final | las URL canónicas y de Open Graph salen de la petición |
 | `PUBLIC_MEDIA_BASE_URL` | dominio público del bucket R2 | Media enseña el aviso y el reproductor dice «reproductor — próximamente» |
-| `PUBLIC_TURNSTILE_SITE_KEY` | clave pública del widget de Turnstile | login del panel con CAPTCHA y formulario (apagado) no funcionan |
+| `PUBLIC_TURNSTILE_SITE_KEY` | clave pública del widget de Turnstile | nada mientras el formulario siga apagado (D60); el panel no la usa (D61) |
 
 No hace falta ninguna otra: `DATA_SOURCE`, `DATA_STRICT`, `SITE_NOINDEX` y
 `STATIC_BUILD` ya tienen el valor correcto para Cloudflare, y `PUBLIC_WEB3FORMS_KEY` solo
@@ -418,6 +426,8 @@ es el `name` de `wrangler.jsonc`):
 
 ```sh
 npx wrangler secret put ADMIN_PATH
+npx wrangler secret put ADMIN_USERNAME   # alias para entrar (opcional)
+npx wrangler secret put ADMIN_EMAIL      # el email de Supabase al que apunta el alias
 ```
 
 El **panel oculto** solo existe si el Worker ve `ADMIN_PATH` **en ejecución** (*Variables
@@ -432,7 +442,8 @@ que no existe).
 3. En las cabeceras de cualquier página, la `Content-Security-Policy` incluye el dominio de
    Supabase en `connect-src` y el de R2 en `img-src`/`media-src` (si no, el Worker no ve
    las `PUBLIC_*`).
-4. `/<ADMIN_PATH>` enseña el login del panel; cualquier otra ruta, el 404.
+4. `/<ADMIN_PATH>` enseña el login del panel (usuario y contraseña, sin CAPTCHA); cualquier
+   otra ruta, el 404. Con `ADMIN_USERNAME` y `ADMIN_EMAIL` puestos, se entra con el alias.
 
 ## Despliegue provisional (GitHub Pages)
 

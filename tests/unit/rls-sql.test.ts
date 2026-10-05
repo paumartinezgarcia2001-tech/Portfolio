@@ -4,10 +4,11 @@
  * (roles `anon`/`authenticated`, `auth.users`, `auth.uid()`, `auth.jwt()` y
  * `auth.mfa_factors`).
  *
- * - Aplica supabase/migrations/0001…0005 en orden (si alguna no compila, falla).
+ * - Aplica supabase/migrations/0001…0006 en orden (si alguna no compila, falla).
  * - Ejecuta supabase/tests/rls.sql (la misma comprobación que se pega en el
  *   SQL Editor de Supabase) con y sin administradora.
- * - Comprueba el TOTP obligatorio para escribir (0005) y `updated_by`.
+ * - Comprueba `updated_by` (0005) y que, desde 0006 (D61), una cuenta con un
+ *   factor TOTP escribe igual con una sesión normal (aal1).
  *
  * No sustituye a probar en Supabase (npm run test:rls y rls.sql en el SQL
  * Editor), pero pilla errores de SQL y de políticas antes de aplicarlas.
@@ -125,32 +126,29 @@ describe('migraciones y RLS (PGlite)', { timeout: 60_000 }, () => {
     await db.close();
   });
 
-  it('una cuenta con TOTP necesita una sesión aal2 para escribir (0005)', async () => {
+  it('sin verificación en dos pasos: una cuenta con TOTP escribe con aal1 (0006, D61)', async () => {
     const db = await database();
     await db.exec(`insert into auth.users values ('${MFA_ADMIN}', 'mfa@e2e.test');
       insert into public.admins (user_id) values ('${MFA_ADMIN}');
       insert into auth.mfa_factors (user_id, status) values ('${MFA_ADMIN}', 'verified');
       insert into public.gigs (event_date, venue, city) values ('2099-01-01', 'SALA', 'Madrid');`);
     const aal1 = { sub: MFA_ADMIN, role: 'authenticated', aal: 'aal1' };
-    const aal2 = { sub: MFA_ADMIN, role: 'authenticated', aal: 'aal2' };
 
-    expect(await asUser(db, aal1, "update public.gigs set city = 'X' where true")).toBe('0');
-    expect(await asUser(db, aal1, "insert into public.gigs (event_date, venue, city) values ('2099-02-02', 'S', 'M')")).toBe(
-      'error 42501',
-    );
-    expect(await asUser(db, aal1, "update public.site_settings set ticker_text = 'X' where id = 1")).toBe('0');
-    expect(await asUser(db, aal1, "insert into public.mixes (title, audio_url) values ('M', 'mixes/m.mp3')")).toBe(
-      'error 42501',
-    );
-
-    expect(await asUser(db, aal2, "update public.gigs set city = 'Sevilla' where true")).toBe('1');
-    expect(await asUser(db, aal2, "insert into public.mixes (title, audio_url) values ('M', 'mixes/m.mp3')")).toBe('1');
+    expect(await asUser(db, aal1, "update public.gigs set city = 'Sevilla' where true")).toBe('1');
+    expect(await asUser(db, aal1, "update public.site_settings set ticker_text = 'X' where id = 1")).toBe('1');
+    expect(await asUser(db, aal1, "insert into public.mixes (title, audio_url) values ('M', 'mixes/m.mp3')")).toBe('1');
     const stamped = await db.query<{ updated_by: string }>('select updated_by from public.gigs');
     expect(stamped.rows[0]!.updated_by).toBe(MFA_ADMIN);
+
+    // Ni las políticas de 0005 ni su función siguen ahí.
+    const policies = await db.query<{ n: number }>("select count(*)::int as n from pg_policies where policyname like '%_mfa_%'");
+    expect(policies.rows[0]!.n).toBe(0);
+    const fn = await db.query<{ n: number }>("select count(*)::int as n from pg_proc where proname = 'has_required_aal'");
+    expect(fn.rows[0]!.n).toBe(0);
     await db.close();
   });
 
-  it('sin TOTP, una administradora escribe con aal1 (y una sin fila en admins, no)', async () => {
+  it('una administradora escribe con aal1 (y una sin fila en admins, no)', async () => {
     const db = await database();
     await db.exec(`insert into auth.users values ('${ADMIN}', 'pau@e2e.test');
       insert into public.admins (user_id) values ('${ADMIN}');`);

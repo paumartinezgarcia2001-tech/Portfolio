@@ -5,9 +5,8 @@
  *   de Supabase o, con claves simétricas, preguntando a Supabase).
  * - La pertenencia a `admins` se comprueba leyendo la propia fila (política
  *   `admins_self_read`), no por RPC: `is_admin()` está fuera de la API (D34).
- * - MFA (TOTP): si la cuenta tiene un factor verificado y la sesión todavía
- *   no lo ha usado (aal1), falta el segundo paso y no se deja hacer nada más.
- *   La base de datos también lo exige desde la migración 0005.
+ * - Solo usuario (o alias) y contraseña: sin verificación en dos pasos ni
+ *   CAPTCHA (D61, Luna, 05-10-2026).
  *
  * Las políticas RLS siguen siendo la última barrera: aunque esto fallara, la
  * base de datos no deja escribir a quien no está en `admins`.
@@ -17,12 +16,6 @@ import type { TypedSupabaseClient } from '../supabase/server';
 export interface AdminSession {
   userId: string;
   email: string | null;
-  /** La cuenta tiene TOTP y esta sesión aún no ha pasado el segundo paso. */
-  needsMfa: boolean;
-  /** Nivel de la sesión: `aal2` si ya ha usado el TOTP. */
-  aal: 'aal1' | 'aal2';
-  /** ¿Tiene algún factor TOTP verificado? */
-  hasMfa: boolean;
 }
 
 export type SessionState =
@@ -58,22 +51,9 @@ export async function readSessionState(supabase: TypedSupabaseClient): Promise<S
     );
     if (rowError || !row) return { kind: 'forbidden', userId };
 
-    // Los factores se piden a Supabase (getUser), no se leen de la cookie: la
-    // cookie la controla el navegador y quitarle los factores no puede
-    // saltarse el segundo paso.
-    const { data: factors, error: factorsError } = await withTimeout(supabase.auth.mfa.listFactors());
-    if (factorsError) throw factorsError;
-    const aal = claims.aal === 'aal2' ? 'aal2' : 'aal1';
-    const hasMfa = (factors?.totp.length ?? 0) > 0;
     return {
       kind: 'admin',
-      session: {
-        userId,
-        email: typeof claims.email === 'string' ? claims.email : null,
-        aal,
-        hasMfa,
-        needsMfa: hasMfa && aal !== 'aal2',
-      },
+      session: { userId, email: typeof claims.email === 'string' ? claims.email : null },
     };
   } catch (error) {
     console.warn(`[panel] No se ha podido leer la sesión: ${error instanceof Error ? error.message : String(error)}`);

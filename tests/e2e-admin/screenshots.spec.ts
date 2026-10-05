@@ -1,6 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
 import { existsSync } from 'node:fs';
-import { mockTurnstile } from '../e2e/contact-helpers';
 import { PAU, R2_ORIGIN, adminUrl, openAdmin, resetSupabase, waitReady } from './helpers';
 
 /**
@@ -32,8 +31,8 @@ test.describe('Capturas del panel', () => {
       });
     });
 
-    await mockTurnstile(page);
     await page.goto(adminUrl());
+    await waitReady(page);
     await page.getByLabel('usuario').fill(PAU.alias);
     await page.getByLabel('contraseña').fill(PAU.password);
     await shot(page, project, '01-login');
@@ -102,10 +101,5 @@ test.describe('Capturas del panel', () => {
     await openAdmin(page, 'video');
     await shot(page, project, '12-video');
 
-    await openAdmin(page, 'seguridad');
-    await page.getByRole('button', { name: 'activar' }).click();
-    await expect(page.getByAltText('Código QR para la app de autenticación')).toBeVisible();
-    await expect.poll(() => page.getByAltText('Código QR para la app de autenticación').evaluate((img) => (img as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
-    await shot(page, project, '13-dos-pasos');
   });
 });

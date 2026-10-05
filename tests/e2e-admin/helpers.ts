@@ -1,5 +1,4 @@
 import { expect, type APIRequestContext, type Page } from '@playwright/test';
-import { mockTurnstile } from '../e2e/contact-helpers';
 
 /**
  * Ayudas de los e2e del panel (fase 6). Ver playwright.admin.config.ts.
@@ -10,7 +9,6 @@ export const SUPABASE_URL = `http://127.0.0.1:${process.env.E2E_SUPABASE_PORT ??
 
 export const PAU = { email: 'pau@e2e.test', alias: 'pau', password: 'contraseña-e2e-123' };
 export const INTRUDER = { email: 'intrusa@e2e.test', password: 'contraseña-e2e-456' };
-export const TOTP_CODE = '123456';
 export const R2_ORIGIN = 'https://e2e-account.r2.cloudflarestorage.com';
 
 export function adminUrl(path = ''): string {
@@ -36,13 +34,12 @@ export async function mockState(request: APIRequestContext): Promise<MockState> 
   return (await response.json()) as MockState;
 }
 
-/** Abre el panel (con Turnstile simulado) y entra. */
+/** Abre el panel y entra con usuario (email o alias) y contraseña: sin CAPTCHA ni segundo paso (D61). */
 export async function signIn(page: Page, user: { email: string; password: string } = PAU, path = ''): Promise<void> {
-  await mockTurnstile(page);
   await page.goto(adminUrl(path));
+  await waitReady(page);
   await page.getByLabel('usuario').fill(user.email);
   await page.getByLabel('contraseña').fill(user.password);
-  await expect(page.getByRole('button', { name: 'entrar' })).toBeEnabled();
   await page.getByRole('button', { name: 'entrar' }).click();
 }
 

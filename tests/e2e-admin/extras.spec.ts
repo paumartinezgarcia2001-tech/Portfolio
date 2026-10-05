@@ -1,9 +1,8 @@
 import { expect, test } from '@playwright/test';
-import { PAU, R2_ORIGIN, TOTP_CODE, mockState, openAdmin, resetSupabase, signIn, signInAsPau, toast, waitReady } from './helpers';
+import { R2_ORIGIN, mockState, openAdmin, resetSupabase, signInAsPau, toast } from './helpers';
 
 /**
- * C19 · P2 (fase 6): texto de Info, vídeo de Media, mixes con subida a R2 y
- * verificación en dos pasos.
+ * C19 · P2 (fase 6): texto de Info, vídeo de Media y mixes con subida a R2.
  */
 
 test.beforeEach(async ({ request }) => {
@@ -131,36 +130,4 @@ test('mixes: rechaza lo que no es audio', async ({ page }) => {
   await page.getByLabel('título *').fill('Esto no es audio');
   await page.getByRole('button', { name: 'subir y guardar' }).click();
   await expect(page.locator('[data-error-for="audio"]')).toHaveText('El audio tiene que ser MP3 o M4A.');
-});
-
-test('verificación en dos pasos: activar y entrar con el código', async ({ page, context }) => {
-  await signInAsPau(page, 'seguridad');
-  await page.getByRole('button', { name: 'activar' }).click();
-  await expect(page.getByAltText('Código QR para la app de autenticación')).toBeVisible();
-  await expect(page.locator('[data-mfa-secret]')).toHaveText('JBSWY3DPEHPK3PXP');
-  await page.getByLabel('código').fill('000000');
-  await page.getByRole('button', { name: 'confirmar' }).click();
-  await expect(page.getByRole('alert').filter({ hasText: 'El código no es correcto' })).toBeVisible();
-  await page.getByLabel('código').fill(TOTP_CODE);
-  await page.getByRole('button', { name: 'confirmar' }).click();
-  await expect(page.getByText('Activada: al entrar, el panel pide también el código de la app.')).toBeVisible();
-
-  // Sesión nueva: después de la contraseña, el código.
-  await context.clearCookies();
-  await signIn(page, PAU);
-  await expect(page.getByLabel('código')).toBeVisible();
-  await expect(page.getByRole('navigation', { name: 'Panel' })).toHaveCount(0);
-  expect(await page.content()).not.toContain('SIROCO');
-  // Mientras falta el código, las Actions no dejan hacer nada.
-  const blocked = await page.evaluate(async () => {
-    const data = new FormData();
-    data.set('texto', 'HACK');
-    const response = await fetch('/_actions/admin.updateTicker', { method: 'POST', body: data });
-    return response.status;
-  });
-  expect(blocked).toBe(401);
-  await page.getByLabel('código').fill(TOTP_CODE);
-  await waitReady(page);
-  await page.getByRole('button', { name: 'continuar' }).click();
-  await expect(page.getByRole('heading', { level: 1, name: 'bolos y barra' })).toBeVisible();
 });

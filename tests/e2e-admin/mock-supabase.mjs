@@ -5,11 +5,10 @@
  * tests no deben tocar la base de datos de verdad. Este servidor imita lo que
  * usan la web y el panel:
  *
- * - **Auth (GoTrue)**: login con contraseña (y CAPTCHA con el token de prueba
- *   de Turnstile, como Supabase con el CAPTCHA activado), refresco, `/user`,
- *   logout y MFA TOTP (enrolar, reto, verificar —el código válido es
- *   `123456`—, quitar). Los JWT van firmados con HS256, así que `getClaims()`
- *   los valida preguntando a `/user`, como con las claves simétricas.
+ * - **Auth (GoTrue)**: login con contraseña (sin CAPTCHA ni MFA, como el
+ *   Supabase del panel desde D61), refresco, `/user` y logout. Los JWT van
+ *   firmados con HS256, así que `getClaims()` los valida preguntando a
+ *   `/user`, como con las claves simétricas.
  * - **PostgREST** para `gigs`, `site_settings`, `mixes` y `admins`, con las
  *   mismas reglas que las políticas RLS de §7.2 (anon lee lo publicado; solo
  *   quien está en `admins` escribe; los demás, 42501 o «0 filas») y las
@@ -30,15 +29,12 @@ const portIndex = args.indexOf('--port');
 const port = Number(portIndex === -1 ? process.env.E2E_SUPABASE_PORT || 4324 : args[portIndex + 1]);
 
 export const JWT_SECRET = 'e2e-jwt-secret-que-no-vale-para-nada';
-export const DUMMY_CAPTCHA = 'XXXX.DUMMY.TOKEN.XXXX';
-export const TOTP_CODE = '123456';
-const requireCaptcha = process.env.E2E_REQUIRE_CAPTCHA !== '0';
 
 // ------------------------------------------------------------------ estado
 
 function seed() {
-  const pau = { id: '11111111-1111-4111-8111-111111111111', email: 'pau@e2e.test', password: 'contraseña-e2e-123', factors: [] };
-  const intruder = { id: '22222222-2222-4222-8222-222222222222', email: 'intrusa@e2e.test', password: 'contraseña-e2e-456', factors: [] };
+  const pau = { id: '11111111-1111-4111-8111-111111111111', email: 'pau@e2e.test', password: 'contraseña-e2e-123' };
+  const intruder = { id: '22222222-2222-4222-8222-222222222222', email: 'intrusa@e2e.test', password: 'contraseña-e2e-456' };
   const now = new Date().toISOString();
   const gig = (event_date, party_name, venue, city, lineup = [], extra = {}) => ({
     id: randomUUID(),
@@ -69,7 +65,6 @@ function seed() {
     admins: new Set([pau.id]),
     sessions: new Map(),
     refresh: new Map(),
-    challenges: new Map(),
     tables: {
       gigs,
       site_settings: [
@@ -135,16 +130,15 @@ function publicUser(user) {
     email_confirmed_at: '2026-01-01T00:00:00Z',
     app_metadata: { provider: 'email', providers: ['email'] },
     user_metadata: {},
-    factors: user.factors.map(({ secret: _secret, ...factor }) => factor),
     created_at: '2026-01-01T00:00:00Z',
     updated_at: new Date().toISOString(),
   };
 }
 
-function createSession(user, aal = 'aal1', sessionId = randomUUID()) {
+function createSession(user, sessionId = randomUUID()) {
   const now = Math.floor(Date.now() / 1000);
+  const aal = 'aal1';
   const amr = [{ method: 'password', timestamp: now }];
-  if (aal === 'aal2') amr.push({ method: 'totp', timestamp: now });
   const access_token = signJwt({
     sub: user.id,
     aud: 'authenticated',
@@ -157,8 +151,8 @@ function createSession(user, aal = 'aal1', sessionId = randomUUID()) {
     exp: now + 3600,
   });
   const refresh_token = randomUUID();
-  state.refresh.set(refresh_token, { userId: user.id, aal, sessionId });
-  state.sessions.set(sessionId, { userId: user.id, aal });
+  state.refresh.set(refresh_token, { userId: user.id, sessionId });
+  state.sessions.set(sessionId, { userId: user.id });
   return {
     access_token,
     token_type: 'bearer',
@@ -223,10 +217,6 @@ async function handleAuth(request, response, url, path) {
   if (path === '/token' && request.method === 'POST') {
     const grant = url.searchParams.get('grant_type');
     if (grant === 'password') {
-      const captcha = body?.gotrue_meta_security?.captcha_token;
-      if (requireCaptcha && captcha !== DUMMY_CAPTCHA) {
-        return authError(response, 400, 'captcha_failed', 'captcha protection: request disallowed');
-      }
       const user = state.users.find((item) => item.email === String(body?.email ?? '').toLowerCase());
       state.log.push({ type: 'login', email: body?.email, ok: Boolean(user && user.password === body?.password) });
       if (!user || user.password !== body?.password) {
@@ -240,7 +230,7 @@ async function handleAuth(request, response, url, path) {
       state.refresh.delete(body.refresh_token);
       const user = state.users.find((item) => item.id === entry.userId);
       if (!user || !state.sessions.has(entry.sessionId)) return authError(response, 400, 'session_not_found', 'Session not found');
-      return send(response, 200, createSession(user, entry.aal, entry.sessionId));
+      return send(response, 200, createSession(user, entry.sessionId));
     }
     return authError(response, 400, 'unsupported_grant_type', 'unsupported grant');
   }
@@ -256,58 +246,6 @@ async function handleAuth(request, response, url, path) {
     if (who) state.sessions.delete(who.claims.session_id);
     response.writeHead(204, { 'access-control-allow-origin': '*' });
     return response.end();
-  }
-
-  if (!who) return authError(response, 401, 'bad_jwt', 'invalid JWT');
-
-  if (path === '/factors' && request.method === 'POST') {
-    const factor = {
-      id: randomUUID(),
-      friendly_name: body?.friendly_name ?? 'totp',
-      factor_type: 'totp',
-      status: 'unverified',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      secret: 'JBSWY3DPEHPK3PXP',
-    };
-    who.user.factors.push(factor);
-    return send(response, 200, {
-      id: factor.id,
-      type: 'totp',
-      friendly_name: factor.friendly_name,
-      totp: {
-        qr_code: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><rect width="10" height="10" fill="#000"/></svg>',
-        secret: factor.secret,
-        uri: `otpauth://totp/e2e:${who.user.email}?secret=${factor.secret}`,
-      },
-    });
-  }
-
-  const factorMatch = /^\/factors\/([^/]+)(?:\/(challenge|verify))?$/.exec(path);
-  if (factorMatch) {
-    const [, factorId, step] = factorMatch;
-    const factor = who.user.factors.find((item) => item.id === factorId);
-    if (!factor) return authError(response, 404, 'mfa_factor_not_found', 'Factor not found');
-    if (!step && request.method === 'DELETE') {
-      if (factor.status === 'verified' && who.claims.aal !== 'aal2') {
-        return authError(response, 403, 'insufficient_aal', 'AAL2 required');
-      }
-      who.user.factors = who.user.factors.filter((item) => item.id !== factorId);
-      return send(response, 200, { id: factorId });
-    }
-    if (step === 'challenge' && request.method === 'POST') {
-      const id = randomUUID();
-      state.challenges.set(id, factorId);
-      return send(response, 200, { id, type: 'totp', expires_at: Math.floor(Date.now() / 1000) + 300 });
-    }
-    if (step === 'verify' && request.method === 'POST') {
-      if (state.challenges.get(body?.challenge_id) !== factorId || body?.code !== TOTP_CODE) {
-        return authError(response, 422, 'mfa_verification_failed', 'Invalid TOTP code entered');
-      }
-      state.challenges.delete(body.challenge_id);
-      factor.status = 'verified';
-      return send(response, 200, createSession(who.user, 'aal2', who.claims.session_id));
-    }
   }
 
   return authError(response, 404, 'not_found', `No simulado: ${request.method} ${path}`);

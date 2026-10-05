@@ -653,21 +653,4 @@
     padding: calc(var(--pad) * 2 + var(--safe-top)) var(--pad) calc(var(--pad) * 2 + var(--safe-bottom));
   }
 
-  .a-turnstile {
-    min-height: 65px;
-  }
-
-  .a-qr {
-    width: 12rem;
-    height: 12rem;
-    padding: 0.5rem;
-    background: #fff;
-  }
-
-  .a-secret {
-    font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
-    font-size: var(--fs-label);
-    overflow-wrap: anywhere;
-    user-select: all;
-  }
 }

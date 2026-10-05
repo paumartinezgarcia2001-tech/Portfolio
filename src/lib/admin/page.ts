@@ -9,19 +9,19 @@ import type { AdminSession } from './session';
 
 export interface AdminPageState {
   slug: string;
-  /** Sesión completa de una administradora (con TOTP si lo tiene). */
+  /** Sesión de una administradora. */
   signedIn: boolean;
   supabase: TypedSupabaseClient | null;
   session: AdminSession | null;
   /** Respuesta que hay que devolver ya (redirección tras un POST sin JavaScript). */
   redirect?: Response | undefined;
-  /** Error de un POST sin JavaScript (login, código, salir). */
+  /** Error de un POST sin JavaScript (login o salir). */
   error?: string | undefined;
 }
 
 /**
- * Estado de la página y, si llega un POST sin JavaScript (login, código TOTP
- * o cerrar sesión), redirección → GET para que recargar no reenvíe nada.
+ * Estado de la página y, si llega un POST sin JavaScript (login o cerrar
+ * sesión), redirección → GET para que recargar no reenvíe nada.
  */
 export function adminPage(Astro: AstroGlobal): AdminPageState {
   const admin = Astro.locals.admin;
@@ -29,7 +29,7 @@ export function adminPage(Astro: AstroGlobal): AdminPageState {
   const session = admin.state.kind === 'admin' ? admin.state.session : null;
   const state: AdminPageState = {
     slug: admin.slug,
-    signedIn: Boolean(session && !session.needsMfa && admin.supabase),
+    signedIn: Boolean(session && admin.supabase),
     supabase: admin.supabase,
     session,
   };
@@ -37,9 +37,8 @@ export function adminPage(Astro: AstroGlobal): AdminPageState {
   const logout = Astro.getActionResult(actions.admin.logout);
   if (logout && !logout.error) return { ...state, redirect: Astro.redirect(adminHref(admin.slug), 303) };
 
-  for (const action of [actions.admin.login, actions.admin.verifyMfa]) {
-    const result = Astro.getActionResult(action);
-    if (!result) continue;
+  const result = Astro.getActionResult(actions.admin.login);
+  if (result) {
     if (!result.error) return { ...state, redirect: Astro.redirect(Astro.url.pathname, 303) };
     Astro.response.status = result.error.status;
     const message = isInputError(result.error)

@@ -8,7 +8,6 @@ import { setupAdminForms } from './forms';
 import { setupGigForms } from './gigs';
 import { setupAuth } from './login';
 import { setupMixes } from './mixes';
-import { setupSecurity } from './security';
 import { setupCounters, setupTickerPreview } from './ticker';
 
 setupAuth();
@@ -18,7 +17,6 @@ setupTickerPreview();
 setupGigForms();
 setupEditors();
 setupMixes();
-setupSecurity();
 
 // Listo: los tests e2e esperan a esto antes de tocar nada.
 document.documentElement.dataset.adminReady = '';

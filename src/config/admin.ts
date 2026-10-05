@@ -21,10 +21,9 @@ export const ADMIN_TEXT = {
   saveFailed: 'No se ha podido guardar. Inténtalo de nuevo.',
   loadFailed: 'No se han podido cargar los datos. Recarga la página.',
   sessionExpired: 'La sesión ha caducado. Vuelve a entrar.',
-  captchaMissing: 'Falta la comprobación anti-spam. Espera a que termine y vuelve a intentarlo.',
-  captchaFailed: 'No se ha podido completar la comprobación anti-spam. Vuelve a intentarlo.',
+  /** Si alguien vuelve a activar el CAPTCHA de Supabase (D61: el panel no lo usa). */
+  captchaEnabled: 'Supabase pide un CAPTCHA: desactívalo en Authentication → Attack Protection.',
   tooManyAttempts: 'Demasiados intentos. Espera un rato antes de volver a probar.',
-  mfaFailed: 'El código no es correcto o ha caducado.',
   noScript: 'El panel necesita JavaScript.',
   notConfigured: 'Falta configurar Supabase (PUBLIC_SUPABASE_URL y PUBLIC_SUPABASE_PUBLISHABLE_KEY).',
   deleted: 'Borrado.',
@@ -45,7 +44,6 @@ export const ADMIN_FIELD_ERRORS = {
   numberInvalid: 'Escribe un número válido.',
   identifierRequired: 'Escribe tu usuario o tu email.',
   passwordRequired: 'Escribe la contraseña.',
-  codeInvalid: 'Escribe los 6 números del código.',
   titleRequired: 'Escribe un título.',
   pathInvalid: 'Tiene que ser una ruta del bucket (p. ej. video/…/master.m3u8) o una URL https.',
   jsonInvalid: 'No es un bloque válido: pégalo tal cual lo imprime el script.',
@@ -83,7 +81,6 @@ export const ADMIN_PAGES = [
   { key: 'mixes', path: 'mixes', label: 'mixes' },
   { key: 'info', path: 'info', label: 'info' },
   { key: 'video', path: 'video', label: 'vídeo' },
-  { key: 'security', path: 'seguridad', label: 'seguridad' },
 ] as const;
 
 export type AdminPageKey = (typeof ADMIN_PAGES)[number]['key'];

@@ -23,7 +23,7 @@ test('sin sesión: solo el login, sin datos del panel', async ({ page }) => {
 });
 
 test('sin sesión, las subpáginas también piden entrar', async ({ page }) => {
-  for (const path of ['archivo', 'mixes', 'info', 'video', 'seguridad']) {
+  for (const path of ['archivo', 'mixes', 'info', 'video']) {
     await page.goto(adminUrl(path));
     await expect(page.getByLabel('usuario')).toBeVisible();
     expect(await page.content()).not.toContain('ARCHIVO 01');
@@ -58,13 +58,29 @@ test('login correcto (con el email) → panel; cerrar sesión → login', async 
   await expect(page.getByLabel('usuario')).toBeVisible();
 });
 
-test('login con el alias (ADMIN_USERNAME)', async ({ page }) => {
-  await signIn(page, { email: PAU.alias, password: PAU.password });
+test('login con el alias (ADMIN_USERNAME), en mayúsculas y sin CAPTCHA ni código (D61)', async ({ page }) => {
+  await page.goto(adminUrl());
+  // Solo usuario y contraseña: ni widget de CAPTCHA ni campo de código.
+  await expect(page.locator('[data-turnstile], iframe')).toHaveCount(0);
+  await expect(page.getByLabel('código')).toHaveCount(0);
+  await signIn(page, { email: PAU.alias.toUpperCase(), password: PAU.password });
   await expect(page.getByRole('heading', { level: 1, name: 'bolos y barra' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'seguridad' })).toHaveCount(0);
+});
+
+test('sin JavaScript también se entra con el alias', async ({ browser }) => {
+  const context = await browser.newContext({ javaScriptEnabled: false });
+  const page = await context.newPage();
+  await page.goto(adminUrl());
+  await page.getByLabel('usuario').fill(PAU.alias);
+  await page.getByLabel('contraseña').fill(PAU.password);
+  await page.getByRole('button', { name: 'entrar' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'bolos y barra' })).toBeVisible();
+  await context.close();
 });
 
 test('otro nombre de panel → 404 de verdad', async ({ page, request }) => {
-  for (const path of ['/otro-slug', `/${ADMIN_PATH}x`, '/otro-slug/archivo', `/${ADMIN_PATH}/no-existe`]) {
+  for (const path of ['/otro-slug', `/${ADMIN_PATH}x`, '/otro-slug/archivo', `/${ADMIN_PATH}/no-existe`, `/${ADMIN_PATH}/seguridad`]) {
     const response = await request.get(path);
     expect(response.status(), path).toBe(404);
     expect(await response.text()).toContain('Esta página no existe.');
