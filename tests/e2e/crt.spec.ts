@@ -47,22 +47,20 @@ test.describe('CRT', () => {
     await expect(page.locator('html')).toHaveAttribute('data-crt', '');
   });
 
-  test('filtro de pantalla con curvatura y bloom, en todos los navegadores', async ({ page }) => {
-    expect(CRT.curvature.enabled).toBe(true);
+  test('filtro de pantalla con bloom y sin curvatura (Luna, 05-10-2026)', async ({ page }) => {
+    expect(CRT.curvature.enabled).toBe(false);
     expect(CRT.bloom.enabled).toBe(true);
     await page.goto('/');
     await expect(page.locator('html')).toHaveAttribute('data-crt-filter', '');
     await expect(page.locator('body')).toHaveCSS('filter', /url\(.*#crt-screen.*\)/);
     const filter = await page.locator('#crt-screen').evaluate((el) => ({
-      map: el.querySelector('feImage')!.getAttribute('href')?.startsWith('data:image/png') ?? false,
-      scale: Number(el.querySelector('feDisplacementMap')!.getAttribute('scale')),
+      displacement: el.querySelectorAll('feImage, feDisplacementMap').length,
       blur: el.querySelector('feGaussianBlur')?.getAttribute('stdDeviation'),
-      width: Number(el.querySelector('feImage')!.getAttribute('width')),
+      source: el.querySelector('feComponentTransfer')?.getAttribute('in'),
     }));
-    expect(filter.map).toBe(true);
-    expect(filter.scale).toBeGreaterThan(0);
+    expect(filter.displacement).toBe(0);
     expect(filter.blur).toBe(String(CRT.bloom.radius));
-    expect(filter.width).toBe(await page.evaluate(() => document.body.clientWidth));
+    expect(filter.source).toBe('SourceGraphic');
   });
 
   test('el píxel del tubo mide 2 px (scanlines y fósforo)', async ({ page }) => {

@@ -5,9 +5,9 @@
  * 1. Capa CSS (siempre que `enabled`): scanlines, máscara de fósforo RGB,
  *    viñeta, resplandor y aberración cromática del texto, y parpadeo. El texto
  *    se sigue pudiendo seleccionar, leer con lector de pantalla e indexar.
- * 2. Filtro SVG sobre toda la página (`curvature` y `bloom`), en producción y
- *    en todos los navegadores, Safari incluido (Luna, 05-10-2026): curvatura de
- *    barril y bloom (lo brillante «sangra» luz). Consume bastante: mientras algo
+ * 2. Filtro SVG sobre toda la página (`curvature` y `bloom`), en todos los
+ *    navegadores, Safari incluido: curvatura de barril (apagada en producción,
+ *    Luna, 05-10-2026) y bloom (lo brillante «sangra» luz). Consume: mientras algo
  *    se mueve (la barra de noticias, el parpadeo) el navegador lo recalcula en
  *    cada fotograma. La separación RGB se hace con `text-shadow` y no en el
  *    filtro, que costaba el doble. Los clics no se curvan (el puntero sigue en
@@ -30,9 +30,12 @@ export const CRT = {
    * franja de fósforo (rojo, verde, azul). Engordado de 1 a 2 (Luna, 05-10-2026).
    */
   pixel: 2,
-  /** Nivel 2 · curvatura de barril. */
+  /**
+   * Nivel 2 · curvatura de barril. Apagada en producción (Luna, 05-10-2026);
+   * se recupera con `enabled: true`.
+   */
   curvature: {
-    enabled: true,
+    enabled: false,
     /**
      * Cuánto se curva: desplazamiento en las esquinas, en fracción del lado
      * mayor de la ventana. 0,03 es sutil (casi no se nota el desfase del clic).

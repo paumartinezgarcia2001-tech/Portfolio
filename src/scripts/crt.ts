@@ -1,10 +1,10 @@
 /**
  * C11d · CRT: lo que no se puede hacer solo con CSS (src/config/crt.ts).
  *
- * - Nivel 2: genera con un <canvas> el mapa de desplazamiento de la curvatura
- *   de barril, lo pasa al <feImage> del filtro `#crt-screen` (que también hace
- *   el bloom) y marca `html[data-crt-filter]`. En todos los navegadores,
- *   Safari incluido (Luna, 05-10-2026).
+ * - Nivel 2: marca `html[data-crt-filter]` para aplicar el filtro `#crt-screen`
+ *   (bloom y, si está encendida, curvatura). Para la curvatura genera con un
+ *   <canvas> el mapa de desplazamiento y lo pasa al <feImage> del filtro. En
+ *   todos los navegadores, Safari incluido.
  * - Nivel 3: detecta la API HTML-in-Canvas y marca `html[data-crt-html-in-canvas]`.
  *
  * El ClientRouter copia los atributos del <html> nuevo al navegar, así que las

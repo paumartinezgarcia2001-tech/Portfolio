@@ -8,14 +8,23 @@ import { isMobileViewport } from './helpers';
 
 const dates = (page: Page) => page.locator('.event__date');
 
-/** Color de la tinta del rotulador (D39) y si lleva la textura de papel. */
+/**
+ * Color de la tinta del rotulador (D39), si lleva la textura de papel y si la
+ * tinta es opaca y uniforme (Luna, 05-10-2026): cada pasada es un degradado
+ * liso del acento, sin transparencia.
+ */
 async function highlighter(locator: ReturnType<Page['locator']>) {
   return locator.evaluate((el) => {
     const style = getComputedStyle(el);
+    const ink = style.getPropertyValue('--hl-ink').trim();
+    const image = style.backgroundImage;
+    const passes = image.split(`linear-gradient(${ink}, ${ink})`).length - 1;
     return {
-      ink: style.getPropertyValue('--hl-ink').trim(),
-      texture: style.backgroundImage.includes('data:image/svg+xml'),
-      layers: style.backgroundImage.split('gradient(').length - 1,
+      ink,
+      texture: image.includes('data:image/svg+xml'),
+      layers: image.split('gradient(').length - 1,
+      solidPasses: passes,
+      radial: image.includes('radial-gradient'),
     };
   });
 }
@@ -38,7 +47,13 @@ test.describe('Next dates', () => {
     await expect(hl).toHaveCount(1);
     await expect(hl).toHaveCSS('text-decoration-line', 'none');
     // Dos pasadas en texto grande: textura + pulso + dos puntas + tinta acumulada + dos trazos.
-    expect(await highlighter(hl)).toEqual({ ink: 'rgb(0, 255, 255)', texture: true, layers: 6 });
+    expect(await highlighter(hl)).toEqual({
+      ink: 'rgb(0, 255, 255)',
+      texture: true,
+      layers: 5,
+      solidPasses: 2,
+      radial: false,
+    });
   });
 
   test('sin nombre de fiesta y sin lineup se muestra TBA', async ({ page }) => {
@@ -85,7 +100,13 @@ test.describe('Archive', () => {
     // Cada nombre, con el rotulador verde de una pasada.
     const names = page.locator('.event__name');
     await expect(names.locator('.hl')).toHaveCount(await names.count());
-    expect(await highlighter(names.first().locator('.hl'))).toEqual({ ink: 'rgb(0, 255, 0)', texture: true, layers: 5 });
+    expect(await highlighter(names.first().locator('.hl'))).toEqual({
+      ink: 'rgb(0, 255, 0)',
+      texture: true,
+      layers: 4,
+      solidPasses: 1,
+      radial: false,
+    });
 
     // La fecha, sin rotulador: ni la marca ni fondo.
     await expect(page.locator('.event__date .hl')).toHaveCount(0);

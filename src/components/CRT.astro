@@ -15,6 +15,8 @@ const useFilter = CONFIG.enabled && (curvature.enabled || bloom.enabled);
 /** Umbral del bloom: (c − umbral) / (1 − umbral), recortado a 0…1. */
 const bloomSlope = 1 / (1 - bloom.threshold);
 const bloomIntercept = -bloom.threshold * bloomSlope;
+/** Imagen sobre la que se calcula el bloom: la curvada o la página tal cual. */
+const source = curvature.enabled ? 'screen' : 'SourceGraphic';
 const style = `--crt-px: ${CONFIG.pixel}px;`;
 ---
 
@@ -42,29 +44,35 @@ const style = `--crt-px: ${CONFIG.pixel}px;`;
         primitiveUnits="userSpaceOnUse"
         color-interpolation-filters="sRGB"
       >
-        {/* Curvatura: el mapa de desplazamiento lo genera src/scripts/crt.ts con
-            un <canvas> (con la curvatura apagada, la escala se queda en 0). */}
-        <feImage x="0" y="0" width="1" height="1" preserveAspectRatio="none" result="map" />
-        <feDisplacementMap
-          in="SourceGraphic"
-          in2="map"
-          scale="0"
-          xChannelSelector="R"
-          yChannelSelector="G"
-          result="screen"
-        />
+        {
+          curvature.enabled && (
+            <>
+              {/* Curvatura: el mapa de desplazamiento lo genera src/scripts/crt.ts
+                  con un <canvas>. */}
+              <feImage x="0" y="0" width="1" height="1" preserveAspectRatio="none" result="map" />
+              <feDisplacementMap
+                in="SourceGraphic"
+                in2="map"
+                scale="0"
+                xChannelSelector="R"
+                yChannelSelector="G"
+                result="screen"
+              />
+            </>
+          )
+        }
         {
           bloom.enabled && (
             <>
               {/* Bloom: se queda solo con lo que pasa del umbral, se desenfoca
                   y se suma encima. */}
-              <feComponentTransfer in="screen" result="bright">
+              <feComponentTransfer in={source} result="bright">
                 <feFuncR type="linear" slope={bloomSlope} intercept={bloomIntercept} />
                 <feFuncG type="linear" slope={bloomSlope} intercept={bloomIntercept} />
                 <feFuncB type="linear" slope={bloomSlope} intercept={bloomIntercept} />
               </feComponentTransfer>
               <feGaussianBlur in="bright" stdDeviation={bloom.radius} result="glow" />
-              <feComposite in="screen" in2="glow" operator="arithmetic" k1="0" k2="1" k3={bloom.strength} k4="0" />
+              <feComposite in={source} in2="glow" operator="arithmetic" k1="0" k2="1" k3={bloom.strength} k4="0" />
             </>
           )
         }

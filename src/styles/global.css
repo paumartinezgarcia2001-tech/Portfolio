@@ -159,7 +159,8 @@
   ::view-transition-group(panel),
   ::view-transition-group(left-column),
   ::view-transition-group(pixel-overlay),
-  ::view-transition-group(cursor) {
+  ::view-transition-group(cursor),
+  ::view-transition-group(crt-overlay) {
     animation: none;
   }
 
@@ -179,6 +180,11 @@
     z-index: 4;
   }
 
+  /* La capa CRT (C11d), encima de todo. */
+  ::view-transition-group(crt-overlay) {
+    z-index: 5;
+  }
+
   /* El panel nuevo sustituye al viejo de golpe: llega ya pixelado. */
   ::view-transition-old(panel),
   ::view-transition-new(panel) {
@@ -188,14 +194,16 @@
   /* Elementos persistentes: se muestra solo la imagen viva, sin fundido. */
   ::view-transition-old(left-column),
   ::view-transition-old(pixel-overlay),
-  ::view-transition-old(cursor) {
+  ::view-transition-old(cursor),
+  ::view-transition-old(crt-overlay) {
     animation: none;
     opacity: 0;
   }
 
   ::view-transition-new(left-column),
   ::view-transition-new(pixel-overlay),
-  ::view-transition-new(cursor) {
+  ::view-transition-new(cursor),
+  ::view-transition-new(crt-overlay) {
     animation: none;
     mix-blend-mode: normal;
   }

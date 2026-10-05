@@ -5,11 +5,13 @@
  */
 import { ClientRouter } from 'astro:transitions';
 import '../styles/global.css';
+import CRT from '../components/CRT.astro';
 import CustomCursor from '../components/CustomCursor.astro';
 import MobileBackButton from '../components/MobileBackButton.astro';
 import PixelOverlay from '../components/PixelOverlay.astro';
 import SeoHead from '../components/SeoHead.astro';
 import SplitShell from '../components/SplitShell.astro';
+import { CRT as CRT_CONFIG } from '../config/crt';
 import type { SectionState } from '../config/sections';
 import { MOBILE_START_VIEW, SITE } from '../config/site';
 import { withBase } from '../lib/url';
@@ -34,7 +36,13 @@ const startView = section === 'none' ? 'page' : MOBILE_START_VIEW;
 ---
 
 <!doctype html>
-<html lang={SITE.lang} data-section={section} data-view={startView} transition:animate="none">
+<html
+  lang={SITE.lang}
+  data-section={section}
+  data-view={startView}
+  data-crt={CRT_CONFIG.enabled ? '' : undefined}
+  transition:animate="none"
+>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -95,6 +103,7 @@ const startView = section === 'none' ? 'page' : MOBILE_START_VIEW;
     </SplitShell>
     <PixelOverlay />
     <CustomCursor />
+    <CRT />
     <script>
       import '../scripts/app';
     </script>

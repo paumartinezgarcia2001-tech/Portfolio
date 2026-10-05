@@ -115,6 +115,8 @@
     --z-mini-player: 40;
     --z-back: 50;
     --z-cursor: 60;
+    /* Capa CRT (C11d): encima de todo, cursor incluido; es «la pantalla». */
+    --z-crt: 70;
 
     /* --- Movimiento (§4.3) --- */
     --ease-slide: cubic-bezier(0.2, 0.7, 0.2, 1);
