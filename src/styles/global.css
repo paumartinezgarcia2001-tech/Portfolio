@@ -19,7 +19,11 @@
     font-family: var(--font-sans);
     font-weight: var(--fw-regular);
     line-height: var(--lh-paragraph);
-    /* El acento se anima al cambiar de sección (C01). */
+  }
+
+  /* El acento se anima al cambiar de sección (C01). Con JS lo hace
+     src/scripts/accent.ts (Safari no interpolaba bien esta transición). */
+  html:not(.js) {
     transition: --accent var(--dur-accent) linear;
   }
 

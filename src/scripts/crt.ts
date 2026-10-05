@@ -2,8 +2,9 @@
  * C11d · CRT: lo que no se puede hacer solo con CSS (src/config/crt.ts).
  *
  * - Nivel 2: genera con un <canvas> el mapa de desplazamiento de la curvatura
- *   de barril, lo pasa al <feImage> del filtro y marca `html[data-crt-curved]`.
- *   No se aplica en Safari, que pinta mal los filtros SVG sobre HTML.
+ *   de barril, lo pasa al <feImage> del filtro `#crt-screen` (que también hace
+ *   el bloom) y marca `html[data-crt-filter]`. En todos los navegadores,
+ *   Safari incluido (Luna, 05-10-2026).
  * - Nivel 3: detecta la API HTML-in-Canvas y marca `html[data-crt-html-in-canvas]`.
  *
  * El ClientRouter copia los atributos del <html> nuevo al navegar, así que las
@@ -13,9 +14,9 @@ import { CRT } from '../config/crt';
 
 const root = document.documentElement;
 const lessEffects = window.matchMedia('(prefers-contrast: more), (forced-colors: active)');
-const isSafari = /^((?!chrome|chromium|crios|fxios|edg|android).)*safari/i.test(navigator.userAgent);
 const supportsHtmlInCanvas =
   typeof CanvasRenderingContext2D !== 'undefined' && 'drawElementImage' in CanvasRenderingContext2D.prototype;
+const XLINK = 'http://www.w3.org/1999/xlink';
 
 /** Resolución del mapa: se estira a toda la ventana (el desplazamiento varía suave). */
 const MAP_SIZE = 256;
@@ -50,17 +51,21 @@ function barrelMap(): string | null {
   return canvas.toDataURL('image/png');
 }
 
-/** Ajusta el filtro al tamaño de la ventana. */
-function sizeCurvature(): boolean {
-  const filter = document.getElementById('crt-barrel');
-  const feImage = filter?.querySelector('feImage');
-  const displacement = filter?.querySelector('feDisplacementMap');
+/** Ajusta el filtro al tamaño de la ventana. Devuelve si se puede aplicar. */
+function sizeFilter(): boolean {
+  const filter = document.getElementById('crt-screen');
+  if (!filter) return false;
+  if (!CRT.curvature.enabled) return true;
+  const feImage = filter.querySelector('feImage');
+  const displacement = filter.querySelector('feDisplacementMap');
   if (!feImage || !displacement) return false;
   mapUrl ??= barrelMap();
   if (!mapUrl) return false;
   const width = document.body.clientWidth || window.innerWidth;
   const height = document.body.clientHeight || window.innerHeight;
+  // `href` (SVG 2) y `xlink:href` (Safari antiguo).
   feImage.setAttribute('href', mapUrl);
+  feImage.setAttributeNS(XLINK, 'xlink:href', mapUrl);
   feImage.setAttribute('width', String(width));
   feImage.setAttribute('height', String(height));
   // Con el mapa en [0,25; 0,75], en la esquina el desplazamiento es escala/2.
@@ -75,16 +80,14 @@ function mark(): void {
     // (p. ej. `import('./crt-webgl')`) cuando la API salga del origin trial.
     root.dataset.crtHtmlInCanvas = '';
   }
-  const curved = CRT.curvature.enabled && !isSafari && !lessEffects.matches && sizeCurvature();
-  if (curved) root.dataset.crtCurved = '';
-  else delete root.dataset.crtCurved;
+  const wanted = CRT.curvature.enabled || CRT.bloom.enabled;
+  if (wanted && !lessEffects.matches && sizeFilter()) root.dataset.crtFilter = '';
+  else delete root.dataset.crtFilter;
 }
 
 mark();
 document.addEventListener('astro:after-swap', mark);
 lessEffects.addEventListener('change', mark);
-if (CRT.curvature.enabled) {
-  window.addEventListener('resize', () => {
-    if (root.dataset.crtCurved !== undefined) sizeCurvature();
-  });
-}
+window.addEventListener('resize', () => {
+  if (root.dataset.crtFilter !== undefined) sizeFilter();
+});

@@ -9,9 +9,9 @@
  * 2. Despixelado: la página nueva aparece tapada por los mismos cuadrados, que
  *    desaparecen en orden aleatorio (`PIXEL.transition.revealDuration`).
  *
- * Los cuadrados llevan en cada fotograma el valor actual de `--accent`: el
- * color cambia a la vez y a la misma velocidad que la barra vertical de
- * noticias (transición de 0,5 s del acento, C01).
+ * Los cuadrados llevan en cada fotograma el color del acento de ese instante
+ * (`accentAt`, src/scripts/accent.ts): cambian a la vez y a la misma velocidad
+ * que la barra vertical de noticias, también en Safari.
  *
  * - El canvas tiene un píxel por cuadrado y se amplía con
  *   `image-rendering: pixelated`: cuesta casi nada dibujarlo.
@@ -21,6 +21,7 @@ import type { TransitionBeforePreparationEvent, TransitionBeforeSwapEvent } from
 import { PIXEL } from '../config/pixel';
 import { DESKTOP_MEDIA_QUERY } from '../config/site';
 import { clearedCount, pixelGrid, shuffledOrder } from '../lib/pixels';
+import { accentAt } from './accent';
 
 const root = document.documentElement;
 const desktop = window.matchMedia(DESKTOP_MEDIA_QUERY);
@@ -30,11 +31,6 @@ const forcedColors = window.matchMedia('(forced-colors: active)');
 /** ¿Hay transición de píxeles en esta navegación? (app.ts lo usa en móvil). */
 export function pixelTransitionActive(): boolean {
   return PIXEL.enabled && PIXEL.transition.enabled && !reducedMotion.matches && !forcedColors.matches;
-}
-
-/** Color actual del acento: el mismo que tiene la barra de noticias en este fotograma. */
-function accentColor(): string {
-  return getComputedStyle(root).getPropertyValue('--accent').trim() || '#ff00ff';
 }
 
 type Mode = 'cover' | 'reveal';
@@ -73,7 +69,7 @@ class PixelLayer {
     const context = canvas.getContext('2d');
     if (!context) return null;
     if (filled) {
-      context.fillStyle = accentColor();
+      context.fillStyle = accentAt();
       context.fillRect(0, 0, cols, rows);
     }
     return new PixelLayer(context, cols, rows);
@@ -99,7 +95,7 @@ class PixelLayer {
       const frame = (now: number) => {
         if (!this.element.isConnected) return resolve();
         startedAt ??= now;
-        const color = accentColor();
+        const color = accentAt(now);
         this.recolor(color);
         const target = clearedCount(now - startedAt, duration, this.total);
         this.context.fillStyle = color;
@@ -124,9 +120,9 @@ class PixelLayer {
 
   /** Ya llena, sigue el color del acento hasta que el cambio de página la quite. */
   private followAccent(): void {
-    const frame = () => {
+    const frame = (now: number) => {
       if (!this.element.isConnected) return;
-      this.recolor(accentColor());
+      this.recolor(accentAt(now));
       requestAnimationFrame(frame);
     };
     requestAnimationFrame(frame);

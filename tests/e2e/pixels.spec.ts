@@ -142,7 +142,7 @@ test.describe('Transición de píxeles', () => {
     await menuLink(page, 'archive').click();
     await expect(page.locator('html')).toHaveAttribute('data-section', 'archive');
 
-    await expect.poll(async () => (await records(page)).length, { timeout: 4_000 }).toBe(4);
+    await expect.poll(async () => (await records(page)).length, { timeout: 6_000 }).toBe(4);
     const [screenIn, screenOut, panelIn, panelOut] = await records(page);
 
     // 1 · Pixelado: capa fija encima de lo que se ve (el panel en escritorio;
@@ -165,7 +165,7 @@ test.describe('Transición de píxeles', () => {
     expect(screenOut!.type).toBe('remove');
     expect(screenOut!.kind).toBe('screen');
     expect(screenOut!.painted).toBe(screenOut!.cols! * screenOut!.rows!);
-    expect(screenOut!.t - screenIn!.t).toBeGreaterThanOrEqual(400);
+    expect(screenOut!.t - screenIn!.t).toBeGreaterThanOrEqual(PIXEL.transition.coverDuration - 50);
 
     // 2 · Despixelado: la página nueva llega entera tapada, ya sin el menú.
     expect(panelIn!.type).toBe('add');
@@ -178,13 +178,13 @@ test.describe('Transición de píxeles', () => {
     expect(panelIn!.color).toEqual([255, 0, 255]);
     expect(panelIn!.t).toBeGreaterThanOrEqual(screenOut!.t);
 
-    // Desaparece sola en ~450 ms.
+    // Desaparece sola en ~0,9 s (PIXEL.transition.revealDuration).
     expect(panelOut!.type).toBe('remove');
     expect(panelOut!.kind).toBe('panel');
     expect(panelOut!.painted).toBe(0);
     const visibleFor = panelOut!.t - panelIn!.t;
-    expect(visibleFor).toBeGreaterThanOrEqual(400);
-    expect(visibleFor).toBeLessThan(1_500);
+    expect(visibleFor).toBeGreaterThanOrEqual(PIXEL.transition.revealDuration - 50);
+    expect(visibleFor).toBeLessThan(PIXEL.transition.revealDuration + 1_000);
     await expect(page.locator('.pixel-transition')).toHaveCount(0);
 
     // El color sigue al acento fotograma a fotograma, como la barra de noticias:

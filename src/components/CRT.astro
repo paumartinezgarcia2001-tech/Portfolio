@@ -8,6 +8,14 @@
  * es «la pantalla».
  */
 import { CRT as CONFIG } from '../config/crt';
+
+const { bloom, curvature } = CONFIG;
+/** El filtro SVG (nivel 2) hace falta para la curvatura o para el bloom. */
+const useFilter = CONFIG.enabled && (curvature.enabled || bloom.enabled);
+/** Umbral del bloom: (c − umbral) / (1 − umbral), recortado a 0…1. */
+const bloomSlope = 1 / (1 - bloom.threshold);
+const bloomIntercept = -bloom.threshold * bloomSlope;
+const style = `--crt-px: ${CONFIG.pixel}px;`;
 ---
 
 {
@@ -15,16 +23,17 @@ import { CRT as CONFIG } from '../config/crt';
     <div
       class="crt-overlay"
       data-flicker={String(CONFIG.flicker)}
+      style={style}
       aria-hidden="true"
       transition:persist="crt-overlay"
     />
   )
 }
 {
-  CONFIG.enabled && CONFIG.curvature.enabled && (
+  useFilter && (
     <svg class="crt-filters" aria-hidden="true" focusable="false" transition:persist="crt-filters">
       <filter
-        id="crt-barrel"
+        id="crt-screen"
         x="0"
         y="0"
         width="1"
@@ -33,7 +42,8 @@ import { CRT as CONFIG } from '../config/crt';
         primitiveUnits="userSpaceOnUse"
         color-interpolation-filters="sRGB"
       >
-        {/* El mapa de desplazamiento lo genera src/scripts/crt.ts con un <canvas>. */}
+        {/* Curvatura: el mapa de desplazamiento lo genera src/scripts/crt.ts con
+            un <canvas> (con la curvatura apagada, la escala se queda en 0). */}
         <feImage x="0" y="0" width="1" height="1" preserveAspectRatio="none" result="map" />
         <feDisplacementMap
           in="SourceGraphic"
@@ -41,16 +51,23 @@ import { CRT as CONFIG } from '../config/crt';
           scale="0"
           xChannelSelector="R"
           yChannelSelector="G"
-          result="bent"
+          result="screen"
         />
-        {/* Canales separados: el rojo a un lado y el azul al otro. */}
-        <feColorMatrix in="bent" type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="red" />
-        <feOffset in="red" dx={CONFIG.curvature.rgbShift} result="red-shifted" />
-        <feColorMatrix in="bent" type="matrix" values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0" result="green" />
-        <feColorMatrix in="bent" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0" result="blue" />
-        <feOffset in="blue" dx={-CONFIG.curvature.rgbShift} result="blue-shifted" />
-        <feBlend in="red-shifted" in2="green" mode="screen" result="red-green" />
-        <feBlend in="red-green" in2="blue-shifted" mode="screen" />
+        {
+          bloom.enabled && (
+            <>
+              {/* Bloom: se queda solo con lo que pasa del umbral, se desenfoca
+                  y se suma encima. */}
+              <feComponentTransfer in="screen" result="bright">
+                <feFuncR type="linear" slope={bloomSlope} intercept={bloomIntercept} />
+                <feFuncG type="linear" slope={bloomSlope} intercept={bloomIntercept} />
+                <feFuncB type="linear" slope={bloomSlope} intercept={bloomIntercept} />
+              </feComponentTransfer>
+              <feGaussianBlur in="bright" stdDeviation={bloom.radius} result="glow" />
+              <feComposite in="screen" in2="glow" operator="arithmetic" k1="0" k2="1" k3={bloom.strength} k4="0" />
+            </>
+          )
+        }
       </filter>
     </svg>
   )
@@ -75,15 +92,20 @@ import { CRT as CONFIG } from '../config/crt';
       inset: 0;
       z-index: var(--z-crt);
       pointer-events: none;
-      /* De arriba abajo: viñeta, scanlines y máscara de fósforo RGB. */
+      /* De arriba abajo: viñeta, scanlines y máscara de fósforo RGB, con el
+       «píxel» del tubo de `--crt-px` (CRT.pixel). */
       background:
         radial-gradient(ellipse at center, transparent 60%, rgb(0 0 0 / 0.55) 100%),
-        repeating-linear-gradient(to bottom, rgb(0 0 0 / 0.25) 0 1px, transparent 1px 3px),
+        repeating-linear-gradient(
+          to bottom,
+          rgb(0 0 0 / 0.25) 0 var(--crt-px),
+          transparent var(--crt-px) calc(var(--crt-px) * 3)
+        ),
         repeating-linear-gradient(
           to right,
-          rgb(255 0 0 / 0.06) 0 1px,
-          rgb(0 255 0 / 0.06) 1px 2px,
-          rgb(0 0 255 / 0.06) 2px 3px
+          rgb(255 0 0 / 0.06) 0 var(--crt-px),
+          rgb(0 255 0 / 0.06) var(--crt-px) calc(var(--crt-px) * 2),
+          rgb(0 0 255 / 0.06) calc(var(--crt-px) * 2) calc(var(--crt-px) * 3)
         );
       /* En las view transitions queda encima de todo (src/styles/global.css). */
       view-transition-name: crt-overlay;
@@ -103,7 +125,8 @@ import { CRT as CONFIG } from '../config/crt';
       }
     }
 
-    /* Nivel 2 · curvatura (src/scripts/crt.ts pone `data-crt-curved`). */
+    /* Nivel 2 · filtro de pantalla: curvatura y bloom
+       (src/scripts/crt.ts pone `data-crt-filter`). */
     .crt-filters {
       position: absolute;
       width: 0;
@@ -111,8 +134,8 @@ import { CRT as CONFIG } from '../config/crt';
       overflow: hidden;
     }
 
-    html[data-crt-curved] body {
-      filter: url('#crt-barrel');
+    html[data-crt-filter] body {
+      filter: url('#crt-screen');
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -131,7 +154,7 @@ import { CRT as CONFIG } from '../config/crt';
         text-shadow: none;
       }
 
-      html[data-crt-curved] body {
+      html[data-crt-filter] body {
         filter: none;
       }
     }

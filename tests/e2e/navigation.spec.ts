@@ -133,11 +133,57 @@ test.describe('Navegación entre secciones', () => {
     }
   });
 
-  test('el acento cambia con una transición de 0,5 s', async ({ page }) => {
+  test('el acento cambia poco a poco en 0,9 s, calculado en JS (también en Safari)', async ({ page }, testInfo) => {
     await page.goto('/');
-    const duration = await page.evaluate(() => getComputedStyle(document.documentElement).transitionDuration);
-    expect(duration).toContain('0.5s');
     expect(await accentOf(page)).toBe('rgb(255, 0, 255)');
+    const root = await page.evaluate(() => ({
+      duration: getComputedStyle(document.documentElement).getPropertyValue('--dur-accent').trim(),
+      // Con JS no hay transición CSS del acento: la hace src/scripts/accent.ts.
+      transition: getComputedStyle(document.documentElement).transitionDuration,
+    }));
+    // El CSS compilado puede escribirlo como `.9s`.
+    expect(['900ms', '.9s', '0.9s']).toContain(root.duration);
+    expect(root.transition).toBe('0s');
+    // Se anota el acento en cada fotograma, y cuándo está escrito en línea en
+    // <html> (lo que dura el cambio que hace src/scripts/accent.ts).
+    await page.evaluate(() => {
+      const w = window as unknown as { __accents: string[]; __inline: { t: number; on: boolean }[] };
+      w.__accents = [];
+      w.__inline = [];
+      const sample = () => {
+        w.__accents.push(getComputedStyle(document.documentElement).getPropertyValue('--accent').trim());
+        requestAnimationFrame(sample);
+      };
+      requestAnimationFrame(sample);
+      new MutationObserver(() => {
+        const on = document.documentElement.style.getPropertyValue('--accent') !== '';
+        if (w.__inline.at(-1)?.on !== on) w.__inline.push({ t: performance.now(), on });
+      }).observe(document.documentElement, { attributes: true, attributeFilter: ['style'] });
+    });
+    if (isMobile(testInfo)) await openMobileMenu(page);
+    await menuLink(page, 'archive').click();
+    await expectAccent(page, 'rgb(0, 255, 0)');
+    await expect.poll(() => page.evaluate(() => document.documentElement.style.getPropertyValue('--accent'))).toBe('');
+    const { accents, inline } = await page.evaluate(() => {
+      const w = window as unknown as { __accents: string[]; __inline: { t: number; on: boolean }[] };
+      return { accents: w.__accents, inline: w.__inline };
+    });
+    // Pasa por colores intermedios (cuántos depende de la velocidad de la
+    // máquina), siempre sobre la línea del rosa al verde: el verde solo sube.
+    const middle = accents.filter((a) => a !== 'rgb(255, 0, 255)' && a !== 'rgb(0, 255, 0)');
+    expect(middle.length, accents.join(' | ')).toBeGreaterThan(0);
+    const green = accents.map((a) => Number(/rgb\(\d+, (\d+)/.exec(a)![1]));
+    expect(green, accents.join(' | ')).toEqual([...green].sort((a, b) => a - b));
+    for (const color of middle) {
+      const [r, g, b] = /rgb\((\d+), (\d+), (\d+)\)/.exec(color)!.slice(1).map(Number);
+      expect(Math.abs(r! + g! - 255), color).toBeLessThanOrEqual(1);
+      expect(r, color).toBe(b);
+    }
+    // Dura ~0,9 s: desde que se pone el color en línea hasta que se quita.
+    const start = inline.find((i) => i.on)!;
+    const end = inline.findLast((i) => !i.on)!;
+    expect(end.t - start.t).toBeGreaterThanOrEqual(850);
+    expect(end.t - start.t).toBeLessThan(2_500);
   });
 
   test('una ruta desconocida da 404 dentro del layout', async ({ page }) => {

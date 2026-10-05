@@ -3,7 +3,8 @@
  * sin que Pau o Luna lo pidan.
  */
 
-/* Registrar el acento permite animar su cambio (0,5 s) al cambiar de sección. */
+/* Registrar el acento permite animar su cambio al cambiar de sección cuando no
+   hay JS (con JS lo hace src/scripts/accent.ts). */
 @property --accent {
   syntax: '<color>';
   inherits: true;
@@ -119,7 +120,8 @@
 
     /* --- Movimiento (§4.3) --- */
     --ease-slide: cubic-bezier(0.2, 0.7, 0.2, 1);
-    --dur-accent: 500ms;
+    /* Cambio de color de sección (Luna, 05-10-2026: más lento, antes 500 ms). */
+    --dur-accent: 900ms;
     --dur-hover: 150ms;
     --dur-mobile: 300ms;
   }

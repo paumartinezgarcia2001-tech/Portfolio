@@ -35,9 +35,15 @@ export const PIXEL = {
     enabled: true,
     /** Lado de cada cuadrado, en px. */
     block: 24,
-    /** ms que tarda en llenarse de cuadrados la pantalla que se deja. */
-    coverDuration: 450,
-    /** ms que tardan en desaparecer los cuadrados sobre la página nueva. */
-    revealDuration: 450,
+    /**
+     * ms que tarda en llenarse de cuadrados la pantalla que se deja (Luna,
+     * 05-10-2026: el doble de lento, antes 450).
+     */
+    coverDuration: 900,
+    /**
+     * ms que tardan en desaparecer los cuadrados sobre la página nueva. Igual
+     * que `--dur-accent`: el color termina de cambiar cuando se ve la página.
+     */
+    revealDuration: 900,
   },
 } as const;
