@@ -106,13 +106,20 @@
 /* C11c · Transición de píxeles (src/scripts/pixel-transition.ts)           */
 /* ------------------------------------------------------------------------ */
 @layer components {
-  /* Dentro de #panel; cada píxel del canvas es un cuadrado de 24 px. */
+  /* Cada píxel del canvas es un cuadrado de 24 px. El despixelado va dentro
+     de #panel; el pixelado de la pantalla que se deja, fijo encima de ella
+     (`--screen`, con su caja puesta por JS). */
   .pixel-transition {
     position: absolute;
     inset: 0;
     z-index: var(--z-pixel-transition);
     overflow: hidden;
     pointer-events: none;
+  }
+
+  .pixel-transition--screen {
+    position: fixed;
+    inset: auto;
   }
 
   .pixel-transition canvas {
@@ -132,8 +139,9 @@
 /* C08 · Transición de sección (View Transitions + ClientRouter)            */
 /* ------------------------------------------------------------------------ */
 @layer components {
-  /* En escritorio, el panel nuevo sale de detrás del menú y se desliza a la
-     derecha. La columna izquierda, el overlay y el cursor quedan encima. */
+  /* Sin deslizamiento (Luna, 05-10-2026): el cambio de panel lo tapa la
+     transición de píxeles (C11c). La columna izquierda, el overlay y el cursor
+     quedan encima del panel. */
   @media (min-width: 1024px) {
     #left {
       view-transition-name: left-column;
@@ -167,13 +175,10 @@
     z-index: 4;
   }
 
-  /* El panel viejo se queda quieto debajo; el nuevo lo va tapando. */
-  ::view-transition-old(panel) {
-    animation: none;
-  }
-
+  /* El panel nuevo sustituye al viejo de golpe: llega ya pixelado. */
+  ::view-transition-old(panel),
   ::view-transition-new(panel) {
-    animation: panel-in var(--dur-slide) var(--ease-slide) both;
+    animation: none;
   }
 
   /* Elementos persistentes: se muestra solo la imagen viva, sin fundido. */
@@ -189,16 +194,6 @@
   ::view-transition-new(cursor) {
     animation: none;
     mix-blend-mode: normal;
-  }
-
-  @keyframes panel-in {
-    from {
-      transform: translateX(-100%);
-    }
-
-    to {
-      transform: translateX(0);
-    }
   }
 
   @media (prefers-reduced-motion: reduce) {

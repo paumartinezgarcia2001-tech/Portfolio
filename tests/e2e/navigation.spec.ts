@@ -210,7 +210,7 @@ test.describe('Móvil', () => {
     await expect(backButton(page)).toHaveAttribute('aria-label', 'Volver al menú');
   });
 
-  test('el menú entra y sale deslizándose (300 ms)', async ({ page }) => {
+  test('el botón atrás desliza el menú (300 ms); al elegir una sección se quita sin deslizarse', async ({ page }) => {
     await page.goto('/');
     // Arranca en el menú (D44): primero se cierra para verlo entrar.
     await backButton(page).click();
@@ -241,10 +241,13 @@ test.describe('Móvil', () => {
     await expect.poll(records).toContainEqual({ view: 'menu', duration: 300 });
     await expect(menu(page)).toBeInViewport({ ratio: 0.9 });
 
-    // Salida al elegir otra sección (la columna persiste entre páginas).
+    // Al elegir otra sección, el menú queda tapado por los píxeles (C11c) y se
+    // quita de golpe: sin barrido (Luna, 05-10-2026). La columna persiste.
     await menuLink(page, 'contact').click();
     await expect(page.locator('html')).toHaveAttribute('data-section', 'contact');
-    await expect.poll(async () => (await records()).at(-1)).toEqual({ view: 'page', duration: 300 });
+    await expect(page.locator('html')).toHaveAttribute('data-view', 'page');
+    const afterNavigation = (await records()).filter((r) => r.view === 'page').at(-1);
+    expect(afterNavigation).toEqual({ view: 'page', duration: null });
     await expect(menu(page)).toBeHidden();
   });
 

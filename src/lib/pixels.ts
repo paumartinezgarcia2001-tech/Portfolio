@@ -24,7 +24,10 @@ export function shuffledOrder(n: number, random: () => number = Math.random): Ui
   return order;
 }
 
-/** Cuántos cuadrados tienen que haber desaparecido a los `elapsed` ms (reparto lineal). */
+/**
+ * Cuántos cuadrados tienen que haber cambiado (aparecido al pixelar o
+ * desaparecido al despixelar) a los `elapsed` ms (reparto lineal).
+ */
 export function clearedCount(elapsed: number, duration: number, total: number): number {
   if (duration <= 0) return total;
   return Math.min(total, Math.max(0, Math.floor((elapsed / duration) * total)));

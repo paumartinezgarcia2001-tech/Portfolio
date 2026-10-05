@@ -133,7 +133,7 @@ test.describe('Layout', () => {
     expect(await page.locator('#left').evaluate((el) => el.getBoundingClientRect().top)).toBe(0);
   });
 
-  test('la transición dura 0,5 s y el panel entra por debajo del menú', async ({ page }) => {
+  test('sin deslizamiento: la view transition no anima nada y el panel queda por debajo del menú', async ({ page }) => {
     await page.goto('/');
     await page.evaluate(() => {
       const w = window as unknown as { __vt: unknown[] };
@@ -168,14 +168,12 @@ test.describe('Layout', () => {
       zPanel: string;
       zOverlay: string;
     };
-    const slide = record.animations.find((a) => a.pseudo === '::view-transition-new(panel)');
-    expect(slide, JSON.stringify(record.animations)).toBeDefined();
-    expect(slide!.duration).toBe(500);
     expect(Number(record.zLeft)).toBeGreaterThan(Number(record.zPanel));
     expect(Number(record.zOverlay)).toBeGreaterThan(Number(record.zLeft));
-    // Nada más se anima: ni el menú ni la raíz parpadean.
-    const others = record.animations.filter((a) => a.pseudo && a.pseudo !== '::view-transition-new(panel)');
-    expect(others, JSON.stringify(others)).toHaveLength(0);
+    // Ninguna animación en la view transition (Luna, 05-10-2026): ni el panel
+    // se desliza ni el menú o la raíz parpadean. El cambio lo tapan los píxeles (C11c).
+    const viewTransition = record.animations.filter((a) => a.pseudo?.startsWith('::view-transition'));
+    expect(viewTransition, JSON.stringify(viewTransition)).toHaveLength(0);
   });
 
   test('sin movimiento con prefers-reduced-motion', async ({ browser }) => {

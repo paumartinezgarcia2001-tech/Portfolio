@@ -5,8 +5,12 @@
  * nítido. Por eso ya no hay ajustes de `media`.
  *
  * La rejilla LCD (C11a) está **apagada** (Luna, 04-10-2026): con su
- * transparencia ensuciaba toda la web. La transición de píxeles al cambiar de
- * apartado (C11c) sigue igual. Para recuperarla: `overlay.enabled: true`.
+ * transparencia ensuciaba toda la web. Para recuperarla: `overlay.enabled: true`.
+ *
+ * Transición de píxeles (C11c), revisada el 05-10-2026 (Luna): sin
+ * deslizamiento. Primero se pixela la pantalla vieja y, cuando está llena, se
+ * despixela mostrando la nueva. El color sigue al acento (como la barra de
+ * noticias).
  */
 export const PIXEL = {
   /** Interruptor general de los efectos. */
@@ -26,12 +30,14 @@ export const PIXEL = {
      */
     opacity: 0.12,
   },
-  /** C11c · transición de píxeles al entrar en una sección. */
+  /** C11c · transición de píxeles al cambiar de sección. */
   transition: {
     enabled: true,
     /** Lado de cada cuadrado, en px. */
     block: 24,
-    /** Duración en ms (el deslizamiento del panel dura 500). */
-    duration: 450,
+    /** ms que tarda en llenarse de cuadrados la pantalla que se deja. */
+    coverDuration: 450,
+    /** ms que tardan en desaparecer los cuadrados sobre la página nueva. */
+    revealDuration: 450,
   },
 } as const;

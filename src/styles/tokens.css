@@ -116,7 +116,6 @@
     --z-cursor: 60;
 
     /* --- Movimiento (§4.3) --- */
-    --dur-slide: 500ms;
     --ease-slide: cubic-bezier(0.2, 0.7, 0.2, 1);
     --dur-accent: 500ms;
     --dur-hover: 150ms;

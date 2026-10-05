@@ -6,7 +6,7 @@
 import type { TransitionBeforeSwapEvent } from 'astro:transitions/client';
 import { DESKTOP_MEDIA_QUERY, type MobileView } from '../config/site';
 import { runPageCleanups } from './lifecycle';
-import './pixel-transition';
+import { pixelTransitionActive } from './pixel-transition';
 
 const root = document.documentElement;
 const desktop = window.matchMedia(DESKTOP_MEDIA_QUERY);
@@ -113,9 +113,14 @@ let closingMenu = false;
 let pendingTransition: ViewTransition | undefined;
 
 function onBeforeSwap(event: TransitionBeforeSwapEvent): void {
-  // ¿Se navega desde el menú abierto en móvil? Entonces hay que animar su salida.
-  closingMenu = !desktop.matches && currentView() === 'menu';
+  const menuOpen = !desktop.matches && currentView() === 'menu';
   pendingTransition = event.viewTransition;
+  // Con la transición de píxeles (C11c), el menú abierto ya está tapado por
+  // los cuadrados: se quita de golpe, sin deslizarse (Luna, 05-10-2026).
+  // Sin ella (p. ej. con `prefers-reduced-motion`), se anima su salida.
+  const pixels = pixelTransitionActive();
+  closingMenu = menuOpen && !pixels;
+  if (menuOpen && pixels) hideMenuWithoutSlide(event.viewTransition);
   // El ClientRouter copia los atributos del <html> nuevo, que trae la vista de
   // arranque (el menú en móvil, D44). Navegar deja a la vista la página (§6);
   // si se sale del menú abierto, se mantiene abierto durante el cambio y
@@ -126,6 +131,20 @@ function onBeforeSwap(event: TransitionBeforeSwapEvent): void {
 
 function nextFrames(): Promise<void> {
   return new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+}
+
+/**
+ * Móvil: la capa del menú (persistente) sale sin su deslizamiento de 300 ms.
+ * Se le quita la transición de `left` durante el cambio de página y se le
+ * devuelve después, para que el botón atrás la siga animando.
+ */
+function hideMenuWithoutSlide(transition: ViewTransition | undefined): void {
+  const left = document.getElementById('left');
+  if (!left) return;
+  left.style.transition = 'none';
+  void (transition ? transition.finished.catch(() => undefined) : Promise.resolve())
+    .then(nextFrames)
+    .then(() => left.style.removeProperty('transition'));
 }
 
 function onAfterSwap(): void {
