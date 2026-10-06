@@ -47,6 +47,7 @@ export const ADMIN_FIELD_ERRORS = {
   titleRequired: 'Escribe un título.',
   pathInvalid: 'Tiene que ser una ruta del bucket (p. ej. video/…/master.m3u8) o una URL https.',
   jsonInvalid: 'No es un bloque válido: pégalo tal cual lo imprime el script.',
+  colorInvalid: 'Escribe un color en formato #RRGGBB (p. ej. #ff00ff).',
 } as const;
 
 /** Límites (los mismos que las restricciones de la base de datos, §7.1). */
@@ -81,6 +82,7 @@ export const ADMIN_PAGES = [
   { key: 'mixes', path: 'mixes', label: 'mixes' },
   { key: 'info', path: 'info', label: 'info' },
   { key: 'video', path: 'video', label: 'vídeo' },
+  { key: 'colors', path: 'colores', label: 'colores' },
 ] as const;
 
 export type AdminPageKey = (typeof ADMIN_PAGES)[number]['key'];

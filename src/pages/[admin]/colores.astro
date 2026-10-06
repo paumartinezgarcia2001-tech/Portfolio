@@ -1,0 +1,267 @@
+---
+/**
+ * C19 · Colores de la web desde el panel (Luna, 06-10-2026): los cinco de las
+ * secciones, los dos fondos y el del reproductor, que puede tener color propio
+ * o seguir el de cada sección (como la barra de noticias y el rotulador).
+ *
+ * Se guarda en `site_settings.theme` (migración 0007). Mientras esté vacío, la
+ * web usa los colores del código (src/config/theme.ts y src/styles/tokens.css).
+ * La vista previa y los avisos de contraste se actualizan al momento
+ * (src/scripts/admin/theme.ts).
+ */
+import { ADMIN_TEXT } from '../../config/admin';
+import { DEFAULT_THEME, THEME_FIELDS, THEME_MIN_CONTRAST, THEME_MIN_ICON_CONTRAST } from '../../config/theme';
+import { SECTIONS } from '../../config/sections';
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import LoginScreen from '../../components/admin/LoginScreen.astro';
+import { getAdminSettings } from '../../lib/admin/data';
+import { adminPage } from '../../lib/admin/page';
+import { parseStoredTheme, themeContrastIssues } from '../../lib/theme';
+
+export const prerender = false;
+
+const page = adminPage(Astro);
+if (page.redirect) return page.redirect;
+
+const settings = page.signedIn && page.supabase ? await getAdminSettings(page.supabase) : null;
+const stored = parseStoredTheme(settings?.data?.theme);
+const theme = stored ?? DEFAULT_THEME;
+const issues = themeContrastIssues(theme);
+const groups = [
+  {
+    key: 'sections',
+    title: 'secciones',
+    help: 'Cada sección tiene su color: el de la barra vertical de noticias, el del ítem del menú, el del rotulador y el de la transición de píxeles.',
+  },
+  {
+    key: 'backgrounds',
+    title: 'fondos',
+    help: 'El texto usa los fondos al revés: el texto del menú es el fondo de la página y el de la página (y el de encima de los colores de las secciones) es el fondo del menú. Así siempre combinan.',
+  },
+] as const;
+const previewStyle = THEME_FIELDS.map((field) => `--p-${field.key}: ${theme[field.key]}`).join('; ');
+---
+
+{
+  !page.signedIn ? (
+    <AdminLayout title="entrar">
+      <LoginScreen error={page.error} />
+    </AdminLayout>
+  ) : (
+    <AdminLayout title="colores" current="colors">
+      <main class="a-main" id="main">
+        <h1 class="a-title">colores</h1>
+        {settings && !settings.ok && <p class="a-alert">{ADMIN_TEXT.loadFailed}</p>}
+        <p class="a-lead">
+          {stored
+            ? 'La web usa los colores guardados desde aquí.'
+            : 'La web usa los colores originales. Al guardar, pasa a usar los de aquí.'}
+        </p>
+
+        <form
+          method="post"
+          class="a-form a-theme"
+          data-admin-form="updateTheme"
+          data-redirect={Astro.url.pathname}
+          data-theme-editor
+          novalidate
+        >
+          <div class="a-theme__fields">
+            {groups.map((group) => (
+              <section class="a-section a-theme__group" role="group" aria-labelledby={`theme-${group.key}-title`}>
+                <h2 class="a-section__title" id={`theme-${group.key}-title`}>
+                  {group.title}
+                </h2>
+                <p class="a-help">{group.help}</p>
+                <div class="a-grid a-theme__colors">
+                  {THEME_FIELDS.filter((field) => field.group === group.key).map((field) => (
+                    <div class="a-field" data-field={field.key}>
+                      <label class="a-label" for={`theme-${field.key}`}>
+                        {field.label}
+                      </label>
+                      <div class="a-color">
+                        <input
+                          class="a-color__picker"
+                          type="color"
+                          value={theme[field.key]}
+                          aria-label={`${field.label}: elegir en la paleta`}
+                          data-color-picker={field.key}
+                        />
+                        <input
+                          class="a-input a-color__hex"
+                          id={`theme-${field.key}`}
+                          name={field.key}
+                          type="text"
+                          inputmode="text"
+                          autocomplete="off"
+                          spellcheck="false"
+                          maxlength="7"
+                          value={theme[field.key]}
+                          data-color-hex={field.key}
+                        />
+                        <button
+                          class="a-btn a-btn--ghost a-btn--small"
+                          type="button"
+                          data-color-default={DEFAULT_THEME[field.key]}
+                          data-color-target={field.key}
+                        >
+                          original
+                        </button>
+                      </div>
+                      <p class="a-field__error" data-error-for={field.key} hidden />
+                    </div>
+                  ))}
+                </div>
+              </section>
+            ))}
+
+            <section class="a-section a-theme__group" role="group" aria-labelledby="theme-player-title">
+              <h2 class="a-section__title" id="theme-player-title">
+                reproductor
+              </h2>
+              <p class="a-help">
+                El color de los botones del reproductor al pasar el ratón y, en el móvil, el de la mini-barra de abajo
+                (siempre).
+              </p>
+              <label class="a-check">
+                <input
+                  type="checkbox"
+                  name="reproductorSigueSeccion"
+                  checked={theme.playerFollowsSection}
+                  data-player-follows
+                />
+                usar el color de cada sección (como la barra y el rotulador)
+              </label>
+              <div class="a-field" data-field="player" data-player-own hidden={theme.playerFollowsSection}>
+                <label class="a-label" for="theme-player">
+                  color propio del reproductor
+                </label>
+                <div class="a-color">
+                  <input
+                    class="a-color__picker"
+                    type="color"
+                    value={theme.player}
+                    aria-label="reproductor: elegir en la paleta"
+                    data-color-picker="player"
+                  />
+                  <input
+                    class="a-input a-color__hex"
+                    id="theme-player"
+                    name="player"
+                    type="text"
+                    autocomplete="off"
+                    spellcheck="false"
+                    maxlength="7"
+                    value={theme.player}
+                    data-color-hex="player"
+                  />
+                  <button
+                    class="a-btn a-btn--ghost a-btn--small"
+                    type="button"
+                    data-color-default={DEFAULT_THEME.player}
+                    data-color-target="player"
+                  >
+                    original
+                  </button>
+                </div>
+                <p class="a-field__error" data-error-for="player" hidden />
+              </div>
+            </section>
+          </div>
+
+          <section class="a-section a-theme__aside" aria-labelledby="theme-preview-title">
+            <h2 class="a-section__title" id="theme-preview-title">
+              vista previa
+            </h2>
+            <p class="a-help">Toca una sección del menú de la vista previa para ver sus colores.</p>
+            <div
+              class="a-theme-preview"
+              style={previewStyle}
+              data-theme-preview
+              data-section="info"
+              data-player-follows={theme.playerFollowsSection ? '' : undefined}
+            >
+              <div class="a-theme-preview__left">
+                <span class="a-theme-preview__ticker" aria-hidden="true">
+                  travest15m0 · DJ · Madrid
+                </span>
+                <ul class="a-theme-preview__menu" role="list">
+                  {SECTIONS.map((section) => (
+                    <li>
+                      <button
+                        type="button"
+                        class="a-theme-preview__item"
+                        style={`--item: var(--p-${section.key})`}
+                        data-preview-section={section.key}
+                        aria-pressed={section.key === 'info' ? 'true' : 'false'}
+                      >
+                        {section.label}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+                <p class="a-theme-preview__player" aria-label="reproductor">
+                  <span aria-hidden="true">⏮ ⏸ ⏭</span>
+                </p>
+              </div>
+              <div class="a-theme-preview__panel">
+                <p class="a-theme-preview__date">
+                  <span class="a-theme-preview__hl">30 SEPTIEMBRE 2099</span>
+                </p>
+                <p class="a-theme-preview__text">SALA, Madrid · texto de la página</p>
+                <p class="a-theme-preview__mini" aria-label="mini-barra del reproductor en el móvil">
+                  <span aria-hidden="true">⏮ ⏸ ⏭</span>
+                </p>
+              </div>
+            </div>
+
+            <div class="a-theme__contrast" data-contrast aria-live="polite">
+              {issues.length > 0 ? (
+                <div class="a-alert">
+                  <p>
+                    Se leería mal (contraste por debajo de {THEME_MIN_CONTRAST}:1 en textos y {THEME_MIN_ICON_CONTRAST}:1 en iconos). Se puede guardar igualmente:
+                  </p>
+                  <ul>
+                    {issues.map((issue) => (
+                      <li>
+                        {issue.label}: {issue.ratio}:1
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : (
+                <p class="a-alert a-alert--ok">Todos los textos se leen bien.</p>
+              )}
+            </div>
+          </section>
+
+          <div class="a-actions a-theme__actions">
+            <button class="a-btn" type="submit" data-submit>
+              guardar
+            </button>
+          </div>
+        </form>
+
+        {stored && (
+          <section class="a-section" aria-labelledby="theme-restore-title">
+            <h2 class="a-section__title" id="theme-restore-title">
+              volver a los originales
+            </h2>
+            <form
+              method="post"
+              data-admin-form="resetTheme"
+              data-redirect={Astro.url.pathname}
+              data-confirm="¿Volver a los colores originales? Se pierden los colores guardados desde el panel."
+              data-confirm-label="volver a los originales"
+            >
+              <input type="hidden" name="restaurar" value="true" />
+              <button class="a-btn a-btn--ghost" type="submit">
+                usar los colores originales
+              </button>
+            </form>
+          </section>
+        )}
+      </main>
+    </AdminLayout>
+  )
+}

@@ -24,6 +24,8 @@ export interface AdminSettings {
   ticker_append_next_gig: boolean;
   info_markdown: string | null;
   video: unknown;
+  /** Colores (migración 0007); `undefined` si aún no existe la columna. */
+  theme?: unknown;
   updated_at: string;
 }
 
@@ -52,7 +54,8 @@ function warn(label: string, error: { message: string } | null): void {
 export async function getAdminSettings(supabase: TypedSupabaseClient): Promise<Loaded<AdminSettings | null>> {
   const { data, error } = await supabase
     .from('site_settings')
-    .select('ticker_text, ticker_append_next_gig, info_markdown, video, updated_at')
+    // `*`: si la migración de los colores (0007) aún no está, no falla.
+    .select('*')
     .eq('id', 1)
     .maybeSingle();
   warn('ajustes', error);

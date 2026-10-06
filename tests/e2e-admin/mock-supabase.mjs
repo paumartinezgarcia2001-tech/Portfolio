@@ -74,6 +74,7 @@ function seed() {
           ticker_append_next_gig: true,
           info_markdown: null,
           video: null,
+          theme: null,
           updated_at: now,
           updated_by: null,
         },

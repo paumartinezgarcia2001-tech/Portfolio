@@ -4,7 +4,7 @@
  * (roles `anon`/`authenticated`, `auth.users`, `auth.uid()`, `auth.jwt()` y
  * `auth.mfa_factors`).
  *
- * - Aplica supabase/migrations/0001…0006 en orden (si alguna no compila, falla).
+ * - Aplica supabase/migrations/0001…0007 en orden (si alguna no compila, falla).
  * - Ejecuta supabase/tests/rls.sql (la misma comprobación que se pega en el
  *   SQL Editor de Supabase) con y sin administradora.
  * - Comprueba `updated_by` (0005) y que, desde 0006 (D61), una cuenta con un
@@ -170,6 +170,21 @@ describe('migraciones y RLS (PGlite)', { timeout: 60_000 }, () => {
     await expect(db.exec(`update public.site_settings set info_markdown = repeat('x', 20001)`)).rejects.toThrow(
       /site_settings_info_markdown_check/,
     );
+    await db.close();
+  });
+
+  it('colores del panel en site_settings.theme (0007)', async () => {
+    const db = await database();
+    await db.exec(`update public.site_settings set theme = '{"info":"#ff0000","playerFollowsSection":true}'::jsonb`);
+    const row = await db.query<{ theme: { info: string } }>('select theme from public.site_settings');
+    expect(row.rows[0]!.theme.info).toBe('#ff0000');
+    await expect(db.exec(`update public.site_settings set theme = '["#ff0000"]'::jsonb`)).rejects.toThrow(
+      /site_settings_theme_check/,
+    );
+    await expect(
+      db.exec(`update public.site_settings set theme = jsonb_build_object('x', repeat('a', 3000))`),
+    ).rejects.toThrow(/site_settings_theme_check/);
+    await db.exec(`update public.site_settings set theme = null`);
     await db.close();
   });
 });

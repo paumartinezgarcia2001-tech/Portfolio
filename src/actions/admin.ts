@@ -44,6 +44,8 @@ import {
   mixDeleteSchema,
   mixUpdateSchema,
   mixUploadSchema,
+  themeRestoreSchema,
+  themeSchema,
   tickerSchema,
   toGigWrite,
   venueKey,
@@ -53,6 +55,7 @@ import {
 } from '../lib/admin/schemas';
 import type { AdminSession } from '../lib/admin/session';
 import { buildVideoConfig, parseStoredVideo, toStoredVideo } from '../lib/admin/video';
+import { isDefaultTheme, toStoredTheme } from '../lib/theme';
 import { formatEventDate } from '../lib/dates';
 import { createSupabaseServerClient, isSupabaseConfigured, type TypedSupabaseClient } from '../lib/supabase/server';
 
@@ -316,6 +319,43 @@ export const admin = {
       if (error || !data?.length) saveFailed('guardar el vídeo', error);
       await invalidatePublicCache(context, [CACHE_TAGS.settings]);
       return saved(input.restaurar ? 'Vuelve a estar el vídeo del código.' : TEXT.saved);
+    },
+  }),
+
+  // -------------------------------------------- colores (Luna, 06-10-2026)
+  updateTheme: defineAction({
+    accept: 'form',
+    input: themeSchema,
+    handler: async (input, context) => {
+      const { supabase, session } = await requireAdmin(context);
+      const { reproductorSigueSeccion, ...colors } = input;
+      const theme = { ...colors, playerFollowsSection: reproductorSigueSeccion };
+      // Si coincide con los del código, se guarda vacío (la web usa tokens.css).
+      const stored = isDefaultTheme(theme) ? null : toStoredTheme(theme);
+      const { data, error } = await supabase
+        .from('site_settings')
+        .update({ theme: stored as never, updated_by: session.userId })
+        .eq('id', 1)
+        .select('id');
+      if (error || !data?.length) saveFailed('guardar los colores', error);
+      await invalidatePublicCache(context, [CACHE_TAGS.settings]);
+      return saved();
+    },
+  }),
+
+  resetTheme: defineAction({
+    accept: 'form',
+    input: themeRestoreSchema,
+    handler: async (_input, context) => {
+      const { supabase, session } = await requireAdmin(context);
+      const { data, error } = await supabase
+        .from('site_settings')
+        .update({ theme: null, updated_by: session.userId })
+        .eq('id', 1)
+        .select('id');
+      if (error || !data?.length) saveFailed('restaurar los colores', error);
+      await invalidatePublicCache(context, [CACHE_TAGS.settings]);
+      return saved('Vuelven a estar los colores originales.');
     },
   }),
 

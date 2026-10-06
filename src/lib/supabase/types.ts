@@ -123,6 +123,7 @@ export type Database = {
           id: number;
           info_markdown: string | null;
           ticker_append_next_gig: boolean;
+          theme: Json | null;
           ticker_text: string;
           updated_at: string;
           updated_by: string | null;
@@ -132,6 +133,7 @@ export type Database = {
           id?: number;
           info_markdown?: string | null;
           ticker_append_next_gig?: boolean;
+          theme?: Json | null;
           ticker_text?: string;
           updated_at?: string;
           updated_by?: string | null;
@@ -141,6 +143,7 @@ export type Database = {
           id?: number;
           info_markdown?: string | null;
           ticker_append_next_gig?: boolean;
+          theme?: Json | null;
           ticker_text?: string;
           updated_at?: string;
           updated_by?: string | null;

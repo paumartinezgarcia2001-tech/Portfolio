@@ -10,6 +10,7 @@
 import { z } from 'astro/zod';
 import { ADMIN_FIELD_ERRORS as MSG, ADMIN_LIMITS as LIMITS } from '../../config/admin';
 import { isIsoDate } from '../dates';
+import { isHexColor, normalizeHex } from '../color';
 import { charLength, normalizeTickerText } from '../ticker';
 
 // --------------------------------------------------------------------------
@@ -349,3 +350,30 @@ export const videoSchema = z.object({
   /** Volver al vídeo de src/config/media.ts (guarda `null`). */
   restaurar: z.boolean().optional(),
 });
+
+// --------------------------------------------------------------------------
+// Colores de la web (Luna, 06-10-2026)
+// --------------------------------------------------------------------------
+
+const themeColor = z
+  .string({ error: MSG.colorInvalid })
+  .trim()
+  .refine(isHexColor, MSG.colorInvalid)
+  .transform(normalizeHex);
+
+/** Formulario de «colores»: los ocho colores y si el reproductor sigue a la sección. */
+export const themeSchema = z.object({
+  info: themeColor,
+  next: themeColor,
+  media: themeColor,
+  archive: themeColor,
+  contact: themeColor,
+  menuBg: themeColor,
+  panelBg: themeColor,
+  player: themeColor,
+  /** Casilla «el reproductor usa el color de cada sección». */
+  reproductorSigueSeccion: z.boolean(),
+});
+
+/** Volver a los colores del código (guarda `null`). */
+export const themeRestoreSchema = z.object({ restaurar: z.boolean() });

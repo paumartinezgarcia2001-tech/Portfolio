@@ -12,6 +12,9 @@ import PixelOverlay from '../components/PixelOverlay.astro';
 import SeoHead from '../components/SeoHead.astro';
 import SplitShell from '../components/SplitShell.astro';
 import { CRT as CRT_CONFIG } from '../config/crt';
+import { DEFAULT_THEME } from '../config/theme';
+import { getSiteTheme } from '../lib/data';
+import { themeCss } from '../lib/theme';
 import type { SectionState } from '../config/sections';
 import { MOBILE_START_VIEW, SITE } from '../config/site';
 import { withBase } from '../lib/url';
@@ -31,6 +34,9 @@ interface Props {
 const { section, title, description, noindex, heading = title, headingLang } = Astro.props;
 // Lo carga src/middleware.ts; si no está (p. ej. en el 404 de un recurso), se usa el texto por defecto.
 const tickerText = Astro.locals.tickerText;
+// Colores elegidos en el panel (src/lib/theme.ts). Las secciones los traen del
+// middleware; el resto de páginas los pide aquí. `null` = los del código.
+const theme = Astro.locals.theme !== undefined ? Astro.locals.theme : await getSiteTheme();
 // Móvil: las secciones abren en el menú (D44); el 404 y las legales, en la página.
 const startView = section === 'none' ? 'page' : MOBILE_START_VIEW;
 ---
@@ -54,7 +60,9 @@ const startView = section === 'none' ? 'page' : MOBILE_START_VIEW;
     <SeoHead title={title} description={description} noindex={noindex}>
       <slot name="head" />
     </SeoHead>
-    <meta name="theme-color" content="#27272B" />
+    {/* Colores del panel: sin capa, mandan sobre src/styles/tokens.css. Solo lleva colores validados. */}
+    {theme && <style is:inline data-theme set:html={themeCss(theme)} />}
+    <meta name="theme-color" content={(theme ?? DEFAULT_THEME).menuBg} />
     <meta name="color-scheme" content="only light" />
     <link rel="icon" href={withBase('/favicon.svg')} type="image/svg+xml" />
     <ClientRouter />

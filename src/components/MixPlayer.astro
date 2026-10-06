@@ -201,6 +201,9 @@ const { labels } = PLAYER;
         padding: 0 var(--safe-right) var(--safe-bottom) var(--safe-left);
         border: 0;
         background: var(--c-menu-bg);
+        /* En la mini-barra no hay «pasar el ratón»: los botones van siempre del
+           color del reproductor (el del panel, o el de la sección). */
+        color: var(--c-player);
         /* La columna está oculta en la página; la barra no. */
         visibility: visible;
       }

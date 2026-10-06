@@ -21,10 +21,17 @@
  * Los enlaces de los textos en Markdown (`.prose a`) lo llevan sin clase.
  *
  * ⚠️ La textura pinta con el color del papel (#C5C7D6 = --c-panel-bg) lo que el
- * trazo no cubre, así que solo funciona sobre los paneles claros. Si cambia ese
- * color, cámbialo también en el SVG.
+ * trazo no cubre, así que solo funciona sobre el fondo de la página. Si ese
+ * fondo se cambia desde el panel (colores), src/lib/theme.ts genera la misma
+ * textura con el color nuevo (`--hl-texture`).
  */
 @layer components {
+  /* La textura, en una variable: si se cambia el fondo de la página desde el
+     panel, src/lib/theme.ts la redefine con ese color de papel. */
+  :root {
+    --hl-texture: url('../assets/highlighter.svg');
+  }
+
   :where(.hl, .prose a) {
     --hl-ink: var(--accent);
     --hl-paper: var(--c-panel-bg);
@@ -49,7 +56,7 @@
     text-decoration: none;
     /* De arriba abajo: bordes irregulares, pulso, puntas biseladas y el trazo. */
     background-image:
-      url('../assets/highlighter.svg'),
+      var(--hl-texture),
       linear-gradient(var(--hl-tilt), var(--hl-paper) 0 3%, transparent 9% 91%, var(--hl-paper) 97%),
       linear-gradient(104deg, var(--hl-paper) 0 0.09em, transparent 0.15em),
       linear-gradient(-76deg, var(--hl-paper) 0 0.07em, transparent 0.13em),
@@ -76,7 +83,7 @@
      extremos. Con la tinta opaca, el solape no se oscurece: color uniforme. */
   :where(.hl--double) {
     background-image:
-      url('../assets/highlighter.svg'),
+      var(--hl-texture),
       linear-gradient(var(--hl-tilt), var(--hl-paper) 0 3%, transparent 9% 91%, var(--hl-paper) 97%),
       linear-gradient(104deg, var(--hl-paper) 0 0.09em, transparent 0.15em),
       linear-gradient(-76deg, var(--hl-paper) 0 0.07em, transparent 0.13em),

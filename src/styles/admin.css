@@ -575,6 +575,179 @@
     text-decoration: none;
   }
 
+  /* ------------------------------------------------------------ colores */
+  .a-theme {
+    gap: calc(var(--pad) * 1.5);
+  }
+
+  .a-theme__fields {
+    display: grid;
+    gap: calc(var(--pad) * 1.5);
+  }
+
+  /* Dos columnas solo si caben la paleta, el código entero y «original». */
+  .a-theme__colors {
+    grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
+  }
+
+  /* Paleta + código + «original» en una fila. */
+  .a-color {
+    display: grid;
+    grid-template-columns: 3rem minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .a-color__picker {
+    width: 3rem;
+    height: 44px;
+    padding: 0;
+    border: var(--rule-w) solid var(--c-panel-fg);
+    background: none;
+    cursor: pointer;
+  }
+
+  .a-color__hex {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    text-transform: lowercase;
+  }
+
+  /* Vista previa: una web en miniatura con los colores del formulario
+     (`--p-*`, los pone src/scripts/admin/theme.ts). */
+  .a-theme-preview {
+    --p-accent: var(--p-info);
+    --p-player-color: var(--p-player);
+
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    min-height: 16rem;
+    overflow: hidden;
+    border: var(--rule-w) solid var(--c-panel-fg);
+    font-family: var(--font-sans);
+  }
+
+  .a-theme-preview[data-section='next'] {
+    --p-accent: var(--p-next);
+  }
+  .a-theme-preview[data-section='media'] {
+    --p-accent: var(--p-media);
+  }
+  .a-theme-preview[data-section='archive'] {
+    --p-accent: var(--p-archive);
+  }
+  .a-theme-preview[data-section='contact'] {
+    --p-accent: var(--p-contact);
+  }
+
+  .a-theme-preview[data-player-follows] {
+    --p-player-color: var(--p-accent);
+  }
+
+  .a-theme-preview__left {
+    position: relative;
+    display: grid;
+    align-content: start;
+    gap: 0.25rem;
+    padding: 0.5rem 0.5rem 0.5rem 2.25rem;
+    background: var(--p-menuBg);
+    color: var(--p-panelBg);
+  }
+
+  .a-theme-preview__ticker {
+    position: absolute;
+    inset-block: 0;
+    left: 0;
+    width: 1.5rem;
+    overflow: hidden;
+    background: var(--p-accent);
+    color: var(--p-menuBg);
+    font-size: 0.75rem;
+    line-height: 1.5rem;
+    white-space: nowrap;
+    writing-mode: vertical-rl;
+  }
+
+  .a-theme-preview__menu {
+    display: grid;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .a-theme-preview__item {
+    width: 100%;
+    min-height: 32px;
+    padding: 0;
+    border: 0;
+    border-top: 1px solid color-mix(in srgb, var(--p-panelBg) 40%, transparent);
+    background: none;
+    color: inherit;
+    font: inherit;
+    font-size: 1.1rem;
+    font-weight: var(--fw-bold);
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .a-theme-preview__item:is([aria-pressed='true'], :hover) {
+    color: var(--item);
+  }
+
+  .a-theme-preview__player {
+    padding-top: 0.4rem;
+    border-top: 1px solid color-mix(in srgb, var(--p-panelBg) 40%, transparent);
+    color: var(--p-player-color);
+    font-size: 1.25rem;
+    text-align: center;
+  }
+
+  .a-theme-preview__panel {
+    position: relative;
+    display: grid;
+    align-content: start;
+    gap: 0.4rem;
+    padding: 0.75rem 0.75rem 3rem;
+    background: var(--p-panelBg);
+    color: var(--p-menuBg);
+    font-size: var(--fs-label);
+  }
+
+  .a-theme-preview__date {
+    font-size: 1.1rem;
+  }
+
+  .a-theme-preview__hl {
+    padding: 0 0.15em;
+    background: var(--p-accent);
+    color: var(--p-menuBg);
+  }
+
+  .a-theme-preview__mini {
+    position: absolute;
+    inset: auto 0 0;
+    padding: 0.5rem;
+    background: var(--p-menuBg);
+    color: var(--p-player-color);
+    font-size: 1.25rem;
+    text-align: center;
+  }
+
+  @media (min-width: 900px) {
+    .a-theme {
+      grid-template-columns: minmax(0, 1fr) minmax(0, 20rem);
+      align-items: start;
+    }
+
+    .a-theme__aside {
+      position: sticky;
+      top: 6rem;
+    }
+
+    .a-theme__actions {
+      grid-column: 1 / -1;
+    }
+  }
+
   /* -------------------------------------------------- vídeo: punto focal */
   .a-focus {
     position: relative;

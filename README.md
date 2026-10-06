@@ -316,7 +316,11 @@ pasos (D61)— desde la que Pau cambia, sin tocar código:
 - el **texto de Info** (Markdown sencillo: `## titulillo`, párrafos y
   `[enlaces](https://…)`), con vista previa y botón para volver al de `src/content/info.md`;
 - el **vídeo de Media**: punto focal, enlace «ver set completo» y, al preparar un vídeo
-  nuevo, el bloque que imprime `npm run media:hls`.
+  nuevo, el bloque que imprime `npm run media:hls`;
+- los **colores** (página «colores»): los cinco de las secciones, los dos fondos (el
+  texto usa los fondos al revés) y el del reproductor, con color propio o el de cada
+  sección. Vista previa al momento, aviso si algo se leería mal y botón para volver a
+  los originales. Se guardan en `site_settings.theme` (migración `0007_theme.sql`).
 
 **Cómo se entra.** En «usuario» vale el **email** de la cuenta de Supabase o un **alias**
 corto (por ejemplo `pau`): el secret `ADMIN_USERNAME` es el alias y `ADMIN_EMAIL` el email
@@ -338,7 +342,9 @@ GitHub Pages no existe.
 
 1. Aplicar las migraciones `supabase/migrations/0005_admin_panel.sql` (quién guarda cada
    cambio y límites de Info y vídeo) y `0006_drop_admin_mfa.sql` (quita lo de la
-   verificación en dos pasos que añadía la 0005), en ese orden, en el *SQL Editor*.
+   verificación en dos pasos que añadía la 0005), en ese orden, en el *SQL Editor*. Para
+   la página «colores», también `0007_theme.sql` (añade la columna `theme`; mientras no
+   esté, la web usa los colores del código y el panel no puede guardarlos).
 2. *Authentication → Sign In / Providers*: **desactivar** «Allow new users to sign up».
 3. *Authentication → Attack Protection*: el **CAPTCHA, desactivado** (si se activa,
    Supabase rechaza todos los logins del panel, que no manda token: sale «Supabase pide un

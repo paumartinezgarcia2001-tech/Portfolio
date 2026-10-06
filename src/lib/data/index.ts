@@ -14,6 +14,8 @@ import { MEDIA_VIDEO, type MediaVideoConfig } from '../../config/media';
 import { SITE } from '../../config/site';
 import { getCutoffDate } from '../dates';
 import { parseStoredVideo } from '../admin/video';
+import { parseStoredTheme } from '../theme';
+import type { Theme } from '../../config/theme';
 import { resolveMediaVideo, type ResolvedMediaVideo } from '../media';
 import { createSupabasePublicClient, isSupabaseConfigured } from '../supabase/server';
 import {
@@ -42,6 +44,8 @@ export type { DataResult, Gig, Mix, SiteSettings } from './core';
 interface SettingsRow {
   ticker_text: string;
   ticker_append_next_gig: boolean;
+  /** Colores del panel (migración 0007). Puede no existir si aún no se ha aplicado. */
+  theme?: unknown;
 }
 
 const useFixtures = DATA_SOURCE === 'fixtures';
@@ -150,39 +154,72 @@ export async function getNextGig(now: Date = new Date()): Promise<DataResult<Gig
   return checked({ data: first ? toGig(first) : null, ok: result.ok }, 'próxima fecha');
 }
 
+/**
+ * Fila de `site_settings`. Con `*` y no columna a columna: así, si la
+ * migración de los colores (0007) aún no se ha aplicado, no falla.
+ */
+async function getSettingsRow(): Promise<DataResult<SettingsRow | null>> {
+  const supabase = createSupabasePublicClient();
+  const result = await runQuery<SettingsRow | null>(
+    (signal) => supabase.from('site_settings').select('*').eq('id', 1).abortSignal(signal).maybeSingle(),
+    null,
+    { label: 'ajustes', timeoutMs },
+  );
+  return result.data ? result : { data: null, ok: false };
+}
+
+function toSettings(row: SettingsRow): SiteSettings {
+  return { tickerText: row.ticker_text, tickerAppendNextGig: row.ticker_append_next_gig };
+}
+
 /** Ajustes de la web (fila única de `site_settings`). */
 export async function getSettings(): Promise<DataResult<SiteSettings>> {
   if (useFixtures) return { data: FIXTURE_SETTINGS, ok: true };
   if (!isSupabaseConfigured()) return notConfigured(DEFAULT_SETTINGS);
+  const row = await getSettingsRow();
+  if (!row.data) return checked({ data: DEFAULT_SETTINGS, ok: false }, 'ajustes');
+  return checked({ data: toSettings(row.data), ok: row.ok }, 'ajustes');
+}
 
-  const supabase = createSupabasePublicClient();
-  const result = await runQuery<SettingsRow | null>(
-    (signal) =>
-      supabase
-        .from('site_settings')
-        .select('ticker_text, ticker_append_next_gig')
-        .eq('id', 1)
-        .abortSignal(signal)
-        .maybeSingle(),
-    null,
-    { label: 'ajustes', timeoutMs },
-  );
-  if (!result.data) return checked({ data: DEFAULT_SETTINGS, ok: false }, 'ajustes');
-  return checked(
-    {
-      data: { tickerText: result.data.ticker_text, tickerAppendNextGig: result.data.ticker_append_next_gig },
-      ok: result.ok,
-    },
-    'ajustes',
-  );
+function tickerFrom(settings: DataResult<SiteSettings>, nextGig: DataResult<Gig | null>): DataResult<string> {
+  const ok = settings.ok && nextGig.ok;
+  const base = settings.ok ? settings.data : { ...settings.data, tickerText: SITE.tickerText };
+  return { data: buildTickerText(base, nextGig.data, SITE.tickerText), ok };
 }
 
 /** Texto de la barra de noticias: ajustes + próxima fecha (C04). */
 export async function getTickerText(now: Date = new Date()): Promise<DataResult<string>> {
   const [settings, nextGig] = await Promise.all([getSettings(), getNextGig(now)]);
-  const ok = settings.ok && nextGig.ok;
-  const base = settings.ok ? settings.data : { ...settings.data, tickerText: SITE.tickerText };
-  return { data: buildTickerText(base, nextGig.data, SITE.tickerText), ok };
+  return tickerFrom(settings, nextGig);
+}
+
+export interface LayoutData {
+  /** Texto de la barra de noticias (C04). */
+  ticker: DataResult<string>;
+  /** Colores elegidos en el panel, o `null` (los del código). */
+  theme: Theme | null;
+}
+
+/**
+ * Lo que necesita el layout de todas las páginas públicas con una sola
+ * lectura de `site_settings`: la barra de noticias y los colores del panel.
+ */
+export async function getLayoutData(now: Date = new Date()): Promise<LayoutData> {
+  if (useFixtures || !isSupabaseConfigured()) {
+    return { ticker: await getTickerText(now), theme: null };
+  }
+  const [row, nextGig] = await Promise.all([getSettingsRow(), getNextGig(now)]);
+  const settings = row.data
+    ? checked({ data: toSettings(row.data), ok: row.ok }, 'ajustes')
+    : checked({ data: DEFAULT_SETTINGS, ok: false }, 'ajustes');
+  return { ticker: tickerFrom(settings, nextGig), theme: parseStoredTheme(row.data?.theme) };
+}
+
+/** Solo los colores del panel (páginas que no pasan por el middleware de las secciones). */
+export async function getSiteTheme(): Promise<Theme | null> {
+  if (useFixtures || !isSupabaseConfigured()) return null;
+  const row = await getSettingsRow();
+  return parseStoredTheme(row.data?.theme);
 }
 
 /**

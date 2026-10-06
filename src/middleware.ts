@@ -2,8 +2,8 @@
  * Middleware de la web.
  *
  * Web pública:
- * - Carga el texto de la barra de noticias y los mixes del reproductor (fase
- *   4), que viven en la columna izquierda de todas las páginas. También en
+ * - Carga el texto de la barra de noticias, los colores elegidos en el panel
+ *   y los mixes del reproductor (fase 4), que salen en todas las páginas. También en
  *   los POST: el formulario de contacto sin JavaScript (fase 5) vuelve a
  *   pintar la página con los errores.
  * - Fija la caché de las secciones públicas (src/config/cache.ts), solo en
@@ -27,7 +27,7 @@ import { PUBLIC_CACHE } from './config/cache';
 import { matchesAdminPath } from './lib/admin/access';
 import { openAdminContext } from './lib/admin/context';
 import { r2Endpoint } from './lib/admin/r2';
-import { getPublishedMixes, getTickerText } from './lib/data';
+import { getLayoutData, getPublishedMixes } from './lib/data';
 import { publicVar } from './lib/public-env';
 import { buildSecurityHeaders, withSecurityHeaders } from './lib/security-headers';
 
@@ -95,8 +95,9 @@ export const onRequest = defineMiddleware(async (context, next) => {
   const isSection = PUBLIC_SECTION_ROUTES.has(route);
 
   if (isSection || route === '/404') {
-    const [ticker, mixes] = await Promise.all([getTickerText(), getPublishedMixes()]);
+    const [{ ticker, theme }, mixes] = await Promise.all([getLayoutData(), getPublishedMixes()]);
     context.locals.tickerText = ticker.data;
+    context.locals.theme = theme;
     context.locals.mixes = mixes.data;
     if (isSection && isRead && context.cache.enabled) {
       if (ticker.ok && mixes.ok) context.cache.set(PUBLIC_CACHE);
