@@ -16,6 +16,9 @@
  * - Idempotente: no vuelve a subir lo que ya está con el mismo tamaño, el mismo
  *   ETag (MD5) y las mismas cabeceras.
  * - Se salta los archivos y carpetas que empiezan por «.» o «_» (p. ej. `_src/`).
+ * - Antes de subir nada, mide lo que ocupa el bucket y comprueba que lo nuevo
+ *   cabe en el límite de 10 GB (D64, el mismo que el panel). Si no cabe, no
+ *   sube nada.
  *
  * Variables (se leen de `.env` si existe): R2_ACCOUNT_ID, R2_ACCESS_KEY_ID,
  * R2_SECRET_ACCESS_KEY y R2_BUCKET (token de API de R2 con permiso de escritura
@@ -29,7 +32,8 @@ import { readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
-import { HeadObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { HeadObjectCommand, ListObjectsV2Command, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { STORAGE_LIMIT_BYTES, STORAGE_WARN_FRACTION, storageVerdict } from './lib/storage.mjs';
 import { CACHE_IMMUTABLE, contentTypeFor, etagMatches, formatBytes, objectKey } from './lib/video.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -160,14 +164,22 @@ let uploadedBytes = 0;
 let unchanged = 0;
 let failed = 0;
 
-/** @param {string} file */
-async function handle(file) {
+/**
+ * @typedef {{ file: string, key: string, size: number, contentType: string, digest: Buffer, replaces: number }} Pending
+ */
+
+/**
+ * ¿Hay que subirlo? (`null` si ya está igual en R2.)
+ * @param {string} file
+ * @returns {Promise<Pending | null>}
+ */
+async function plan(file) {
   const key = objectKey(path.relative(root, file), opts.prefix);
   const { size } = await stat(file);
   const contentType = contentTypeFor(file);
   const digest = await md5(file);
-
-  if (client && !opts.force) {
+  let replaces = 0;
+  if (client) {
     try {
       const head = await client.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
       const same =
@@ -175,23 +187,28 @@ async function handle(file) {
         etagMatches(head.ETag, digest.toString('hex')) &&
         head.ContentType === contentType &&
         head.CacheControl === CACHE_IMMUTABLE;
-      if (same) {
+      if (same && !opts.force) {
         unchanged++;
         console.log(`  = ${key}`);
-        return;
+        return null;
       }
+      replaces = head.ContentLength ?? 0;
     } catch (error) {
       if (!isNotFound(error)) throw error;
     }
   }
+  return { file, key, size, contentType, digest, replaces };
+}
 
+/** @param {Pending} item */
+async function upload(item) {
+  const { file, key, size, contentType, digest } = item;
   if (dryRun || !client) {
     uploaded++;
     uploadedBytes += size;
     console.log(`  ↑ ${key} (${formatBytes(size)}, ${contentType}) [simulación]`);
     return;
   }
-
   await client.send(
     new PutObjectCommand({
       Bucket: bucket,
@@ -209,20 +226,75 @@ async function handle(file) {
   console.log(`  ↑ ${key} (${formatBytes(size)})`);
 }
 
-// Cola con `concurrency` subidas a la vez.
-const queue = [...files];
-await Promise.all(
-  Array.from({ length: Math.min(concurrency, queue.length) }, async () => {
-    for (let file = queue.shift(); file; file = queue.shift()) {
-      try {
-        await handle(file);
-      } catch (error) {
-        failed++;
-        console.error(`  ✗ ${path.relative(root, file)}: ${/** @type {Error} */ (error).message}`);
+/**
+ * `concurrency` tareas a la vez.
+ * @template T, R
+ * @param {T[]} items
+ * @param {(item: T) => Promise<R>} task
+ * @param {(item: T) => string} label
+ * @returns {Promise<R[]>}
+ */
+async function pool(items, task, label) {
+  const queue = [...items];
+  /** @type {R[]} */
+  const results = [];
+  await Promise.all(
+    Array.from({ length: Math.min(concurrency, queue.length) }, async () => {
+      for (let item = queue.shift(); item; item = queue.shift()) {
+        try {
+          results.push(await task(item));
+        } catch (error) {
+          failed++;
+          console.error(`  ✗ ${label(item)}: ${/** @type {Error} */ (error).message}`);
+        }
       }
+    }),
+  );
+  return results;
+}
+
+/** Bytes y objetos del bucket entero (ListObjectsV2, de 1000 en 1000). */
+async function bucketUsage() {
+  if (!client) return null;
+  let bytes = 0;
+  let objects = 0;
+  /** @type {string | undefined} */
+  let token;
+  do {
+    const page = await client.send(new ListObjectsV2Command({ Bucket: bucket, ContinuationToken: token, MaxKeys: 1000 }));
+    for (const item of page.Contents ?? []) {
+      bytes += item.Size ?? 0;
+      objects++;
     }
-  }),
+    token = page.IsTruncated ? page.NextContinuationToken : undefined;
+  } while (token);
+  return { bytes, objects };
+}
+
+const pending = /** @type {Pending[]} */ (
+  (await pool(files, plan, (file) => path.relative(root, file))).filter(Boolean)
 );
+if (failed) fail('No se ha podido comprobar qué hay en R2: no se sube nada.');
+
+// D64: antes de subir, ¿cabe?
+const incoming = pending.reduce((sum, item) => sum + item.size - item.replaces, 0);
+const usage = await bucketUsage().catch((error) => fail(`No se ha podido medir el bucket: ${error.message}. No se sube nada.`));
+if (usage) {
+  const verdict = storageVerdict(usage.bytes, incoming);
+  console.log(
+    `· R2 ocupa ${formatBytes(usage.bytes)} de ${formatBytes(STORAGE_LIMIT_BYTES)} (${verdict.percentBefore} %); ` +
+      `esto añade ${formatBytes(Math.max(0, incoming))} → ${verdict.percentAfter} %`,
+  );
+  if (!verdict.fits) {
+    fail(
+      `No cabe: con esto R2 pasaría de ${formatBytes(STORAGE_LIMIT_BYTES)}. Borra algo del bucket (o algún mix desde el panel) y vuelve a probar.`,
+    );
+  }
+  if (verdict.after >= STORAGE_WARN_FRACTION) console.log(`  ⚠ R2 quedará por encima del ${STORAGE_WARN_FRACTION * 100} %.`);
+}
+console.log('');
+
+await pool(pending, upload, (item) => item.key);
 
 console.log(
   `\n${dryRun ? 'Se subirían' : 'Subidos'}: ${uploaded} (${formatBytes(uploadedBytes)}) · sin cambios: ${unchanged}` +

@@ -36,6 +36,11 @@ export interface SecurityHeadersOptions {
    * mixes al endpoint S3 de R2.
    */
   connectSources?: Array<string | undefined> | undefined;
+  /**
+   * Deja compilar WebAssembly (`'wasm-unsafe-eval'`). Solo el panel: convierte
+   * los mixes a MP3 con LAME compilado a WebAssembly (D64). No permite `eval`.
+   */
+  wasm?: boolean | undefined;
 }
 
 /** Origen (`https://host[:puerto]`) de una URL, o `undefined` si no es válida. */
@@ -54,7 +59,7 @@ export function buildContentSecurityPolicy(options: SecurityHeadersOptions = {})
   const supabase = originOf(options.supabaseUrl);
   const directives: Array<[string, Array<string | undefined>]> = [
     ['default-src', ["'self'"]],
-    ['script-src', ["'self'", SOUNDCLOUD_WIDGET_ORIGIN, INSTAGRAM_ORIGIN]],
+    ['script-src', ["'self'", options.wasm ? "'wasm-unsafe-eval'" : undefined, SOUNDCLOUD_WIDGET_ORIGIN, INSTAGRAM_ORIGIN]],
     // Astro mete estilos en línea (hojas pequeñas, `style=""`, transiciones).
     ['style-src', ["'self'", "'unsafe-inline'"]],
     ['img-src', ["'self'", 'data:', 'blob:', media]],

@@ -59,11 +59,36 @@ export const ADMIN_LIMITS = {
   infoMax: 20_000,
   mixTitleMax: 140,
   mixSubtitleMax: 140,
-  /** Tamaño máximo de un mix subido desde el panel (bytes). */
+  /** Tamaño máximo del MP3 que se sube a R2 (ya convertido; 2 h a 320 kbps ≈ 290 MB). */
   mixMaxBytes: 500 * 1024 * 1024,
+  /** Tamaño máximo del archivo que se elige (un WAV de 2 h ronda 1,3 GB): el navegador lo convierte. */
+  mixSourceMaxBytes: 2 * 1000 * 1000 * 1000,
+  /** Carátula ya convertida (JPEG 1000 × 1000) y la imagen que se elige. */
   artworkMaxBytes: 5 * 1024 * 1024,
+  artworkSourceMaxBytes: 40 * 1024 * 1024,
   identifierMax: 254,
   passwordMax: 200,
+} as const;
+
+/**
+ * Almacenamiento de R2 (D64). El plan gratuito incluye 10 GB al mes (de
+ * 1000³ bytes; se factura el pico de cada día). El panel enseña siempre lo
+ * ocupado, avisa desde el 80 % y no deja subir nada que haga pasar del límite;
+ * `npm run media:upload` comprueba lo mismo.
+ */
+export const R2_STORAGE = {
+  limitBytes: 10 * 1000 * 1000 * 1000,
+  warnFraction: 0.8,
+} as const;
+
+/** Conversión de los mixes en el navegador (D64): lo mismo que `npm run media:mix`. */
+export const MIX_ENCODING = {
+  /** Sonoridad integrada objetivo (LUFS) y techo de picos (dBFS, con margen para el MP3). */
+  targetLufs: -14,
+  peakCeilingDb: -1.5,
+  bitrate: 320,
+  artworkSize: 1000,
+  artworkQuality: 0.9,
 } as const;
 
 /** Bolos del archivo por página (C19). */
@@ -103,6 +128,10 @@ export const MIX_ARTWORK_TYPES = {
   'image/webp': 'webp',
   'image/png': 'png',
 } as const;
+
+/** Lo que se puede elegir en el panel: el navegador lo convierte a MP3 (D64). */
+export const MIX_SOURCE_ACCEPT = 'audio/*,.wav,.wave,.aif,.aiff,.aifc,.flac,.mp3,.m4a,.aac,.ogg,.oga,.opus';
+export const MIX_ARTWORK_SOURCE_ACCEPT = 'image/jpeg,image/png,image/webp,image/avif,.jpg,.jpeg,.png,.webp,.avif';
 
 /** Validez de las URLs firmadas de subida a R2 (segundos). */
 export const UPLOAD_URL_TTL = 15 * 60;

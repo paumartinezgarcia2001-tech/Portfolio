@@ -9,14 +9,7 @@
  *   todas las páginas llevan la barra (próxima fecha) y el reproductor.
  */
 import { ActionError, defineAction } from 'astro:actions';
-import {
-  ADMIN_EMAIL,
-  ADMIN_USERNAME,
-  R2_ACCESS_KEY_ID,
-  R2_ACCOUNT_ID,
-  R2_BUCKET,
-  R2_SECRET_ACCESS_KEY,
-} from 'astro:env/server';
+import { ADMIN_EMAIL, ADMIN_USERNAME } from 'astro:env/server';
 import type { AstroCookies } from 'astro';
 import { env } from 'cloudflare:workers';
 import {
@@ -32,6 +25,9 @@ import { classifyAuthError, resolveLoginEmail } from '../lib/admin/access';
 import { invalidatePublicCache, openAdminContext } from '../lib/admin/context';
 import { allowLoginAttempt, waitUntilElapsed, type LoginRateLimiter } from '../lib/admin/login-guard';
 import { isMixObjectKey, presignR2, uploadKey, type R2Credentials } from '../lib/admin/r2';
+import { R2_MISSING, r2Credentials } from '../lib/admin/r2-config';
+import { deleteObject, measureStorage, objectSize } from '../lib/admin/r2-usage';
+import { fitsInStorage, noRoomMessage, type StorageStatus } from '../lib/admin/storage';
 import {
   findDuplicates,
   gigBulkSchema,
@@ -44,6 +40,7 @@ import {
   mixDeleteSchema,
   mixUpdateSchema,
   mixUploadSchema,
+  storageCheckSchema,
   themeRestoreSchema,
   themeSchema,
   tickerSchema,
@@ -140,9 +137,66 @@ function clientIp(context: { clientAddress: string }): string | undefined {
   }
 }
 
-function r2Credentials(): R2Credentials | null {
-  if (!R2_ACCOUNT_ID || !R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY || !R2_BUCKET) return null;
-  return { accountId: R2_ACCOUNT_ID, accessKeyId: R2_ACCESS_KEY_ID, secretAccessKey: R2_SECRET_ACCESS_KEY, bucket: R2_BUCKET };
+function requireR2(): R2Credentials {
+  const credentials = r2Credentials();
+  if (!credentials) throw new ActionError({ code: 'BAD_REQUEST', message: R2_MISSING });
+  return credentials;
+}
+
+/**
+ * Lo que ocupa R2 ahora mismo (D64). Si no se puede medir, no se sube nada:
+ * sin medida no hay forma de saber si cabe.
+ */
+async function currentStorage(credentials: R2Credentials): Promise<StorageStatus> {
+  try {
+    return await measureStorage(credentials);
+  } catch (error) {
+    console.warn(`[panel] medir R2: ${(error as Error).message}`);
+    throw new ActionError({
+      code: 'SERVICE_UNAVAILABLE',
+      message: 'No se ha podido medir el espacio de R2, así que no se sube nada. Inténtalo en un rato.',
+    });
+  }
+}
+
+/** Respuesta de `storageUsage` (la barra del panel). */
+export interface StorageReport {
+  configured: boolean;
+  status: StorageStatus | null;
+  fits: boolean;
+  message?: string;
+}
+
+/**
+ * Tras subir (D64): los archivos nuevos de `mixes/` tienen que estar en R2,
+ * no pasar del tamaño máximo y caber en el límite. Si algo falla, se borran
+ * y no se crea el mix. Las rutas que no son de `mixes/` (URLs o archivos de
+ * los scripts) no se comprueban.
+ */
+async function verifyUploads(keys: string[], audioKey: string): Promise<void> {
+  const own = keys.filter((key) => isMixObjectKey(key));
+  if (own.length === 0) return;
+  const credentials = requireR2();
+  const cleanUp = async (message: string): Promise<never> => {
+    for (const key of own) await deleteObject(credentials, key);
+    throw new ActionError({ code: 'BAD_REQUEST', message });
+  };
+  for (const key of own) {
+    let size: number | null;
+    try {
+      size = await objectSize(credentials, key);
+    } catch (error) {
+      console.warn(`[panel] comprobar ${key}: ${(error as Error).message}`);
+      throw new ActionError({ code: 'SERVICE_UNAVAILABLE', message: 'No se ha podido comprobar la subida en R2. Inténtalo de nuevo.' });
+    }
+    if (size === null) return cleanUp('El archivo no ha llegado a R2. Vuelve a subirlo.');
+    const max = key === audioKey ? ADMIN_LIMITS.mixMaxBytes : ADMIN_LIMITS.artworkMaxBytes;
+    if (size > max) return cleanUp(`El archivo subido pasa de ${Math.round(max / 1024 / 1024)} MB: se ha borrado.`);
+  }
+  const status = await currentStorage(credentials);
+  if (status.level === 'full' && status.usedBytes > status.limitBytes) {
+    return cleanUp(`Con esto R2 pasaría de ${Math.round(status.limitBytes / 1e9)} GB: se ha borrado la subida.`);
+  }
 }
 
 export const admin = {
@@ -385,18 +439,32 @@ export const admin = {
   }),
 
   // ------------------------------------------------------------ mixes
+  /** Lo que ocupa R2 (la barra de todas las páginas) y, con `bytes`, si eso cabe. */
+  storageUsage: defineAction({
+    accept: 'form',
+    input: storageCheckSchema,
+    handler: async (input, context): Promise<StorageReport> => {
+      await requireAdmin(context);
+      const credentials = r2Credentials();
+      if (!credentials) return { configured: false, status: null, fits: false, message: R2_MISSING };
+      let status: StorageStatus;
+      try {
+        status = await currentStorage(credentials);
+      } catch (error) {
+        return { configured: true, status: null, fits: false, message: (error as ActionError).message };
+      }
+      const bytes = input.bytes ?? 0;
+      const fits = fitsInStorage(status, bytes);
+      return { configured: true, status, fits, ...(fits ? {} : { message: noRoomMessage(status, bytes) }) };
+    },
+  }),
+
   mixUploadUrl: defineAction({
     accept: 'form',
     input: mixUploadSchema,
     handler: async (input, context) => {
       await requireAdmin(context);
-      const credentials = r2Credentials();
-      if (!credentials) {
-        throw new ActionError({
-          code: 'BAD_REQUEST',
-          message: 'Falta configurar R2 (R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY y R2_BUCKET).',
-        });
-      }
+      const credentials = requireR2();
       const types: Record<string, string> = input.tipo === 'audio' ? MIX_AUDIO_TYPES : MIX_ARTWORK_TYPES;
       const ext = types[input.contentType];
       if (!ext) {
@@ -409,12 +477,23 @@ export const admin = {
       if (input.size > max) {
         throw new ActionError({ code: 'BAD_REQUEST', message: `El archivo pasa de ${Math.round(max / 1024 / 1024)} MB.` });
       }
+      // D64: antes de firmar nada, se mide R2 de nuevo y se comprueba que cabe
+      // lo de esta tanda (el audio y, si viene, la carátula).
+      const status = await currentStorage(credentials);
+      const incoming = input.size + (input.reserva ?? 0);
+      if (!fitsInStorage(status, incoming)) {
+        throw new ActionError({ code: 'CONFLICT', message: noRoomMessage(status, incoming) });
+      }
       const key = uploadKey(input.tipo === 'audio' ? input.titulo : `${input.titulo} caratula`, ext);
-      const url = await presignR2(credentials, 'PUT', key, UPLOAD_URL_TTL);
+      // El tipo va firmado: R2 rechaza la subida si el navegador manda otro.
+      const url = await presignR2(credentials, 'PUT', key, UPLOAD_URL_TTL, {
+        headers: { 'content-type': input.contentType },
+      });
       return {
         key,
         url,
         headers: { 'Content-Type': input.contentType, 'Cache-Control': 'public, max-age=31536000, immutable' },
+        status,
       };
     },
   }),
@@ -424,6 +503,10 @@ export const admin = {
     input: mixCreateSchema,
     handler: async (input, context) => {
       const { supabase } = await requireAdmin(context);
+      await verifyUploads(
+        [input.audio, input.caratula].filter((key): key is string => Boolean(key)),
+        input.audio,
+      );
       const { error } = await supabase.from('mixes').insert({
         title: input.titulo,
         subtitle: input.subtitulo || null,
@@ -489,13 +572,7 @@ export const admin = {
         const keys = [row.audio_url, row.artwork_url].filter((key): key is string => Boolean(key && isMixObjectKey(key)));
         if (credentials) {
           for (const key of keys) {
-            try {
-              const url = await presignR2(credentials, 'DELETE', key, 60);
-              const response = await fetch(url, { method: 'DELETE' });
-              if (!response.ok && response.status !== 404) filesLeft = true;
-            } catch {
-              filesLeft = true;
-            }
+            if (!(await deleteObject(credentials, key))) filesLeft = true;
           }
         } else if (keys.length > 0) {
           filesLeft = true;

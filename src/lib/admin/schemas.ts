@@ -265,7 +265,12 @@ export const mixUploadSchema = z.object({
   tipo: z.enum(['audio', 'artwork']),
   contentType: z.string().trim().max(100),
   size: z.number().int().positive(),
+  /** Bytes de lo demás que se va a subir en la misma tanda (la carátula): cuenta para ver si cabe. */
+  reserva: z.number().int().min(0).optional(),
 });
+
+/** Comprobar si caben `bytes` antes de convertir (estimación del navegador). */
+export const storageCheckSchema = z.object({ bytes: z.number().int().min(0).optional() });
 
 const mixFields = {
   titulo: requiredText(MSG.titleRequired, LIMITS.mixTitleMax),

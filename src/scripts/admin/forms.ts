@@ -9,6 +9,7 @@
  * - al guardar: «Guardado.» y, según el formulario, `data-reset` (lo vacía),
  *   `data-refresh="región …"` (recarga esos trozos) o `data-redirect` (vuelve).
  */
+import { refreshStorage } from './storage';
 import { ADMIN_TEXT as TEXT } from '../../config/admin';
 import {
   callAdminAction,
@@ -62,6 +63,8 @@ async function submit(form: HTMLFormElement, force = false): Promise<void> {
 
   toast(result.message ?? TEXT.saved, 'ok');
   form.dispatchEvent(new CustomEvent(SAVED_EVENT, { bubbles: true, detail: result }));
+  // Borrar un mix libera espacio en R2: la barra de arriba se vuelve a medir (D64).
+  if (form.hasAttribute('data-storage-refresh')) void refreshStorage();
 
   if (form.dataset.redirect !== undefined && form.dataset.redirect !== '') {
     window.setTimeout(() => window.location.assign(form.dataset.redirect!), 600);

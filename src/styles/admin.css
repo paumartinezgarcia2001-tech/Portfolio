@@ -80,6 +80,62 @@
     color: var(--c-menu-fg);
   }
 
+  /* ------------------------------------------------- almacenamiento (D64) */
+  .a-storage {
+    flex-basis: 100%;
+    display: grid;
+    gap: 0.25rem;
+    padding-top: 0.25rem;
+    font-size: var(--fs-label);
+    --storage-color: var(--c-archive);
+  }
+
+  .a-storage[data-level='warn'] {
+    --storage-color: var(--c-contact);
+  }
+
+  .a-storage[data-level='full'],
+  .a-storage[data-level='unknown'] {
+    --storage-color: #ff2e2e;
+  }
+
+  .a-storage__text {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 0.5em;
+  }
+
+  .a-storage__label {
+    font-weight: var(--fw-bold);
+  }
+
+  .a-storage[data-level='warn'] .a-storage__note,
+  .a-storage[data-level='full'] .a-storage__note,
+  .a-storage[data-level='unknown'] [data-storage-text] {
+    color: var(--storage-color);
+    font-weight: var(--fw-bold);
+  }
+
+  .a-storage__track {
+    position: relative;
+    height: 0.375rem;
+    background: color-mix(in srgb, var(--c-menu-fg) 22%, transparent);
+    overflow: hidden;
+  }
+
+  .a-storage__fill {
+    position: absolute;
+    inset: 0 auto 0 0;
+    background: var(--storage-color);
+    transition: width 0.4s ease;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .a-storage__fill {
+      transition: none;
+    }
+  }
+
   .a-bar :focus-visible {
     outline-color: var(--accent);
     box-shadow: none;

@@ -9,7 +9,26 @@ export const SUPABASE_URL = `http://127.0.0.1:${process.env.E2E_SUPABASE_PORT ??
 
 export const PAU = { email: 'pau@e2e.test', alias: 'pau', password: 'contraseña-e2e-123' };
 export const INTRUDER = { email: 'intrusa@e2e.test', password: 'contraseña-e2e-456' };
-export const R2_ORIGIN = 'https://e2e-account.r2.cloudflarestorage.com';
+export const R2_URL = `http://127.0.0.1:${process.env.E2E_R2_PORT ?? 4325}`;
+
+export interface R2State {
+  objects: Record<string, { size: number; type: string; head: string | null }>;
+  log: Array<{ method: string; key: string; type?: string; size?: number; signedHeaders?: string }>;
+}
+
+/** R2 simulado como al principio (un vídeo y un mix: 450 MB). */
+export async function resetR2(request: APIRequestContext): Promise<void> {
+  expect((await request.post(`${R2_URL}/__r2/reset`)).ok()).toBe(true);
+}
+
+/** Añade un objeto «virtual» de `bytes` (para probar el límite sin escribir nada). */
+export async function fillR2(request: APIRequestContext, bytes: number): Promise<void> {
+  expect((await request.post(`${R2_URL}/__r2/fill?bytes=${bytes}`)).ok()).toBe(true);
+}
+
+export async function r2State(request: APIRequestContext): Promise<R2State> {
+  return (await (await request.get(`${R2_URL}/__r2/state`)).json()) as R2State;
+}
 
 let ipCounter = 0;
 
@@ -39,6 +58,8 @@ export function adminUrl(path = ''): string {
 export async function resetSupabase(request: APIRequestContext): Promise<void> {
   const response = await request.post(`${SUPABASE_URL}/__e2e/reset`);
   expect(response.ok()).toBe(true);
+  // Y R2, que el panel mide en todas las páginas (D64).
+  await resetR2(request);
 }
 
 export interface MockState {

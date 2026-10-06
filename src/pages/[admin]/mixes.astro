@@ -3,12 +3,13 @@
  * C19 · Mixes del reproductor (C06): subir uno nuevo directamente a R2
  * (URL firmada por el Worker) y editar título, orden, carátula y si se publica.
  *
- * La subida no normaliza el volumen: para dejarlo a −14 LUFS se sigue
- * usando `npm run media:mix` en el ordenador y aquí solo se publica.
+ * D64: antes de subir, el navegador convierte el audio a MP3 320 kbps a
+ * −14 LUFS (WAV, AIFF, FLAC, MP3, M4A…: src/scripts/admin/audio/) y la
+ * carátula a un JPEG cuadrado de 1000 px, y comprueba que cabe en R2.
  */
 import { publicVar } from '../../lib/public-env';
-import { R2_ACCESS_KEY_ID, R2_ACCOUNT_ID, R2_BUCKET, R2_SECRET_ACCESS_KEY } from 'astro:env/server';
-import { ADMIN_LIMITS, ADMIN_TEXT, MIX_ARTWORK_TYPES, MIX_AUDIO_TYPES } from '../../config/admin';
+import { ADMIN_LIMITS, ADMIN_TEXT, MIX_ARTWORK_SOURCE_ACCEPT, MIX_SOURCE_ACCEPT } from '../../config/admin';
+import { r2Credentials } from '../../lib/admin/r2-config';
 import AdminLayout from '../../layouts/AdminLayout.astro';
 import LoginScreen from '../../components/admin/LoginScreen.astro';
 import { getAdminMixes } from '../../lib/admin/data';
@@ -24,10 +25,8 @@ if (page.redirect) return page.redirect;
 
 const loaded = page.signedIn && page.supabase ? await getAdminMixes(page.supabase) : null;
 const mixes = loaded?.data ?? [];
-const uploadsReady = Boolean(R2_ACCOUNT_ID && R2_ACCESS_KEY_ID && R2_SECRET_ACCESS_KEY && R2_BUCKET);
-const audioAccept = Object.keys(MIX_AUDIO_TYPES).join(',');
-const artworkAccept = Object.keys(MIX_ARTWORK_TYPES).join(',');
-const maxMb = Math.round(ADMIN_LIMITS.mixMaxBytes / 1024 / 1024);
+const uploadsReady = Boolean(r2Credentials());
+const sourceGb = (ADMIN_LIMITS.mixSourceMaxBytes / 1e9).toLocaleString('es-ES');
 const duration = (seconds: number | null) =>
   seconds ? `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}` : '';
 ---
@@ -59,11 +58,12 @@ const duration = (seconds: number | null) =>
             <form method="post" class="a-form" data-mix-upload data-refresh="mixes" novalidate>
               <div class="a-field" data-field="audio">
                 <label class="a-label" for="mix-file">
-                  archivo de audio * <span class="a-label__note">(MP3 o M4A, hasta {maxMb} MB)</span>
+                  archivo de audio * <span class="a-label__note">(WAV, AIFF, FLAC, MP3 o M4A, hasta {sourceGb} GB)</span>
                 </label>
-                <input class="a-input" id="mix-file" name="archivo" type="file" accept={audioAccept} required />
+                <input class="a-input" id="mix-file" name="archivo" type="file" accept={MIX_SOURCE_ACCEPT} required />
                 <p class="a-field__hint">
-                  Mejor ya normalizado a −14 LUFS con <code>npm run media:mix</code> (así todos suenan igual de alto).
+                  Antes de subirlo, el navegador lo pasa a MP3 de 320 kbps a −14 LUFS (así todos suenan igual de alto).
+                  Un mix de una hora tarda unos minutos: no cierres la pestaña.
                 </p>
                 <p class="a-field__error" data-error-for="audio" hidden />
               </div>
@@ -89,9 +89,9 @@ const duration = (seconds: number | null) =>
               </div>
               <div class="a-field" data-field="caratula">
                 <label class="a-label" for="mix-artwork">
-                  carátula <span class="a-label__note">(opcional: cuadrada, JPG/WebP/PNG, hasta 5 MB)</span>
+                  carátula <span class="a-label__note">(opcional: JPG, PNG o WebP; se recorta cuadrada a 1000 px)</span>
                 </label>
-                <input class="a-input" id="mix-artwork" name="imagen" type="file" accept={artworkAccept} />
+                <input class="a-input" id="mix-artwork" name="imagen" type="file" accept={MIX_ARTWORK_SOURCE_ACCEPT} />
                 <p class="a-field__error" data-error-for="caratula" hidden />
               </div>
               <div class="a-field" data-field="orden">
@@ -207,6 +207,7 @@ const duration = (seconds: number | null) =>
                       method="post"
                       data-admin-form="deleteMix"
                       data-refresh="mixes"
+                      data-storage-refresh
                       data-confirm={`¿Borrar «${mix.title}»? Se borra también el archivo de R2 si se subió desde aquí o con media:mix.`}
                       data-confirm-label="borrar"
                     >

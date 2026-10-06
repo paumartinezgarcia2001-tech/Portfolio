@@ -1,6 +1,6 @@
 import { expect, type Page } from '@playwright/test';
 import { existsSync } from 'node:fs';
-import { adminUrl, openAdmin, PAU, R2_ORIGIN, resetSupabase, test, waitReady } from './helpers';
+import { adminUrl, openAdmin, PAU, resetSupabase, test, waitReady } from './helpers';
 
 /**
  * Capturas del panel para revisión visual y para la guía de Pau (sin
@@ -87,7 +87,6 @@ test.describe('Capturas del panel', () => {
     await openAdmin(page, 'archivo');
     await shot(page, project, '09-archivo');
 
-    await page.route(`${R2_ORIGIN}/**`, (route) => route.fulfill({ status: 200, headers: { 'access-control-allow-origin': '*' } }));
     await openAdmin(page, 'mixes');
     await shot(page, project, '10-mixes');
 

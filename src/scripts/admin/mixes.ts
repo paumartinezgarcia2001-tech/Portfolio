@@ -1,13 +1,23 @@
 /**
- * Subida de mixes desde el panel.
+ * Subida de mixes desde el panel (D64).
  *
- * 1. Mide la duración del audio en el navegador.
- * 2. Pide al servidor una URL firmada de R2 (`admin.mixUploadUrl`): el Worker
- *    decide el nombre del archivo y nunca recibe el audio.
- * 3. Sube el archivo directamente a R2 con un PUT (con barra de progreso).
- * 4. Crea la fila en `mixes` (`admin.createMix`).
+ * 1. Prepara la carátula (JPEG cuadrado de 1000 px).
+ * 2. Calcula cuánto ocupará el MP3 y pregunta al servidor si cabe en R2
+ *    (`admin.storageUsage`). Si no cabe, no convierte nada.
+ * 3. Convierte el audio a MP3 320 kbps a −14 LUFS en el navegador
+ *    (audio/convert.ts). Si este navegador no puede y el original ya es
+ *    MP3/M4A, lo sube tal cual (sin normalizar) y lo dice.
+ * 4. Pide al servidor una URL firmada de R2 (`admin.mixUploadUrl`): el Worker
+ *    vuelve a medir R2, decide el nombre del archivo y nunca recibe el audio.
+ * 5. Sube el archivo directamente a R2 con un PUT (con barra de progreso).
+ * 6. Crea la fila en `mixes` (`admin.createMix`), que comprueba en R2 lo
+ *    subido: desde ese momento suena en la web si está publicado.
  */
-import { ADMIN_TEXT as TEXT } from '../../config/admin';
+import { ADMIN_LIMITS, ADMIN_TEXT as TEXT } from '../../config/admin';
+import { formatStorageBytes } from '../../lib/admin/storage';
+import { convertArtwork } from './artwork';
+import { convertMix, estimateDuration, estimateMp3Bytes, playableDuration, uploadableAsIs } from './audio/convert';
+import { checkStorage, refreshStorage } from './storage';
 import {
   callAdminAction,
   clearFieldErrors,
@@ -19,46 +29,6 @@ import {
   toast,
 } from './ui';
 
-const TYPES_BY_EXTENSION: Record<string, string> = {
-  mp3: 'audio/mpeg',
-  m4a: 'audio/mp4',
-  aac: 'audio/aac',
-  jpg: 'image/jpeg',
-  jpeg: 'image/jpeg',
-  webp: 'image/webp',
-  png: 'image/png',
-};
-
-function contentTypeOf(file: File): string {
-  if (file.type) return file.type;
-  const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
-  return TYPES_BY_EXTENSION[ext] ?? 'application/octet-stream';
-}
-
-/** Duración en segundos (o `undefined` si el navegador no la sabe leer). */
-function measureDuration(file: File): Promise<number | undefined> {
-  return new Promise((resolve) => {
-    const audio = document.createElement('audio');
-    const url = URL.createObjectURL(file);
-    const done = (value: number | undefined) => {
-      URL.revokeObjectURL(url);
-      audio.removeAttribute('src');
-      resolve(value);
-    };
-    const timer = window.setTimeout(() => done(undefined), 15_000);
-    audio.preload = 'metadata';
-    audio.addEventListener('loadedmetadata', () => {
-      window.clearTimeout(timer);
-      done(Number.isFinite(audio.duration) && audio.duration > 0 ? Math.round(audio.duration) : undefined);
-    });
-    audio.addEventListener('error', () => {
-      window.clearTimeout(timer);
-      done(undefined);
-    });
-    audio.src = url;
-  });
-}
-
 interface UploadTicket {
   key: string;
   url: string;
@@ -66,7 +36,7 @@ interface UploadTicket {
 }
 
 /** PUT a la URL firmada, con progreso (fetch no da progreso de subida). */
-function put(ticket: UploadTicket, file: File, onProgress: (fraction: number) => void): Promise<void> {
+function put(ticket: UploadTicket, file: Blob, onProgress: (fraction: number) => void): Promise<void> {
   return new Promise((resolve, reject) => {
     const request = new XMLHttpRequest();
     request.open('PUT', ticket.url);
@@ -95,15 +65,18 @@ class FieldError extends Error {
 async function upload(
   form: HTMLFormElement,
   kind: 'audio' | 'artwork',
-  file: File,
+  file: Blob,
+  contentType: string,
   title: string,
+  reserve: number,
   onProgress: (fraction: number) => void,
 ): Promise<string> {
   const data = new FormData();
   data.set('titulo', title);
   data.set('tipo', kind);
-  data.set('contentType', contentTypeOf(file));
+  data.set('contentType', contentType);
   data.set('size', String(file.size));
+  if (reserve > 0) data.set('reserva', String(reserve));
   const outcome = await callAdminAction<UploadTicket>('mixUploadUrl', data);
   if (outcome.error) {
     if (handleUnauthorized(outcome)) throw new Error('');
@@ -116,6 +89,8 @@ async function upload(
   await put(outcome.data!, file, onProgress);
   return outcome.data!.key;
 }
+
+const percent = (fraction: number) => `${Math.round(fraction * 100)} %`;
 
 function setupUpload(form: HTMLFormElement): void {
   const progress = form.querySelector<HTMLProgressElement>('[data-upload-progress]');
@@ -140,25 +115,83 @@ function setupUpload(form: HTMLFormElement): void {
         return;
       }
 
-      setBusy(form, true, 'subiendo…');
+      if (audio!.size > ADMIN_LIMITS.mixSourceMaxBytes) {
+        showFieldErrors(form, { audio: [`El archivo pasa de ${formatStorageBytes(ADMIN_LIMITS.mixSourceMaxBytes)}.`] });
+        return;
+      }
+      if (artwork && artwork.size > ADMIN_LIMITS.artworkSourceMaxBytes) {
+        showFieldErrors(form, { caratula: [`La imagen pasa de ${formatStorageBytes(ADMIN_LIMITS.artworkSourceMaxBytes)}.`] });
+        return;
+      }
+
+      setBusy(form, true, 'preparando…');
+      const setProgress = (value: number) => {
+        if (progress) progress.value = Math.round(value * 100);
+      };
       if (progress) {
         progress.hidden = false;
         progress.value = 0;
       }
       try {
-        say('Midiendo la duración…');
-        const duration = await measureDuration(audio!);
+        // 1. Carátula
+        let cover: Blob | undefined;
+        if (artwork) {
+          say('Preparando la carátula…');
+          try {
+            cover = (await convertArtwork(artwork)).blob;
+          } catch (error) {
+            throw new FieldError('caratula', (error as Error).message);
+          }
+        }
+
+        // 2. ¿Cabe? (con lo que ocupará el MP3, antes de ponerse a convertir)
+        say('Comprobando el espacio de R2…');
+        const seconds = await estimateDuration(audio!);
+        const estimate = (seconds ? estimateMp3Bytes(seconds) : Math.min(audio!.size, ADMIN_LIMITS.mixMaxBytes)) + (cover?.size ?? 0);
+        const noRoom = await checkStorage(estimate);
+        if (noRoom) throw new FieldError('audio', noRoom);
+
+        // 3. Convertir
+        let ready: { blob: Blob; type: string; duration: number | undefined };
+        let note = '';
+        try {
+          const converted = await convertMix(audio!, (fraction, label) => {
+            say(`${label} ${percent(fraction)}`);
+            setProgress(fraction * 0.6);
+          });
+          ready = { blob: converted.blob, type: 'audio/mpeg', duration: Math.round(converted.duration) };
+          if (converted.plan.peakLimited) note = ' Ha quedado algo más bajo que −14 LUFS para no saturar los picos.';
+        } catch (error) {
+          const asIs = uploadableAsIs(audio!);
+          if (!asIs || audio!.size > ADMIN_LIMITS.mixMaxBytes) {
+            throw new FieldError(
+              'audio',
+              `${(error as Error).message} Prueba en Chrome o Firefox de escritorio, o expórtalo a MP3 antes de subirlo.`,
+            );
+          }
+          const duration = await playableDuration(audio!);
+          if (!duration) throw new FieldError('audio', 'El navegador no puede reproducir este archivo: expórtalo a MP3.');
+          ready = { blob: audio!, type: asIs, duration: Math.round(duration) };
+          note = ' No se ha podido convertir en este navegador: se ha subido tal cual, sin normalizar el volumen.';
+        }
+        if (ready.blob.size > ADMIN_LIMITS.mixMaxBytes) {
+          throw new FieldError('audio', `El MP3 pasa de ${formatStorageBytes(ADMIN_LIMITS.mixMaxBytes)}: el mix es demasiado largo.`);
+        }
+
+        // 4–5. Subir (el servidor vuelve a comprobar que cabe todo: audio + carátula)
         say('Subiendo el audio…');
-        const audioKey = await upload(form, 'audio', audio!, title, (fraction) => {
-          if (progress) progress.value = Math.round(fraction * (artwork ? 90 : 100));
+        const audioKey = await upload(form, 'audio', ready.blob, ready.type, title, cover?.size ?? 0, (fraction) => {
+          say(`Subiendo el audio… ${percent(fraction)}`);
+          setProgress(0.6 + fraction * (cover ? 0.36 : 0.4));
         });
         let artworkKey: string | undefined;
-        if (artwork) {
+        if (cover) {
           say('Subiendo la carátula…');
-          artworkKey = await upload(form, 'artwork', artwork, title, (fraction) => {
-            if (progress) progress.value = 90 + Math.round(fraction * 10);
+          artworkKey = await upload(form, 'artwork', cover, 'image/jpeg', title, 0, (fraction) => {
+            setProgress(0.96 + fraction * 0.04);
           });
         }
+        const duration = ready.duration;
 
         say('Guardando…');
         const data = new FormData(form);
@@ -175,8 +208,9 @@ function setupUpload(form: HTMLFormElement): void {
           return;
         }
         say('');
-        toast(TEXT.saved, 'ok');
+        toast(`${TEXT.saved}${note}`, 'ok');
         form.reset();
+        void refreshStorage();
         const regions = (form.dataset.refresh ?? '').split(/\s+/).filter(Boolean);
         await refreshRegions(regions);
       } catch (error) {

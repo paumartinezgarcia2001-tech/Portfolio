@@ -3,8 +3,9 @@
  * tests/e2e/dev-vars.mjs: sobrescribe `dist/server/.dev.vars`, que es lo que
  * lee `astro preview`, con valores inventados. Nunca los de verdad.
  *
- * R2: una cuenta inventada; los tests interceptan en el navegador el PUT a
- * `https://e2e-account.r2.cloudflarestorage.com/…`, así que no sale nada.
+ * R2: una cuenta inventada y `R2_ENDPOINT` apuntando al R2 simulado
+ * (tests/e2e-admin/mock-r2.mjs, puerto 4325): el Worker lista y comprueba
+ * ahí, y el navegador sube ahí. No sale nada.
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -21,6 +22,7 @@ const VARS = {
   R2_ACCESS_KEY_ID: 'e2e-access-key',
   R2_SECRET_ACCESS_KEY: 'e2e-secret-key',
   R2_BUCKET: 'e2e-bucket',
+  R2_ENDPOINT: `http://127.0.0.1:${process.env.E2E_R2_PORT ?? 4325}`,
 };
 
 mkdirSync(DIR, { recursive: true });

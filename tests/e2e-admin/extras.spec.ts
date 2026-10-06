@@ -1,5 +1,5 @@
 import { expect } from '@playwright/test';
-import { mockState, openAdmin, R2_ORIGIN, resetSupabase, signInAsPau, test, toast } from './helpers';
+import { mockState, openAdmin, resetSupabase, signInAsPau, test, toast } from './helpers';
 
 /**
  * C19 · texto de Info, vídeo de Media y mixes con subida a R2.
@@ -65,72 +65,4 @@ test('vídeo: punto focal y enlace al set; «avanzado» valida el bloque', async
     'href',
     'https://www.youtube.com/watch?v=XokoqVkCmQg&t=2541s',
   );
-});
-
-test('mixes: subir a R2 (URL firmada), publicar y quitar', async ({ page, request }) => {
-  const uploads: Array<{ url: string; method: string; type: string | undefined }> = [];
-  await page.route(`${R2_ORIGIN}/**`, async (route) => {
-    const req = route.request();
-    if (req.method() === 'OPTIONS') {
-      return route.fulfill({
-        status: 204,
-        headers: {
-          'access-control-allow-origin': '*',
-          'access-control-allow-methods': 'PUT',
-          'access-control-allow-headers': 'content-type, cache-control',
-        },
-      });
-    }
-    uploads.push({ url: req.url(), method: req.method(), type: req.headers()['content-type'] });
-    return route.fulfill({ status: 200, headers: { 'access-control-allow-origin': '*' }, body: '' });
-  });
-
-  await signInAsPau(page, 'mixes');
-  await expect(page.getByRole('heading', { name: '1 mix' })).toBeVisible();
-  await page.getByLabel(/archivo de audio/).setInputFiles({
-    name: 'mi-mix.mp3',
-    mimeType: 'audio/mpeg',
-    buffer: Buffer.from('ID3 no es un mp3 de verdad'),
-  });
-  await page.getByLabel('título *').fill('Sesión de otoño');
-  await page.getByLabel(/carátula/).setInputFiles({ name: 'tapa.jpg', mimeType: 'image/jpeg', buffer: Buffer.from('jpg') });
-  await page.getByRole('button', { name: 'subir y guardar' }).click();
-  await expect(toast(page)).toHaveText('Guardado.');
-  await expect(page.getByRole('heading', { name: '2 mixes' })).toBeVisible();
-
-  expect(uploads.map((upload) => upload.method)).toEqual(['PUT', 'PUT']);
-  const audio = new URL(uploads[0]!.url);
-  expect(audio.pathname).toMatch(/^\/e2e-bucket\/mixes\/sesion-de-otono-[0-9a-f]{8}\.mp3$/);
-  expect(audio.searchParams.get('X-Amz-Signature')).toMatch(/^[0-9a-f]{64}$/);
-  expect(uploads[0]!.type).toBe('audio/mpeg');
-  expect(new URL(uploads[1]!.url).pathname).toMatch(/caratula-[0-9a-f]{8}\.jpg$/);
-
-  const mix = (await mockState(request)).tables.mixes.find((item) => item.title === 'Sesión de otoño')!;
-  expect(mix.audio_url).toBe(audio.pathname.replace('/e2e-bucket/', ''));
-  expect(mix.published).toBe(true);
-
-  // Despublicar el de prueba
-  const item = page.locator('[data-region="mixes"] .a-item', { has: page.locator('input[value="MIX DE PRUEBA"]') });
-  await item.getByLabel('publicado (suena en la web)').uncheck();
-  await item.getByRole('button', { name: 'guardar' }).click();
-  // El aviso aún dice «Guardado.» por la subida de antes: se espera al dato, no al aviso.
-  await expect
-    .poll(async () => (await mockState(request)).tables.mixes.find((m) => m.title === 'MIX DE PRUEBA')!.published)
-    .toBe(false);
-  await expect(toast(page)).toHaveText('Guardado.');
-
-  // Borrar el nuevo (el archivo de R2 no se puede borrar desde los tests: lo avisa)
-  const created = page.locator('[data-region="mixes"] .a-item', { has: page.locator('input[value="Sesión de otoño"]') });
-  await created.getByRole('button', { name: 'Borrar Sesión de otoño' }).click();
-  await page.locator('dialog[data-admin-dialog]').getByRole('button', { name: 'borrar' }).click();
-  await expect(toast(page)).toContainText('Borrado.');
-  await expect(page.getByRole('heading', { name: '1 mix' })).toBeVisible();
-});
-
-test('mixes: rechaza lo que no es audio', async ({ page }) => {
-  await signInAsPau(page, 'mixes');
-  await page.getByLabel(/archivo de audio/).setInputFiles({ name: 'foto.png', mimeType: 'image/png', buffer: Buffer.from('png') });
-  await page.getByLabel('título *').fill('Esto no es audio');
-  await page.getByRole('button', { name: 'subir y guardar' }).click();
-  await expect(page.locator('[data-error-for="audio"]')).toHaveText('El audio tiene que ser MP3 o M4A.');
 });

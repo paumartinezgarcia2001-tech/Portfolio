@@ -7,7 +7,8 @@ import { defineConfig, devices } from '@playwright/test';
  * lee de Supabase (DATA_SOURCE=supabase) para comprobar que lo que se guarda
  * en el panel aparece en la web pública. Supabase está simulado
  * (tests/e2e-admin/mock-supabase.mjs, puerto 4324) con las mismas reglas que
- * las políticas RLS. El login es solo usuario y contraseña (D61).
+ * las políticas RLS. El login es solo usuario y contraseña (D61). R2 también
+ * está simulado (tests/e2e-admin/mock-r2.mjs, puerto 4325, D62).
  *
  * - El nombre del panel en los tests es `E2E_ADMIN_PATH` (por defecto
  *   `panel-e2e`): el de verdad no se escribe en ningún archivo del repo.
@@ -18,6 +19,7 @@ import { defineConfig, devices } from '@playwright/test';
 
 const PORT = Number(process.env.E2E_ADMIN_PORT ?? 4331);
 const SUPABASE_PORT = Number(process.env.E2E_SUPABASE_PORT ?? 4324);
+const R2_PORT = Number(process.env.E2E_R2_PORT ?? 4325);
 const baseURL = `http://localhost:${PORT}`;
 const supabaseURL = `http://127.0.0.1:${SUPABASE_PORT}`;
 const chromiumExecutable = process.env.PW_CHROMIUM_EXECUTABLE || undefined;
@@ -59,6 +61,12 @@ export default defineConfig({
     },
   ],
   webServer: [
+    {
+      command: `node tests/e2e-admin/mock-r2.mjs --port ${R2_PORT}`,
+      url: `http://127.0.0.1:${R2_PORT}/__r2/health`,
+      reuseExistingServer: !process.env.CI,
+      timeout: 30_000,
+    },
     {
       command: `node tests/e2e-admin/mock-supabase.mjs --port ${SUPABASE_PORT}`,
       url: `${supabaseURL}/__e2e/health`,

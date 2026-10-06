@@ -10,6 +10,7 @@
 import '../styles/admin.css';
 import { ADMIN_PAGES, ADMIN_TEXT, adminHref, type AdminPageKey } from '../config/admin';
 import { SITE } from '../config/site';
+import StorageMeter from '../components/admin/StorageMeter.astro';
 
 interface Props {
   /** Título de la pestaña (se completa con « — panel»). */
@@ -62,6 +63,7 @@ const signedIn = Astro.locals.admin?.state.kind === 'admin';
           </form>
         )
       }
+      {signedIn && <StorageMeter />}
     </header>
 
     <slot />

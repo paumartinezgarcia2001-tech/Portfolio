@@ -20,7 +20,7 @@
  *   que puede).
  */
 import { defineMiddleware } from 'astro:middleware';
-import { ADMIN_PATH, R2_ACCOUNT_ID } from 'astro:env/server';
+import { ADMIN_PATH, R2_ACCOUNT_ID, R2_ENDPOINT } from 'astro:env/server';
 import { PUBLIC_CACHE } from './config/cache';
 import { matchesAdminPath } from './lib/admin/access';
 import { openAdminContext } from './lib/admin/context';
@@ -51,14 +51,18 @@ function getSecurityHeaders(): Record<string, string> {
 
 const NO_STORE = { 'X-Robots-Tag': 'noindex, nofollow', 'Cache-Control': 'no-store' };
 
-/** El panel sube los mixes al endpoint S3 de R2: hace falta en `connect-src`. */
+/**
+ * El panel sube los mixes al endpoint S3 de R2 (hace falta en `connect-src`) y
+ * los convierte a MP3 con WebAssembly (`'wasm-unsafe-eval'`, D64).
+ */
 let adminSecurityHeaders: Record<string, string> | undefined;
 function getAdminSecurityHeaders(): Record<string, string> {
   adminSecurityHeaders ??= {
     ...buildSecurityHeaders({
       mediaBaseUrl: publicVar('PUBLIC_MEDIA_BASE_URL'),
       supabaseUrl: publicVar('PUBLIC_SUPABASE_URL'),
-      connectSources: R2_ACCOUNT_ID ? [r2Endpoint(R2_ACCOUNT_ID)] : [],
+      connectSources: R2_ACCOUNT_ID || R2_ENDPOINT ? [r2Endpoint(R2_ACCOUNT_ID ?? '', R2_ENDPOINT)] : [],
+      wasm: true,
     }),
     // Que el nombre del panel no salga en el Referer de ningún enlace a otra web.
     // (`no-referrer` no sirve: el navegador mandaría `Origin: null` en los POST

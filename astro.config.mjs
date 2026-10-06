@@ -72,6 +72,8 @@ export default defineConfig({
       R2_ACCESS_KEY_ID: envField.string({ context: 'server', access: 'secret', optional: true }),
       R2_SECRET_ACCESS_KEY: envField.string({ context: 'server', access: 'secret', optional: true }),
       R2_BUCKET: envField.string({ context: 'server', access: 'secret', optional: true }),
+      // Otro endpoint S3 (jurisdicción UE o el R2 simulado de los e2e). Opcional.
+      R2_ENDPOINT: envField.string({ context: 'server', access: 'secret', optional: true }),
       // SUPABASE_SECRET_KEY no va aquí: solo la usan los scripts locales.
     },
   },

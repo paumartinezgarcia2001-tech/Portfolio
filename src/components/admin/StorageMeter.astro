@@ -1,0 +1,60 @@
+---
+/**
+ * D64 · Cuánto ocupa R2, en todas las páginas del panel: «R2 · 2,3 GB de
+ * 10 GB · 23 %» y una barra. Naranja desde el 80 %, roja al llegar a 10 GB
+ * (entonces el panel ya no deja subir nada).
+ *
+ * Se mide en el servidor al pintar cada página (src/lib/admin/r2-usage.ts) y
+ * src/scripts/admin/storage.ts la vuelve a pedir tras subir o borrar un mix.
+ */
+import { measureStorage } from '../../lib/admin/r2-usage';
+import { r2Credentials } from '../../lib/admin/r2-config';
+import { describeStorage, type StorageStatus } from '../../lib/admin/storage';
+
+const credentials = r2Credentials();
+let status: StorageStatus | null = null;
+let failed = false;
+if (credentials) {
+  try {
+    status = await measureStorage(credentials);
+  } catch (error) {
+    failed = true;
+    console.warn(`[panel] medir R2: ${(error as Error).message}`);
+  }
+}
+const level = status?.level ?? (credentials ? 'unknown' : 'off');
+const text = status
+  ? describeStorage(status)
+  : credentials
+    ? 'no se ha podido medir: no se puede subir nada'
+    : 'sin configurar (faltan los secrets R2_*)';
+const width = status ? Math.min(100, status.fraction * 100) : 0;
+---
+
+<div
+  class="a-storage"
+  data-storage
+  data-level={level}
+  data-used-bytes={status?.usedBytes}
+  data-failed={failed ? '' : undefined}
+>
+  <p class="a-storage__text">
+    <span class="a-storage__label">almacenamiento R2</span>
+    <span data-storage-text>{text}</span>
+    <span class="a-storage__note" data-storage-note>
+      {level === 'full' ? '· lleno: borra algo antes de subir más' : level === 'warn' ? '· casi lleno' : ''}
+    </span>
+  </p>
+  <div
+    class="a-storage__track"
+    role="meter"
+    aria-label="Almacenamiento de R2 ocupado"
+    aria-valuemin="0"
+    aria-valuemax="100"
+    aria-valuenow={status ? Math.min(100, Math.round(status.fraction * 1000) / 10) : 0}
+    aria-valuetext={text}
+    data-storage-meter
+  >
+    <span class="a-storage__fill" style={`width: ${width}%`} data-storage-fill></span>
+  </div>
+</div>

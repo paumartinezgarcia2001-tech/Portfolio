@@ -203,8 +203,9 @@ Una página con usuario y contraseña desde la que Pau cambia, sin tocar código
 - los **bolos**: añadir uno o **varias fechas** de la misma fiesta y sala (residencias),
   editar, borrar (con confirmación) y despublicar; aviso si ya hay un bolo en esa fecha y
   sala; el **archivo** en páginas de 50 para corregir erratas;
-- los **mixes**: subir el audio (y la carátula) directamente a R2, publicar, ordenar,
-  borrar;
+- los **mixes**: subir el audio (WAV, AIFF, FLAC, MP3 o M4A) y la carátula, que el
+  navegador convierte antes de mandarlos a R2; publicar, ordenar, borrar (ver
+  [Mixes y almacenamiento de R2](#mixes-y-almacenamiento-de-r2));
 - el **texto de Info** (Markdown sencillo: `## titulillo`, párrafos y
   `[enlaces](https://…)`), con vista previa y botón para volver al de `src/content/info.md`;
 - el **vídeo de Media**: punto focal, enlace «ver set completo» y, al preparar un vídeo
@@ -213,6 +214,52 @@ Una página con usuario y contraseña desde la que Pau cambia, sin tocar código
   texto usa los fondos al revés) y el del reproductor, con color propio o el de cada
   sección. Vista previa al momento, aviso si algo se leería mal y botón para volver a
   los originales. Se guardan en `site_settings.theme`.
+
+### Mixes y almacenamiento de R2
+
+**Lo que ocupa R2, siempre a la vista** (D64). Arriba de todas las páginas del panel sale
+«almacenamiento R2 · 2,3 GB de 10 GB (23 %)» con una barra: verde, **naranja desde el
+80 %** («casi lleno») y roja al llegar a **10 GB** (el plan gratuito de R2; en
+`R2_STORAGE` de `src/config/admin.ts`). Se mide de verdad cada vez: el servidor lista el
+bucket entero con `ListObjectsV2` (vídeo, mixes, carátulas, todo) y suma los tamaños. Si
+no se puede medir, la barra lo dice en rojo y no se sube nada.
+
+**Antes de subir nada se comprueba que cabe**, tres veces:
+
+1. el navegador calcula lo que ocupará el MP3 (duración × 320 kbps) más la carátula y
+   pregunta al servidor; si no cabe, ni siquiera convierte;
+2. al pedir la URL firmada, el servidor vuelve a medir R2 con el tamaño real y, si no
+   cabe, no la firma;
+3. al guardar el mix, el servidor comprueba con `HEAD` que lo subido está en R2, no pasa
+   de 500 MB (5 MB la carátula) y no ha hecho pasar del límite; si no, lo borra.
+
+`npm run media:upload` (y `media:mix`, que lo usa) hace lo mismo: mide el bucket, suma lo
+que va a subir y, si no cabe, no sube nada.
+
+**Conversión en el navegador.** Antes de subir, el panel deja el audio igual que
+`npm run media:mix`:
+
+- **MP3 a 320 kbps** con LAME (compilado a WebAssembly, `wasm-media-encoders`), a 44,1 o
+  48 kHz (un WAV a 96 kHz se remuestrea);
+- **a −14 LUFS**: mide la sonoridad integrada (ITU-R BS.1770, como `loudnorm`) y aplica
+  una ganancia fija, sin pasar de −1,5 dBFS de pico (si el mix es muy dinámico, se queda
+  algo por debajo y lo avisa);
+- WAV y AIFF se leen por trozos (un WAV de una hora no tiene que caber en memoria);
+  FLAC, MP3, M4A y OGG, con el decodificador del navegador (entero en memoria: en un
+  móvil, un mix de dos horas puede no caber);
+- al terminar, comprueba que el navegador reproduce el MP3;
+- si este navegador no puede convertir y el original ya es MP3 o M4A, lo sube tal cual
+  (sin normalizar) y lo dice. Si no, pide probar en Chrome o Firefox de escritorio;
+- la **carátula** se recorta cuadrada desde el centro y se guarda como JPEG de 1000 px
+  (o menos, si es más pequeña), sin los metadatos del original.
+
+Un mix de una hora tarda unos minutos en convertirse; no hay que cerrar la pestaña. En
+cuanto se guarda, si está marcado como publicado, ya suena en el reproductor de la web
+(se purga la caché de la etiqueta `mixes`).
+
+El código: `src/lib/admin/storage.ts` y `r2-usage.ts` (medir), `src/lib/audio/` (sonoridad,
+WAV/AIFF y MP3), `src/scripts/admin/audio/convert.ts`, `artwork.ts` y `storage.ts`, y
+`src/components/admin/StorageMeter.astro`.
 
 **Cómo se entra.** En «usuario» vale el **email** de la cuenta de Supabase o un **alias**
 corto (por ejemplo `pau`): el secret `ADMIN_USERNAME` es el alias y `ADMIN_EMAIL` el email
@@ -242,9 +289,10 @@ desde ningún sitio, no está en `robots.txt` ni en el sitemap, y lleva `noindex
    (cambiando el email; no lo guardes con el email real).
 5. Secrets del Worker (`npx wrangler secret put NOMBRE`; en local, `.env`): `ADMIN_PATH`
    y, si se quiere entrar con un alias corto en vez del email, `ADMIN_USERNAME` y
-   `ADMIN_EMAIL`. Para subir mixes desde el panel, también `R2_ACCOUNT_ID`,
+   `ADMIN_EMAIL`. Para subir mixes y medir R2 desde el panel, también `R2_ACCOUNT_ID`,
    `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` y `R2_BUCKET` (un token de R2 limitado al
-   bucket, «Object Read & Write»).
+   bucket, «Object Read & Write»: sirve también para listarlo). `R2_ENDPOINT` solo si el
+   bucket está en la jurisdicción UE (`https://<cuenta>.eu.r2.cloudflarestorage.com`).
 6. CORS del bucket (`r2/cors.json`): el dominio de la web tiene que estar en la regla de
    `PUT` para que el navegador pueda subir los mixes.
 
@@ -282,8 +330,10 @@ Providers → Email*) a 16.
 (`tests/e2e-admin/mock-supabase.mjs`, con las mismas reglas que las políticas RLS) y
 prueba el login, los errores, el límite de intentos por IP, los intentos de inyección SQL, la 404, las cabeceras, la barra, los bolos (y que aparecen
 en la web), los duplicados, las varias fechas, el archivo, Info, el vídeo, los colores, la
-subida de mixes (R2 interceptado en el navegador), el login con alias (también sin
-JavaScript) y el uso a 375 px. Las migraciones y `supabase/tests/rls.sql` se prueban en
+subida de mixes contra un **R2 simulado** (`tests/e2e-admin/mock-r2.mjs`: un WAV se
+convierte en el navegador, se sube como MP3 a −14 LUFS y suena en la web; la barra de
+almacenamiento, el aviso del 80 %, el bloqueo a 10 GB en el navegador y en el servidor),
+el login con alias (también sin JavaScript) y el uso a 375 px. Las migraciones y `supabase/tests/rls.sql` se prueban en
 un Postgres de verdad sin red (PGlite) dentro de `npm test` (`tests/unit/rls-sql.test.ts`).
 Cada test entra desde una IP distinta (`CF-Connecting-IP`, el `test` de
 `tests/e2e-admin/helpers.ts`) para no tropezar con el límite de intentos.

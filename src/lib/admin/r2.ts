@@ -16,11 +16,18 @@ export interface R2Credentials {
   accessKeyId: string;
   secretAccessKey: string;
   bucket: string;
+  /**
+   * Otro endpoint S3 (secreto `R2_ENDPOINT`): la jurisdicción UE
+   * (`https://<cuenta>.eu.r2.cloudflarestorage.com`) o el R2 simulado de los
+   * e2e. Sin él, el de la cuenta.
+   */
+  endpoint?: string | undefined;
 }
 
 /** Endpoint S3 de la cuenta de R2 (no es el dominio público del bucket). */
-export function r2Endpoint(accountId: string): string {
-  return `https://${accountId}.r2.cloudflarestorage.com`;
+export function r2Endpoint(accountId: string, override?: string): string {
+  const custom = override?.trim().replace(/\/+$/, '');
+  return custom || `https://${accountId}.r2.cloudflarestorage.com`;
 }
 
 export interface PresignOptions {
@@ -38,6 +45,13 @@ export interface PresignOptions {
   now?: Date;
   service?: string;
   protocol?: 'https' | 'http';
+  /** Parámetros de la petición (p. ej. `list-type=2` para listar), que entran en la firma. */
+  query?: Record<string, string> | undefined;
+  /**
+   * Cabeceras que también se firman (además de `host`): el navegador tiene que
+   * mandarlas exactamente así o R2 responde 403. Se usa con `content-type`.
+   */
+  headers?: Record<string, string> | undefined;
 }
 
 const encoder = new TextEncoder();
@@ -82,12 +96,18 @@ export async function presignUrl(options: PresignOptions): Promise<string> {
   const scope = `${day}/${region}/${service}/aws4_request`;
   const path = encodePath(options.path.startsWith('/') ? options.path : `/${options.path}`);
 
+  const signed = new Map<string, string>([['host', host]]);
+  for (const [name, value] of Object.entries(options.headers ?? {})) {
+    signed.set(name.toLowerCase(), value.trim().replace(/\s+/g, ' '));
+  }
+  const signedNames = [...signed.keys()].sort();
   const query: Array<[string, string]> = [
+    ...Object.entries(options.query ?? {}),
     ['X-Amz-Algorithm', 'AWS4-HMAC-SHA256'],
     ['X-Amz-Credential', `${accessKeyId}/${scope}`],
     ['X-Amz-Date', datetime],
     ['X-Amz-Expires', String(Math.max(1, Math.min(604_800, Math.round(expiresIn))))],
-    ['X-Amz-SignedHeaders', 'host'],
+    ['X-Amz-SignedHeaders', signedNames.join(';')],
   ];
   const canonicalQuery = query
     .map(([key, value]) => [awsEncode(key), awsEncode(value)] as const)
@@ -95,7 +115,10 @@ export async function presignUrl(options: PresignOptions): Promise<string> {
     .map(([key, value]) => `${key}=${value}`)
     .join('&');
 
-  const canonicalRequest = [method, path, canonicalQuery, `host:${host}\n`, 'host', 'UNSIGNED-PAYLOAD'].join('\n');
+  const canonicalHeaders = signedNames.map((name) => `${name}:${signed.get(name)}\n`).join('');
+  const canonicalRequest = [method, path, canonicalQuery, canonicalHeaders, signedNames.join(';'), 'UNSIGNED-PAYLOAD'].join(
+    '\n',
+  );
   const stringToSign = ['AWS4-HMAC-SHA256', datetime, scope, await sha256Hex(canonicalRequest)].join('\n');
 
   const kDate = await hmac(encoder.encode(`AWS4${secretAccessKey}`), day);
@@ -107,23 +130,38 @@ export async function presignUrl(options: PresignOptions): Promise<string> {
   return `${options.protocol ?? 'https'}://${host}${path}?${canonicalQuery}&X-Amz-Signature=${signature}`;
 }
 
-/** URL prefirmada para un objeto del bucket de R2 (estilo «path»). */
+export interface PresignR2Extra {
+  now?: Date | undefined;
+  query?: Record<string, string> | undefined;
+  headers?: Record<string, string> | undefined;
+}
+
+/**
+ * URL prefirmada para un objeto del bucket de R2 (estilo «path»). Con
+ * `key` vacío, la del bucket (para listarlo).
+ */
 export function presignR2(
   credentials: R2Credentials,
   method: PresignOptions['method'],
   key: string,
   expiresIn: number,
-  now?: Date,
+  extra: PresignR2Extra | Date = {},
 ): Promise<string> {
+  const { now, query, headers } = extra instanceof Date ? { now: extra, query: undefined, headers: undefined } : extra;
+  const endpoint = new URL(r2Endpoint(credentials.accountId, credentials.endpoint));
+  const base = endpoint.pathname.replace(/\/+$/, '');
   return presignUrl({
     method,
-    host: new URL(r2Endpoint(credentials.accountId)).host,
-    path: `/${credentials.bucket}/${key}`,
+    host: endpoint.host,
+    path: key ? `${base}/${credentials.bucket}/${key}` : `${base}/${credentials.bucket}`,
     accessKeyId: credentials.accessKeyId,
     secretAccessKey: credentials.secretAccessKey,
     region: 'auto',
     expiresIn,
+    protocol: endpoint.protocol === 'http:' ? 'http' : 'https',
     ...(now ? { now } : {}),
+    ...(query ? { query } : {}),
+    ...(headers ? { headers } : {}),
   });
 }
 
