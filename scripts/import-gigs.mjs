@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // @ts-check
 /**
- * Importación inicial de bolos desde los .xlsx (prompt maestro §7.4).
+ * Importación inicial de bolos desde los .xlsx.
  *
  * Uso (desde Portfolio/):
  *   node scripts/import-gigs.mjs --dry-run            → solo el informe

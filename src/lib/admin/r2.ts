@@ -1,5 +1,5 @@
 /**
- * Subida de mixes a R2 desde el panel (P2, fase 6).
+ * Subida de mixes a R2 desde el panel.
  *
  * El Worker no recibe el archivo: firma una URL (AWS Signature V4 en la query,
  * como las URLs prefirmadas de S3) y el navegador sube el MP3 directamente al

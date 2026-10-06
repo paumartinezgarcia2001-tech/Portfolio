@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // @ts-check
 /**
- * Pipeline de vídeo para Media (prompt maestro §5 · C15): convierte un vídeo en
+ * Pipeline de vídeo para Media (C15): convierte un vídeo en
  * HLS listo para subir a R2.
  *
  * Uso (desde Portfolio/):

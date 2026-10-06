@@ -1,24 +1,20 @@
 /**
- * Cabeceras de seguridad (§11), las mismas para toda la web.
+ * Cabeceras de seguridad, las mismas para toda la web.
  *
  * Tienen que ser idénticas en todas las páginas: con el ClientRouter, la web
  * no vuelve a cargar el documento al navegar, así que la CSP de la primera
  * página que se abre es la que manda en todas las demás. Si la de Info no
- * dejara cargar Turnstile, el formulario fallaría al llegar a contact desde el
+ * dejara cargar los widgets de redes, fallarían al llegar a contact desde el
  * menú; si la de contact no dejara cargar el vídeo, fallaría Media.
  *
  * Dónde se aplican:
  * - respuestas del Worker (páginas, 404 y Actions): src/middleware.ts;
- * - archivos estáticos (páginas prerenderizadas, como las legales): `_headers`,
- *   que escribe la integración de astro.config.mjs al compilar.
+ * - archivos estáticos (assets): `_headers`, que escribe la integración de
+ *   astro.config.mjs al compilar.
  *
  * La CSP de Astro (`security.csp`) no sirve aquí: no es compatible con el
- * ClientRouter. Tampoco se puede usar en GitHub Pages (no deja poner
- * cabeceras); allí la web es provisional (D37).
+ * ClientRouter.
  */
-
-/** Turnstile: su script y el iframe del widget (C17). */
-export const TURNSTILE_ORIGIN = 'https://challenges.cloudflare.com';
 
 /**
  * Widgets de contact (C17, D59): el reproductor de SoundCloud y el embed de
@@ -35,7 +31,7 @@ export interface SecurityHeadersOptions {
   /** PUBLIC_SUPABASE_URL (por si el navegador llega a hablar con Supabase). */
   supabaseUrl?: string | undefined;
   /**
-   * Orígenes extra para `connect-src`. Solo el panel (fase 6, sin
+   * Orígenes extra para `connect-src`. Solo el panel (sin
    * ClientRouter, así que puede tener su propia CSP): la subida directa de
    * mixes al endpoint S3 de R2.
    */
@@ -58,7 +54,7 @@ export function buildContentSecurityPolicy(options: SecurityHeadersOptions = {})
   const supabase = originOf(options.supabaseUrl);
   const directives: Array<[string, Array<string | undefined>]> = [
     ['default-src', ["'self'"]],
-    ['script-src', ["'self'", TURNSTILE_ORIGIN, SOUNDCLOUD_WIDGET_ORIGIN, INSTAGRAM_ORIGIN]],
+    ['script-src', ["'self'", SOUNDCLOUD_WIDGET_ORIGIN, INSTAGRAM_ORIGIN]],
     // Astro mete estilos en línea (hojas pequeñas, `style=""`, transiciones).
     ['style-src', ["'self'", "'unsafe-inline'"]],
     ['img-src', ["'self'", 'data:', 'blob:', media]],
@@ -66,7 +62,7 @@ export function buildContentSecurityPolicy(options: SecurityHeadersOptions = {})
     // hls.js reproduce desde `blob:` (Media Source Extensions).
     ['media-src', ["'self'", 'blob:', media]],
     ['connect-src', ["'self'", media, supabase, ...(options.connectSources ?? []).map(originOf)]],
-    ['frame-src', [TURNSTILE_ORIGIN, SOUNDCLOUD_WIDGET_ORIGIN, INSTAGRAM_ORIGIN]],
+    ['frame-src', [SOUNDCLOUD_WIDGET_ORIGIN, INSTAGRAM_ORIGIN]],
     ['manifest-src', ["'self'"]],
     ['object-src', ["'none'"]],
     ['base-uri', ["'self'"]],

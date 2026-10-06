@@ -4,7 +4,7 @@
  * Los dos se ven nada más abrir contact (Luna ✓ 02-10-2026): el reproductor no
  * suena hasta que le dan al play, y las publicaciones se pintan solas. A cambio,
  * SoundCloud y Meta reciben la visita y pueden poner sus cookies en cuanto se
- * abre la página; está contado en /privacidad.
+ * abre la página (no está contado en ninguna página: D60 quitó /privacidad).
  *
  * Sin JavaScript quedan enlaces de verdad: el `blockquote` de cada publicación
  * lleva dentro su enlace, y `embed.js` lo sustituye por el embed cuando carga.
@@ -50,7 +50,7 @@ export const SOUNDCLOUD = {
   eager: true,
 } as const;
 
-/** API de JavaScript del widget (el origen ya está en la CSP, §11). */
+/** API de JavaScript del widget (el origen ya está en la CSP). */
 export const SOUNDCLOUD_WIDGET_API = `${SOUNDCLOUD_WIDGET_ORIGIN}/player/api.js`;
 
 /**
@@ -103,7 +103,7 @@ export const INSTAGRAM_POSTS: readonly string[] = [
   'https://www.instagram.com/p/DBjxR7uuDQ1/',
 ];
 
-/** Script del embed oficial (el origen ya está en la CSP, §11). */
+/** Script del embed oficial (el origen ya está en la CSP). */
 export const INSTAGRAM_EMBED_SCRIPT = `${INSTAGRAM_ORIGIN}/embed.js`;
 
 /** Versión del formato del embed que documenta Instagram. */
@@ -142,8 +142,7 @@ export function instagramPosts(): string[] {
  * Textos de los dos apartados.
  *
  * Sin avisos de cookies debajo de cada widget (Luna ✓ 02-10-2026): los dos
- * llevan dentro los enlaces legales de SoundCloud y de Instagram, y lo que
- * hacen está explicado en /privacidad, que es donde toca.
+ * llevan dentro los enlaces legales de SoundCloud y de Instagram.
  *
  * Debajo de cada widget va su enlace al perfil, con el nombre de la red a secas
  * y la flecha (Luna ✓ 02-10-2026); antes estaban los dos juntos al final de

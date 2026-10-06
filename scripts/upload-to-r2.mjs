@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // @ts-check
 /**
- * Sube archivos a Cloudflare R2 con la API S3 (prompt maestro §7.5).
+ * Sube archivos a Cloudflare R2 con la API S3.
  *
  * Uso (desde Portfolio/):
  *   node scripts/upload-to-r2.mjs                                 → todo .media/

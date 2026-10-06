@@ -1,8 +1,8 @@
 /**
- * Esquemas (zod) y funciones puras del panel (C19, fase 6).
+ * Esquemas (zod) y funciones puras del panel (C19).
  *
  * Los formularios del panel envían FormData a las Actions `admin.*`. Astro
- * convierte el FormData en objeto antes de validar (ver src/lib/contact/schema.ts):
+ * convierte el FormData en objeto antes de validar:
  * - un campo obligatorio vacío llega como `null`; uno opcional vacío, como `undefined`;
  * - una casilla marcada llega como `true` y una sin marcar, como `false`;
  * - un campo repetido (`fechas`) llega como lista si el esquema es `z.array`.
@@ -17,7 +17,7 @@ import { charLength, normalizeTickerText } from '../ticker';
 // Utilidades
 // --------------------------------------------------------------------------
 
-/** Recorta y colapsa espacios (como la importación, §7.4). */
+/** Recorta y colapsa espacios (como la importación de bolos). */
 export function cleanText(value: string): string {
   return value.replace(/\s+/g, ' ').trim();
 }
@@ -45,7 +45,7 @@ export function formatLineup(lineup: readonly string[]): string {
   return lineup.join(', ');
 }
 
-/** URL `https://` válida (la base de datos solo admite https, §7.1). */
+/** URL `https://` válida (la base de datos solo admite https). */
 export function isHttpsUrl(value: string): boolean {
   if (!/^https:\/\//i.test(value)) return false;
   try {
@@ -102,7 +102,7 @@ const lineupText = z
   );
 
 // --------------------------------------------------------------------------
-// Login (usuario o email + contraseña, D61)
+// Login (usuario o email + contraseña)
 // --------------------------------------------------------------------------
 
 export const loginSchema = z.object({
@@ -165,7 +165,6 @@ export const gigBulkSchema = z.object({
 export const gigDeleteSchema = z.object({ id: z.uuid() });
 
 export type GigInput = z.infer<typeof gigSchema>;
-export type GigBulkInput = z.infer<typeof gigBulkSchema>;
 
 /** Fila para `insert`/`update` de `gigs`. */
 export interface GigWrite {
@@ -192,7 +191,7 @@ export function toGigWrite(date: string, input: GigFields): GigWrite {
   };
 }
 
-/** Claves de la restricción `gigs_dedupe` (§7.1): `lower(btrim(…))`. */
+/** Claves de la restricción `gigs_dedupe`: `lower(btrim(…))`. */
 export function venueKey(venue: string): string {
   return venue.trim().toLowerCase();
 }
@@ -242,7 +241,7 @@ export function findDuplicates(
 }
 
 // --------------------------------------------------------------------------
-// Info (P2)
+// Info
 // --------------------------------------------------------------------------
 
 export const infoSchema = z.object({
@@ -256,7 +255,7 @@ export const infoSchema = z.object({
 });
 
 // --------------------------------------------------------------------------
-// Mixes (P2)
+// Mixes
 // --------------------------------------------------------------------------
 
 const mediaRef = z.string().trim().max(500).refine(isMediaRef, MSG.pathInvalid);
@@ -287,7 +286,7 @@ export const mixUpdateSchema = z.object({ id: z.uuid(), ...mixFields, quitarCara
 export const mixDeleteSchema = z.object({ id: z.uuid(), borrarArchivos: z.boolean().optional() });
 
 // --------------------------------------------------------------------------
-// Vídeo de Media (P2)
+// Vídeo de Media
 // --------------------------------------------------------------------------
 
 const renditionSchema = z.object({

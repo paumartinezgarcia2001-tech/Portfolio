@@ -1,4 +1,4 @@
--- Dar acceso al panel (fase 6) a una cuenta que ya existe en Supabase Auth.
+-- Dar acceso al panel a una cuenta que ya existe en Supabase Auth.
 --
 -- 1. Authentication → Users → «Add user» → «Create new user»: email y una
 --    contraseña robusta, con «Auto Confirm User» marcado.

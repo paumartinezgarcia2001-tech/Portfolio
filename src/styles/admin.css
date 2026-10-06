@@ -1,5 +1,5 @@
 /*
- * Panel oculto (C19, fase 6). Mismos tokens que la web (§4), una columna
+ * Panel oculto (C19). Mismos tokens que la web, una columna
  * legible y nada de efectos: sin rejilla pixelada, sin cursor propio y sin
  * transiciones de sección. Pensado para el móvil (375 px) primero.
  */

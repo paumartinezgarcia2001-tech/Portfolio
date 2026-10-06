@@ -1,5 +1,5 @@
 /**
- * Migraciones y RLS (§7.2, fase 6) en un Postgres de verdad, sin red: PGlite
+ * Migraciones y RLS  en un Postgres de verdad, sin red: PGlite
  * (Postgres compilado a WebAssembly) con lo mínimo de Supabase simulado
  * (roles `anon`/`authenticated`, `auth.users`, `auth.uid()`, `auth.jwt()` y
  * `auth.mfa_factors`).

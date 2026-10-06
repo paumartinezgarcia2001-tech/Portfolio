@@ -1,6 +1,6 @@
 ---
 /**
- * C19 · AdminLayout — documento del panel oculto (fase 6).
+ * C19 · AdminLayout — documento del panel oculto.
  *
  * Independiente de BaseLayout: sin rejilla pixelada, sin cursor propio y sin
  * ClientRouter (cada página del panel se carga entera). Mismos tokens, una
@@ -10,12 +10,11 @@
 import '../styles/admin.css';
 import { ADMIN_PAGES, ADMIN_TEXT, adminHref, type AdminPageKey } from '../config/admin';
 import { SITE } from '../config/site';
-import { withBase } from '../lib/url';
 
 interface Props {
   /** Título de la pestaña (se completa con « — panel»). */
   title: string;
-  /** Página actual del menú; sin él, no hay menú (login, segundo paso). */
+  /** Página actual del menú; sin él, no hay menú (login). */
   current?: AdminPageKey | undefined;
 }
 
@@ -34,12 +33,12 @@ const signedIn = Astro.locals.admin?.state.kind === 'admin';
     <meta name="theme-color" content="#27272B" />
     <meta name="color-scheme" content="only light" />
     <title>{`${title} — panel`}</title>
-    <link rel="icon" href={withBase('/favicon.svg')} type="image/svg+xml" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   </head>
   <body>
     <header class="a-bar">
       <p class="a-bar__title">
-        <a class="a-bar__site" href={withBase('/')}>{SITE.name}</a> · panel
+        <a class="a-bar__site" href="/">{SITE.name}</a> · panel
       </p>
       {
         signedIn && current && (

@@ -1,5 +1,5 @@
 /**
- * Piezas comunes del panel en el navegador (C19, fase 6): aviso «Guardado.»,
+ * Piezas comunes del panel en el navegador (C19): aviso «Guardado.»,
  * errores de los campos, el <dialog> de confirmación y la recarga de trozos
  * de la página sin perder lo que haya escrito en otros formularios.
  */

@@ -1,5 +1,5 @@
 /**
- * Fechas de los bolos (prompt maestro §7.3 y C13).
+ * Fechas de los bolos (C13).
  * Todo se calcula en hora de Madrid, sin depender de la zona de la máquina.
  */
 
@@ -80,7 +80,7 @@ export function addDays(date: string, days: number): string {
 }
 
 /**
- * Fecha de corte (§7.3): `fecha(ahoraEnMadrid − 8 h)`, con horas de reloj.
+ * Fecha de corte: `fecha(ahoraEnMadrid − 8 h)`, con horas de reloj.
  * Un bolo del día D sigue en próximas hasta las 08:00 del día D+1:
  * próximas → `event_date >= corte`; archivo → `event_date < corte`.
  * Se calcula con la hora de pared, así que los cambios de horario no

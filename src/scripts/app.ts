@@ -5,7 +5,6 @@
  */
 import type { TransitionBeforeSwapEvent } from 'astro:transitions/client';
 import { DESKTOP_MEDIA_QUERY, type MobileView } from '../config/site';
-import { runPageCleanups } from './lifecycle';
 import { pixelTransitionActive } from './pixel-transition';
 
 const root = document.documentElement;
@@ -122,11 +121,10 @@ function onBeforeSwap(event: TransitionBeforeSwapEvent): void {
   closingMenu = menuOpen && !pixels;
   if (menuOpen && pixels) hideMenuWithoutSlide(event.viewTransition);
   // El ClientRouter copia los atributos del <html> nuevo, que trae la vista de
-  // arranque (el menú en móvil, D44). Navegar deja a la vista la página (§6);
+  // arranque (el menú en móvil, D44). Navegar deja a la vista la página;
   // si se sale del menú abierto, se mantiene abierto durante el cambio y
   // luego se cierra con su animación (si no, el navegador no la anima).
   event.newDocument.documentElement.dataset.view = closingMenu ? 'menu' : 'page';
-  runPageCleanups();
 }
 
 function nextFrames(): Promise<void> {
@@ -154,7 +152,7 @@ function onAfterSwap(): void {
   if (panel) panel.scrollTop = 0;
 
   if (!closingMenu) {
-    // Navegar siempre deja a la vista la página (§6).
+    // Navegar siempre deja a la vista la página.
     setView('page');
     focusHeading();
     return;

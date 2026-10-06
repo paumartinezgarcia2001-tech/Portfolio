@@ -1,5 +1,5 @@
 /**
- * Vistas previas de los editores de P2 (fase 6):
+ * Vistas previas de los editores del panel:
  * - Info: el Markdown se pinta con la misma función que usa la web
  *   (src/lib/markdown.ts), así que lo que se ve es lo que saldrá.
  * - Vídeo: el punto focal se mueve con las barras o tocando el póster.

@@ -58,14 +58,10 @@ test('login correcto (con el email) → panel; cerrar sesión → login', async 
   await expect(page.getByLabel('usuario')).toBeVisible();
 });
 
-test('login con el alias (ADMIN_USERNAME), en mayúsculas y sin CAPTCHA ni código (D61)', async ({ page }) => {
+test('login con el alias (ADMIN_USERNAME), en mayúsculas', async ({ page }) => {
   await page.goto(adminUrl());
-  // Solo usuario y contraseña: ni widget de CAPTCHA ni campo de código.
-  await expect(page.locator('[data-turnstile], iframe')).toHaveCount(0);
-  await expect(page.getByLabel('código')).toHaveCount(0);
   await signIn(page, { email: PAU.alias.toUpperCase(), password: PAU.password });
   await expect(page.getByRole('heading', { level: 1, name: 'bolos y barra' })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'seguridad' })).toHaveCount(0);
 });
 
 test('sin JavaScript también se entra con el alias', async ({ browser }) => {
@@ -80,7 +76,7 @@ test('sin JavaScript también se entra con el alias', async ({ browser }) => {
 });
 
 test('otro nombre de panel → 404 de verdad', async ({ page, request }) => {
-  for (const path of ['/otro-slug', `/${ADMIN_PATH}x`, '/otro-slug/archivo', `/${ADMIN_PATH}/no-existe`, `/${ADMIN_PATH}/seguridad`]) {
+  for (const path of ['/otro-slug', `/${ADMIN_PATH}x`, '/otro-slug/archivo', `/${ADMIN_PATH}/no-existe`]) {
     const response = await request.get(path);
     expect(response.status(), path).toBe(404);
     expect(await response.text()).toContain('Esta página no existe.');

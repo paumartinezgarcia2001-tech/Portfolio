@@ -1,11 +1,10 @@
 ---
 /**
  * C15 · Media — vídeo a sangre, servido en HLS desde R2 (`<media-video>`).
- * Sin pixelado (D40). Mientras no exista el bucket (falta
- * `PUBLIC_MEDIA_BASE_URL`), un aviso en su lugar.
+ * Sin pixelado (D40). Sin `PUBLIC_MEDIA_BASE_URL` (el dominio del bucket),
+ * un aviso discreto en su lugar.
  */
 import MediaVideo from '../components/MediaVideo.astro';
-import PhasePlaceholder from '../components/PhasePlaceholder.astro';
 import BaseLayout from '../layouts/BaseLayout.astro';
 import { getMediaVideo } from '../lib/data';
 
@@ -27,10 +26,7 @@ const video = await getMediaVideo();
       <MediaVideo video={video} />
     ) : (
       <div class="media-stage">
-        <PhasePlaceholder
-          phase={3}
-          what="El vídeo está preparado, pero falta PUBLIC_MEDIA_BASE_URL: se verá cuando esté subido al bucket de R2."
-        />
+        <p class="media-notice" role="status">vídeo — próximamente</p>
       </div>
     )
   }
@@ -43,6 +39,10 @@ const video = await getMediaVideo();
       place-items: center;
       min-height: 100%;
       padding: var(--pad);
+    }
+
+    .media-notice {
+      font-size: var(--fs-small);
     }
   }
 </style>

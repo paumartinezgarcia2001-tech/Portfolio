@@ -1,73 +1,18 @@
 ---
 /**
- * C17 · Contact — correo y redes (fase 5, D60).
+ * C17 · Contact — correo y redes (D58–D60).
  *
- * **Ahora mismo no hay formulario** (`CONTACT_FORM_ENABLED`, Luna ✓
- * 03-10-2026): donde estaba, el email de Pau como enlace `mailto:`. Debajo, el
+ * Sin formulario: arriba, el email de Pau como enlace `mailto:`; debajo, el
  * reproductor de SoundCloud y las publicaciones de Instagram, cada uno con su
- * enlace (D59).
- *
- * Con el interruptor en `true` vuelve el formulario, con sus dos formas de
- * enviar según dónde esté la web (ver ContactForm.astro):
- * - **Cloudflare**: Action `contact.send`. Con JavaScript, sin recargar; sin
- *   JavaScript, con un POST normal, y al salir bien se redirige a
- *   /mensaje-enviado (así recargar no reenvía). Si falla, la página se vuelve a
- *   pintar con los errores y lo ya escrito.
- * - **GitHub Pages** (STATIC_BUILD): API de Web3Forms, con la clave pública
- *   PUBLIC_WEB3FORMS_KEY. Sin JavaScript también funciona: Web3Forms devuelve
- *   el navegador a /mensaje-enviado.
- *
- * Si falta la clave que hace falta en cada caso, en lugar del formulario
- * aparece «formulario — próximamente» y quedan el correo y las redes.
+ * enlace al perfil (D59).
  */
-import { actions, isInputError } from 'astro:actions';
-import { PUBLIC_WEB3FORMS_KEY } from 'astro:env/client';
-import { STATIC_BUILD } from 'astro:env/server';
-import ContactForm from '../components/ContactForm.astro';
 import InstagramPosts from '../components/InstagramPosts.astro';
 import SocialLinks from '../components/SocialLinks.astro';
 import SoundCloudEmbed from '../components/SoundCloudEmbed.astro';
-import {
-  CONTACT_FORM_ENABLED,
-  CONTACT_SENT_PATH,
-  CONTACT_TEXT as TEXT,
-  warnMissingTurnstileSiteKey,
-  warnMissingWeb3FormsKey,
-} from '../config/contact';
 import BaseLayout from '../layouts/BaseLayout.astro';
-import { readContactValues } from '../lib/contact/values';
-import { publicVar } from '../lib/public-env';
-import { withBase } from '../lib/url';
 
-const result = Astro.getActionResult(actions.contact.send);
-// POST → redirección → GET (C17): recargar la página no reenvía el mensaje.
-if (result && !result.error) {
-  return Astro.redirect(withBase(CONTACT_SENT_PATH), 303);
-}
-
-const error = result?.error;
-const fieldErrors = error && isInputError(error) ? error.fields : undefined;
-const errorCode = error && !isInputError(error) ? error.message : undefined;
-// Sin JavaScript: se devuelve lo escrito para no perderlo.
-const values = error ? await readContactValues(Astro.request) : undefined;
-if (error) Astro.response.status = error.status;
-
-// Sin servidor manda Web3Forms; con servidor, la Action y Turnstile. Sin
-// formulario no hace falta ninguna de las dos claves, así que tampoco se avisa.
-const siteKey = STATIC_BUILD ? undefined : publicVar('PUBLIC_TURNSTILE_SITE_KEY');
-const accessKey = STATIC_BUILD ? PUBLIC_WEB3FORMS_KEY : undefined;
-if (CONTACT_FORM_ENABLED && STATIC_BUILD && !accessKey) warnMissingWeb3FormsKey();
-if (CONTACT_FORM_ENABLED && !STATIC_BUILD && !siteKey) warnMissingTurnstileSiteKey();
-
-/**
- * Dirección absoluta de /mensaje-enviado para el campo `redirect` de Web3Forms
- * (su plan gratuito solo admite el mismo dominio). Con `build.format: 'file'`
- * las páginas son archivos `.html`, y ahí `Astro.url.pathname` ya lo lleva.
- */
-const origin = publicVar('PUBLIC_SITE_URL') ?? Astro.site?.origin ?? Astro.url.origin;
-const sentPath = `${withBase(CONTACT_SENT_PATH)}${Astro.url.pathname.endsWith('.html') ? '.html' : ''}`;
-const web3forms = accessKey ? { accessKey, redirect: new URL(sentPath, origin).href } : undefined;
-const formAvailable = STATIC_BUILD ? Boolean(web3forms) : Boolean(siteKey);
+/** Frase de entrada de la página. */
+const INTRO = 'Booking, prensa y colaboraciones.';
 ---
 
 <BaseLayout
@@ -77,34 +22,8 @@ const formAvailable = STATIC_BUILD ? Boolean(web3forms) : Boolean(siteKey);
   description="Booking, prensa y colaboraciones con travest15m0."
 >
   <div class="contact">
-    <p class="contact__intro">{TEXT.intro}</p>
-
-    {/* Sin formulario (D60): se escribe al email, que va aquí mismo. */}
-    {!CONTACT_FORM_ENABLED && <SocialLinks />}
-
-    {
-      CONTACT_FORM_ENABLED && (
-        <>
-          {/* Con JavaScript, al enviarse bien el script cambia el formulario por esto. */}
-          <p class="contact__sent" role="status" tabindex="-1" data-contact-sent hidden>
-            {TEXT.success}
-          </p>
-
-          {formAvailable && (
-            <ContactForm
-              web3forms={web3forms}
-              siteKey={siteKey}
-              values={values}
-              fieldErrors={fieldErrors}
-              errorCode={errorCode}
-            />
-          )}
-          {!formAvailable && <p class="contact__unavailable">{TEXT.unavailable}</p>}
-        </>
-      )
-    }
-
-    {/* D59: cada widget con su enlace a la red justo debajo. */}
+    <p class="contact__intro">{INTRO}</p>
+    <SocialLinks />
     <SoundCloudEmbed />
     <InstagramPosts />
   </div>
@@ -116,27 +35,13 @@ const formAvailable = STATIC_BUILD ? Boolean(web3forms) : Boolean(siteKey);
       display: grid;
       justify-items: start;
       gap: var(--pad);
-      /* Sin tope de ancho (Luna ✓ 02-10-2026): el formulario y los widgets de
-         redes ocupan todo lo que da la columna de la página. */
+      /* Sin tope de ancho (Luna ✓ 02-10-2026): los widgets de redes ocupan
+         todo lo que da la columna de la página. */
     }
 
-    .contact__intro,
-    .contact__unavailable {
+    .contact__intro {
       font-size: var(--fs-small);
       line-height: var(--lh-paragraph);
-    }
-
-    .contact__sent {
-      font-size: var(--fs-paragraph);
-      line-height: var(--lh-paragraph);
-    }
-
-    .contact__sent[hidden] {
-      display: none;
-    }
-
-    .contact__sent:focus-visible {
-      outline-offset: 0.1em;
     }
   }
 </style>

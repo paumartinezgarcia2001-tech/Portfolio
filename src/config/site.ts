@@ -1,5 +1,5 @@
 /**
- * Datos generales de la web (prompt maestro §1 y §8).
+ * Datos generales de la web.
  * No pongas aquí el nombre del panel ni el teléfono de Pau. El email sí: Luna
  * pidió publicarlo (D58), así que `contactEmail` sale en el HTML a propósito.
  */
@@ -21,7 +21,7 @@ export const SITE = {
    * Aparece en el HTML de una web pública: los robots de spam lo encontrarán.
    */
   contactEmail: 'pau.martinez.garcia.2001@gmail.com',
-  /** Texto inicial de la barra de noticias (fase 2: vendrá de `site_settings`). */
+  /** Texto de la barra de noticias si `site_settings` no tiene ninguno. */
   tickerText: 'travest15m0 · DJ · Madrid',
 } as const;
 
@@ -35,6 +35,6 @@ export type MobileView = 'page' | 'menu';
  */
 export const MOBILE_START_VIEW: MobileView = 'menu';
 
-/** Anchura a partir de la cual la web se divide en dos mitades (§4.3). */
+/** Anchura a partir de la cual la web se divide en dos mitades. */
 export const DESKTOP_MIN_WIDTH = 1024;
 export const DESKTOP_MEDIA_QUERY = `(min-width: ${DESKTOP_MIN_WIDTH}px)`;

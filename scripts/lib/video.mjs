@@ -1,17 +1,17 @@
 // @ts-check
 /**
- * Funciones puras del pipeline de vídeo (prompt maestro §5 · C15 y §7.5).
+ * Funciones puras del pipeline de vídeo (C15).
  * Las usan `scripts/video-to-hls.mjs`, `scripts/upload-to-r2.mjs` y
  * `scripts/serve-media.mjs`, y las prueban los tests unitarios.
  */
 
-/** Escalera de calidades por defecto: lado corto de cada peldaño, en px (§5 · C15). */
+/** Escalera de calidades por defecto: lado corto de cada peldaño, en px (C15). */
 export const DEFAULT_LADDER = [1080, 720, 480];
 
 /** Duración objetivo de cada segmento HLS, en segundos. */
 export const SEGMENT_SECONDS = 4;
 
-/** Lado corto máximo del MP4 de respaldo («720p», §5 · C15). */
+/** Lado corto máximo del MP4 de respaldo («720p», C15). */
 export const FALLBACK_SHORT_SIDE = 720;
 
 /** Cabecera de caché de todo lo que se sube a R2. Cada vídeo vive en una carpeta con hash, así que nada se sobrescribe. */
@@ -19,7 +19,7 @@ export const CACHE_IMMUTABLE = 'public, max-age=31536000, immutable';
 
 /**
  * Bitrate máximo (kbps) según el lado corto: 1080p ≈ 5 Mbps, 720p ≈ 2,8 Mbps y
- * 480p ≈ 1,2 Mbps (§5 · C15). Los tamaños intermedios se interpolan.
+ * 480p ≈ 1,2 Mbps (C15). Los tamaños intermedios se interpolan.
  * @type {ReadonlyArray<readonly [number, number]>}
  */
 const BITRATE_POINTS = [
@@ -148,7 +148,7 @@ export function rungSize(crop, short) {
 }
 
 /**
- * Bitrate máximo (kbps) para un lado corto, interpolando la tabla de §5 · C15.
+ * Bitrate máximo (kbps) para un lado corto, interpolando la tabla de C15.
  * @param {number} short
  */
 export function maxBitrateKbps(short) {

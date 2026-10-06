@@ -1,7 +1,7 @@
 ---
 /**
  * C01 · BaseLayout — documento común de todas las páginas públicas.
- * El panel oculto (fase 6) usa su propio AdminLayout, sin efectos.
+ * El panel oculto usa su propio AdminLayout, sin efectos.
  */
 import { ClientRouter } from 'astro:transitions';
 import '../styles/global.css';
@@ -17,7 +17,6 @@ import { getSiteTheme } from '../lib/data';
 import { themeCss } from '../lib/theme';
 import type { SectionState } from '../config/sections';
 import { MOBILE_START_VIEW, SITE } from '../config/site';
-import { withBase } from '../lib/url';
 
 interface Props {
   section: SectionState;
@@ -37,7 +36,7 @@ const tickerText = Astro.locals.tickerText;
 // Colores elegidos en el panel (src/lib/theme.ts). Las secciones los traen del
 // middleware; el resto de páginas los pide aquí. `null` = los del código.
 const theme = Astro.locals.theme !== undefined ? Astro.locals.theme : await getSiteTheme();
-// Móvil: las secciones abren en el menú (D44); el 404 y las legales, en la página.
+// Móvil: las secciones abren en el menú (D44); la 404, en la página.
 const startView = section === 'none' ? 'page' : MOBILE_START_VIEW;
 ---
 
@@ -64,11 +63,11 @@ const startView = section === 'none' ? 'page' : MOBILE_START_VIEW;
     {theme && <style is:inline data-theme set:html={themeCss(theme)} />}
     <meta name="theme-color" content={(theme ?? DEFAULT_THEME).menuBg} />
     <meta name="color-scheme" content="only light" />
-    <link rel="icon" href={withBase('/favicon.svg')} type="image/svg+xml" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <ClientRouter />
     {/* Sin JavaScript, en móvil no se puede cambiar de capa (D44: la web abre
-        en el menú): el menú y la página se apilan y todo queda a la vista,
-        incluido el formulario de contacto (C17). Va en <noscript> para que no
+        en el menú): el menú y la página se apilan y todo queda a la vista.
+        Va en <noscript> para que no
         parpadee mientras carga el script. Sin capa, gana a los componentes. */}
     <noscript>
       <style is:inline>

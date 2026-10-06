@@ -3,15 +3,13 @@
  *
  * Web pública:
  * - Carga el texto de la barra de noticias, los colores elegidos en el panel
- *   y los mixes del reproductor (fase 4), que salen en todas las páginas. También en
- *   los POST: el formulario de contacto sin JavaScript (fase 5) vuelve a
- *   pintar la página con los errores.
+ *   y los mixes del reproductor, que salen en todas las páginas.
  * - Fija la caché de las secciones públicas (src/config/cache.ts), solo en
  *   GET y HEAD. Si algún dato falla, esa respuesta no se cachea.
- * - Añade las cabeceras de seguridad de §11 (src/lib/security-headers.ts) a
- *   todo lo que responde el Worker (fase 5: la CSP deja cargar Turnstile).
+ * - Añade las cabeceras de seguridad (src/lib/security-headers.ts) a
+ *   todo lo que responde el Worker.
  *
- * Panel oculto (C19, fase 6), rutas `src/pages/[admin]/…`:
+ * Panel oculto (C19), rutas `src/pages/[admin]/…`:
  * - si el primer tramo de la URL no es el secreto `ADMIN_PATH` → 404 de verdad
  *   (la misma página 404 que cualquier otra ruta);
  * - cliente de Supabase con la sesión de las cookies: `getClaims()` y la fila
@@ -53,7 +51,7 @@ function getSecurityHeaders(): Record<string, string> {
 
 const NO_STORE = { 'X-Robots-Tag': 'noindex, nofollow', 'Cache-Control': 'no-store' };
 
-/** El panel sube los mixes al endpoint S3 de R2 (P2): hace falta en `connect-src`. */
+/** El panel sube los mixes al endpoint S3 de R2: hace falta en `connect-src`. */
 let adminSecurityHeaders: Record<string, string> | undefined;
 function getAdminSecurityHeaders(): Record<string, string> {
   adminSecurityHeaders ??= {

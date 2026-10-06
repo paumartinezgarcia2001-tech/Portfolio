@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { isMobileViewport } from './helpers';
 
 /**
- * Fase 2 · listas de bolos (C13, C14 y C16).
+ * Listas de bolos (C13, C14 y C16).
  * La web se compila con `DATA_SOURCE=fixtures` (ver playwright.config.ts).
  */
 

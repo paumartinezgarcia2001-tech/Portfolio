@@ -1,5 +1,5 @@
 /**
- * GET /api/health — keep-alive (§12): una consulta mínima a Supabase para que
+ * GET /api/health — keep-alive: una consulta mínima a Supabase para que
  * el proyecto gratuito no se pause. Nunca se cachea.
  */
 import type { APIRoute } from 'astro';

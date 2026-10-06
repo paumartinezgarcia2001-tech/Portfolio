@@ -1,18 +1,18 @@
 // @ts-check
 /**
- * Funciones puras de `scripts/add-mix.mjs` (prompt maestro §7.5 y C06). Las
+ * Funciones puras de `scripts/add-mix.mjs` (C06). Las
  * prueban los tests unitarios.
  */
 import { isValidSlug } from './video.mjs';
 import { sqlText } from './gigs.mjs';
 
-/** Sonoridad de los mixes (§7.5): unos −14 LUFS, picos por debajo de −1 dBTP. */
+/** Sonoridad de los mixes: unos −14 LUFS, picos por debajo de −1 dBTP. */
 export const LOUDNESS = { integrated: -14, truePeak: -1, range: 11 };
 
-/** MP3 a 320 kbps CBR (§7.5). */
+/** MP3 a 320 kbps CBR. */
 export const MP3_BITRATE = '320k';
 
-/** Lado de la carátula cuadrada (§7.5). */
+/** Lado de la carátula cuadrada. */
 export const ARTWORK_SIZE = 1000;
 
 /**
@@ -32,7 +32,7 @@ export function slugify(text) {
 }
 
 /**
- * Nombre del archivo en el bucket: `mixes/<slug>-<hash>.<ext>` (§7.5). El hash
+ * Nombre del archivo en el bucket: `mixes/<slug>-<hash>.<ext>`. El hash
  * cambia si cambia el original o la forma de codificarlo, así que el archivo
  * puede ser inmutable en R2.
  * @param {string} slug

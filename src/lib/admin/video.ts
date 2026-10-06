@@ -1,5 +1,5 @@
 /**
- * Vídeo de Media desde el panel (P2, fase 6).
+ * Vídeo de Media desde el panel.
  *
  * `site_settings.video` guarda la misma forma que `MEDIA_VIDEO` de
  * src/config/media.ts. Si está vacío o no es válido, la web usa el del código.

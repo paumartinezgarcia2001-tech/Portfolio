@@ -4,9 +4,9 @@ declare namespace App {
     tickerText?: string;
     /** Colores elegidos en el panel, o `null` (los del código) (src/middleware.ts). */
     theme?: import('./config/theme').Theme | null;
-    /** Mixes publicados del reproductor (src/middleware.ts, fase 4). */
+    /** Mixes publicados del reproductor (src/middleware.ts). */
     mixes?: import('./lib/data/core').Mix[];
-    /** Panel oculto (fase 6): solo en sus rutas, tras comprobar `ADMIN_PATH`. */
+    /** Panel oculto: solo en sus rutas, tras comprobar `ADMIN_PATH`. */
     admin?: import('./lib/admin/context').AdminLocals;
   }
 }

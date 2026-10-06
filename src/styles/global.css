@@ -38,7 +38,7 @@
     color: inherit;
   }
 
-  /* Foco visible (§4.1, regla 3). En paneles claros: contorno oscuro con halo
+  /* Foco visible. En paneles claros: contorno oscuro con halo
      del acento. La columna oscura lo redefine en sus componentes. */
   :focus-visible {
     outline: var(--focus-w) solid var(--c-panel-fg);

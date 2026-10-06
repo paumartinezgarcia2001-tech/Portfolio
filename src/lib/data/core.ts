@@ -89,7 +89,7 @@ export function toMixes(rows: MixRow[], base: string | undefined | null): Mix[] 
   return rows.map((row) => toMix(row, base)).filter((mix): mix is Mix => mix !== null);
 }
 
-/** Tiempo máximo de cada consulta (fase 2). */
+/** Tiempo máximo de cada consulta. */
 export const QUERY_TIMEOUT_MS = 2500;
 
 export const DEFAULT_SETTINGS: SiteSettings = {
@@ -119,7 +119,7 @@ export function sortPast(gigs: Gig[]): Gig[] {
   return [...gigs].sort((a, b) => b.eventDate.localeCompare(a.eventDate));
 }
 
-/** Reparte los bolos según la fecha de corte (§7.3). */
+/** Reparte los bolos según la fecha de corte. */
 export function splitByCutoff(gigs: Gig[], cutoff: string): { upcoming: Gig[]; past: Gig[] } {
   return {
     upcoming: sortUpcoming(gigs.filter((g) => g.eventDate >= cutoff)),

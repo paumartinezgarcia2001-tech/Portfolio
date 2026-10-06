@@ -27,7 +27,7 @@ describe('sectionFromPath', () => {
   });
 
   it('devuelve none para rutas desconocidas', () => {
-    expect(sectionFromPath('/aviso-legal')).toBe('none');
+    expect(sectionFromPath('/privacidad')).toBe('none');
     expect(sectionFromPath('/cualquier-cosa')).toBe('none');
   });
 });

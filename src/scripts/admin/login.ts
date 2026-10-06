@@ -3,8 +3,7 @@
  *
  * - Login: usuario (alias o email) y contraseña a `admin.login` sin recargar;
  *   si sale bien, recarga la página (ya con la sesión en cookies). Los errores
- *   son siempre genéricos («Usuario o contraseña incorrectos.»). Sin CAPTCHA
- *   ni segundo paso (D61).
+ *   son siempre genéricos («Usuario o contraseña incorrectos.»).
  * - Cerrar sesión: `admin.logout` y vuelta a la raíz del panel.
  */
 import { ADMIN_TEXT as TEXT } from '../../config/admin';

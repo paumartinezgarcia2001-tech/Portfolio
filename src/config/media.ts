@@ -6,7 +6,8 @@
  * - El bloque de `slug` a `mobile` lo imprime `scripts/video-to-hls.mjs` al
  *   terminar: se pega tal cual. `title`, `focusX`, `focusY` y `fullSet` se
  *   rellenan a mano.
- * - Más adelante podrá venir de `site_settings.video` (panel, fase 6).
+ * - Es el vídeo por defecto: si se ha guardado otro desde el panel
+ *   (`site_settings.video`), manda ese.
  * - Sin pixelado (D40): el vídeo se ve nítido. La textura LCD global (C11a)
  *   sí pasa por encima, como en el resto de la web.
  */

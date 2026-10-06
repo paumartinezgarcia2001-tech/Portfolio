@@ -1,16 +1,15 @@
 /**
- * Supabase simulado para los e2e del panel (fase 6).
+ * Supabase simulado para los e2e del panel.
  *
  * El contenedor donde se prueban las fases no llega a `*.supabase.co`, y los
  * tests no deben tocar la base de datos de verdad. Este servidor imita lo que
  * usan la web y el panel:
  *
- * - **Auth (GoTrue)**: login con contraseña (sin CAPTCHA ni MFA, como el
- *   Supabase del panel desde D61), refresco, `/user` y logout. Los JWT van
+ * - **Auth (GoTrue)**: login con contraseña, refresco, `/user` y logout. Los JWT van
  *   firmados con HS256, así que `getClaims()` los valida preguntando a
  *   `/user`, como con las claves simétricas.
  * - **PostgREST** para `gigs`, `site_settings`, `mixes` y `admins`, con las
- *   mismas reglas que las políticas RLS de §7.2 (anon lee lo publicado; solo
+ *   mismas reglas que las políticas RLS (anon lee lo publicado; solo
  *   quien está en `admins` escribe; los demás, 42501 o «0 filas») y las
  *   restricciones únicas (`gigs_dedupe`, `mixes_audio_url_key` → 23505).
  * - `/__e2e/*`: estado para los tests (reiniciar, leer, fijar el reloj no).
@@ -399,7 +398,7 @@ function defaults(table, input, who) {
   return { ...input };
 }
 
-/** Restricciones de §7.1: gigs_dedupe, mixes_audio_url_key, longitudes y https. */
+/** Restricciones de la base de datos: gigs_dedupe, mixes_audio_url_key, longitudes y https. */
 function violation(table, row, others) {
   if (table === 'gigs') {
     if (!row.venue || !row.city || !row.event_date) return ['23502', 'null value violates not-null constraint'];

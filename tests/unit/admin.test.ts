@@ -1,5 +1,5 @@
 /**
- * Panel oculto (C19, fase 6): funciones puras de acceso, validación,
+ * Panel oculto (C19): funciones puras de acceso, validación,
  * duplicados, Markdown de Info, firma de R2 y vídeo.
  */
 import { describe, expect, it } from 'vitest';
@@ -58,7 +58,6 @@ describe('acceso', () => {
     expect(classifyAuthError({ code: 'invalid_credentials', status: 400 })).toBe('credentials');
     expect(classifyAuthError({ code: 'email_not_confirmed', status: 400 })).toBe('credentials');
     expect(classifyAuthError({ code: 'user_banned', status: 400 })).toBe('credentials');
-    expect(classifyAuthError({ code: 'captcha_failed', status: 400 })).toBe('captcha');
     expect(classifyAuthError({ code: 'over_request_rate_limit', status: 429 })).toBe('rate-limit');
     expect(classifyAuthError({ status: 503 })).toBe('unavailable');
   });
@@ -172,13 +171,12 @@ describe('Markdown de Info', () => {
   it('titulillos, párrafos y enlaces', () => {
     const html = renderInfoMarkdown(
       '## Info\n\nPrimer párrafo\nsigue aquí.\n\n## Booking\nEscríbeme desde [contact](/contact).\n\n[SoundCloud ↗](https://soundcloud.com/travest15m0)',
-      { resolveInternal: (path) => `/Portfolio${path}` },
     );
     expect(html).toBe(
       [
         '<h2>Info</h2>',
         '<p>Primer párrafo sigue aquí.</p>',
-        '<h2>Booking</h2>\n<p>Escríbeme desde <a href="/Portfolio/contact">contact</a>.</p>',
+        '<h2>Booking</h2>\n<p>Escríbeme desde <a href="/contact">contact</a>.</p>',
         '<p><a href="https://soundcloud.com/travest15m0" target="_blank" rel="noopener">SoundCloud ↗</a></p>',
       ].join('\n'),
     );

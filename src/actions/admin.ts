@@ -1,14 +1,12 @@
 /**
- * Actions del panel oculto (C19, fase 6): `admin.*`.
+ * Actions del panel oculto (C19): `admin.*`.
  *
  * - Todas, salvo `login`, exigen la sesión de una administradora
  *   (`requireAdmin`): sin ella responden `UNAUTHORIZED` y ningún dato.
  * - Escriben con la sesión de Pau y la clave publicable: las políticas RLS
- *   (§7.2) son la última barrera. La clave secreta de Supabase no se usa aquí.
- * - Tras cada escritura, purgan la caché de la web pública por etiquetas
- *   (§6): todas las páginas llevan la barra (próxima fecha) y el reproductor.
- * - Solo funcionan con servidor (Cloudflare). En el build estático de GitHub
- *   Pages no hay Actions (astro.config.pages.mjs).
+ *   son la última barrera. La clave secreta de Supabase no se usa aquí.
+ * - Tras cada escritura, purgan la caché de la web pública por etiquetas:
+ *   todas las páginas llevan la barra (próxima fecha) y el reproductor.
  */
 import { ActionError, defineAction } from 'astro:actions';
 import {
@@ -140,12 +138,9 @@ export const admin = {
       if (!email) throw failed();
 
       const { supabase } = createSupabaseServerClient(context);
-      // Solo usuario y contraseña (D61: sin CAPTCHA ni verificación en dos pasos).
       const { data, error } = await supabase.auth.signInWithPassword({ email, password: input.password });
       if (error || !data.user) {
         const kind = error ? classifyAuthError(error) : 'credentials';
-        // Por si alguien vuelve a activar el CAPTCHA en Supabase: el panel ya no lo envía.
-        if (kind === 'captcha') throw new ActionError({ code: 'BAD_REQUEST', message: TEXT.captchaEnabled });
         if (kind === 'rate-limit') throw new ActionError({ code: 'TOO_MANY_REQUESTS', message: TEXT.tooManyAttempts });
         if (kind === 'unavailable') saveFailed('login', error);
         throw failed();
@@ -281,7 +276,7 @@ export const admin = {
     },
   }),
 
-  // ------------------------------------------------------------ Info (P2)
+  // ------------------------------------------------------------ Info
   updateInfo: defineAction({
     accept: 'form',
     input: infoSchema,
@@ -299,7 +294,7 @@ export const admin = {
     },
   }),
 
-  // ------------------------------------------------------------ vídeo (P2)
+  // ------------------------------------------------------------ vídeo
   updateVideo: defineAction({
     accept: 'form',
     input: videoSchema,
@@ -359,7 +354,7 @@ export const admin = {
     },
   }),
 
-  // ------------------------------------------------------------ mixes (P2)
+  // ------------------------------------------------------------ mixes
   mixUploadUrl: defineAction({
     accept: 'form',
     input: mixUploadSchema,

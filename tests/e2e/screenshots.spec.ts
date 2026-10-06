@@ -1,7 +1,6 @@
 import { test } from '@playwright/test';
-import { fillContact, mockTurnstile, submitButton, uniqueIp, waitForTurnstileToken } from './contact-helpers';
-import { CONTACT_FORM_ENABLED } from '../../src/config/contact';
-import { SECTION_CASES, isMobile, openMobileMenu, showMobilePage, withMusicPaused } from './helpers';
+import { SECTION_CASES, isMobile, openMobileMenu, showMobilePage } from './helpers';
+import { stubSocialWidgets } from './social-helpers';
 
 /**
  * Capturas para revisión visual (sin comparación estricta).
@@ -12,10 +11,9 @@ test.describe('Capturas', () => {
 
   for (const section of SECTION_CASES) {
     test(`captura de ${section.label}`, async ({ page }, testInfo) => {
-      // Contact lleva el widget de Turnstile (simulado, fase 5).
-      if (section.key === 'contact') await mockTurnstile(page);
+      // Contact lleva los widgets de SoundCloud e Instagram (simulados).
+      if (section.key === 'contact') await stubSocialWidgets(page);
       await page.goto(section.path);
-      if (section.key === 'contact' && CONTACT_FORM_ENABLED) await waitForTurnstileToken(page);
       // En móvil las secciones abren en el menú (D44): aquí, la página, con la
       // mini-barra del reproductor. El menú tiene su propia captura.
       await showMobilePage(page);
@@ -36,41 +34,5 @@ test.describe('Capturas', () => {
   test('captura del 404', async ({ page }, testInfo) => {
     await page.goto('/esto-no-existe');
     await page.screenshot({ path: `test-results/screenshots/${testInfo.project.name}/404.png` });
-  });
-});
-
-/** Fase 5: estados del formulario (D60: ahora mismo no hay, así que se saltan). */
-test.describe('Capturas del contacto', () => {
-  test.use({ reducedMotion: 'reduce' });
-  test.skip(!CONTACT_FORM_ENABLED, 'Sin formulario (D60): se escribe al email.');
-
-  test.beforeEach(async ({ page }) => {
-    await withMusicPaused(page);
-    await page.setExtraHTTPHeaders({ 'CF-Connecting-IP': uniqueIp() });
-    await mockTurnstile(page);
-  });
-
-  test('captura del formulario con errores', async ({ page }, testInfo) => {
-    await page.goto('/contact');
-    await showMobilePage(page);
-    await waitForTurnstileToken(page);
-    await fillContact(page, { email: 'ana@', mensaje: 'corto' });
-    await submitButton(page).click();
-    await page.evaluate(() => document.fonts.ready);
-    await page.screenshot({ path: `test-results/screenshots/${testInfo.project.name}/contact-errores.png`, fullPage: true });
-  });
-
-  test('captura del mensaje enviado', async ({ page }, testInfo) => {
-    await page.goto('/contact');
-    await showMobilePage(page);
-    await waitForTurnstileToken(page);
-    await fillContact(page, {
-      email: 'ana@example.com',
-      telefono: '+34 600 11 22 33',
-      mensaje: 'Hola, ¿tienes libre el 15 de octubre? [captura]',
-    });
-    await submitButton(page).click();
-    await page.locator('[data-contact-sent]').waitFor();
-    await page.screenshot({ path: `test-results/screenshots/${testInfo.project.name}/contact-enviado.png` });
   });
 });

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // @ts-check
 /**
- * Añade un mix al reproductor (prompt maestro §7.5 y C06).
+ * Añade un mix al reproductor (C06).
  *
  * Uso (desde Portfolio/):
  *   node scripts/add-mix.mjs "<audio>" --title "Título" [opciones]

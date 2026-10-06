@@ -10,8 +10,7 @@ import { SOCIAL_TEXT, SOUNDCLOUD } from '../../src/config/social';
  *
  * - SoundCloud va puesto (`SOUNDCLOUD.eager`), pero **sin arrancar solo**: eso
  *   es lo que hay que vigilar, porque la web ya tiene su propia música (D43).
- * - Instagram es una **fachada**: en el HTML no puede haber nada de Meta. Eso
- *   es lo que sostenía lo que prometía /privacidad (D60: ya no hay esa página).
+ * - Instagram es una **fachada**: en el HTML no puede haber nada de Meta.
  */
 
 let container: AstroContainer;

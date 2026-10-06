@@ -1,6 +1,5 @@
 ---
 title: info
-provisional: false
 ---
 
 <!-- Texto de Pau: Raw_Files/WEB PAGE FILES/Texto Apartado INFO.docx (17-09-2026). Los bloques «Booking» y «Escucha» son de la estructura de C12. -->

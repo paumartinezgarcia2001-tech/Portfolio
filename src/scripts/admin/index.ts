@@ -1,5 +1,5 @@
 /**
- * Script del panel oculto (C19, fase 6). Se carga en todas sus páginas
+ * Script del panel oculto (C19). Se carga en todas sus páginas
  * (AdminLayout); cada parte se activa solo si encuentra su formulario.
  * El panel no usa el ClientRouter: cada página se carga entera.
  */

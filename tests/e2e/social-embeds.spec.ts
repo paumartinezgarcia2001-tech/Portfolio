@@ -1,7 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
-import { CONTACT_FORM_ENABLED } from '../../src/config/contact';
 import { SOCIAL_TEXT, SOUNDCLOUD, instagramPosts, soundcloudPlayerUrl } from '../../src/config/social';
-import { INSTAGRAM_ORIGIN, SOUNDCLOUD_ORIGIN, openContact, stubSocialWidgets as stubThirdParties } from './contact-helpers';
+import { INSTAGRAM_ORIGIN, SOUNDCLOUD_ORIGIN, openContact, stubSocialWidgets as stubThirdParties } from './social-helpers';
 import { ensureMusic, isMobileViewport, player, showMobilePage, withMusicPaused } from './helpers';
 
 /**
@@ -11,12 +10,10 @@ import { ensureMusic, isMobileViewport, player, showMobilePage, withMusicPaused 
  *   al play. Lo que se prueba aquí es justo eso: que no se cuela por encima de
  *   la música de la web (D43), y que cuando sí suena, la música se pausa y
  *   vuelve al salir.
- * - **Instagram** es una fachada: hasta que se pulsa, nada de Meta. Eso es lo
- *   que sostiene lo que se prometía en /privacidad (D60: ya no hay esa página).
+ * - **Instagram**: publicaciones destacadas, cada una con su enlace.
  *
- * Ni los scripts ni los iframes se piden de verdad: se interceptan, igual que
- * Turnstile y Resend (tests/e2e/contact-helpers.ts), porque el contenedor no
- * sale a esos dominios.
+ * Ni los scripts ni los iframes se piden de verdad: se interceptan
+ * (tests/e2e/social-helpers.ts), porque el contenedor no sale a esos dominios.
  */
 
 /** Simula que alguien le da al play dentro del iframe de SoundCloud. */
@@ -117,25 +114,20 @@ test.describe('Reproductor de SoundCloud', () => {
     await withMusicPaused(page);
     await openContact(page);
     await showMobilePage(page);
-    const anchos = await page.evaluate((conFormulario) => {
+    const anchos = await page.evaluate(() => {
       const ancho = (selector: string) => {
         const element = document.querySelector(selector);
         return element ? Math.round(element.getBoundingClientRect().width) : 0;
       };
+      // El email no se mide: es un enlace y ocupa lo que ocupa su texto.
       return {
         columna: ancho('#panel .contact'),
-        // Con formulario (CONTACT_FORM_ENABLED) también se mide él. El email no:
-        // es un enlace y ocupa lo que ocupa su texto.
-        formulario: conFormulario ? ancho('.contact-form') : 0,
         escucha: ancho('soundcloud-embed'),
         instagram: ancho('instagram-posts'),
       };
-    }, CONTACT_FORM_ENABLED);
+    });
     expect(anchos.columna).toBeGreaterThan(0);
-    const aMedir = CONTACT_FORM_ENABLED
-      ? (['formulario', 'escucha', 'instagram'] as const)
-      : (['escucha', 'instagram'] as const);
-    for (const clave of aMedir) {
+    for (const clave of ['escucha', 'instagram'] as const) {
       expect(Math.abs(anchos[clave] - anchos.columna), clave).toBeLessThanOrEqual(1);
     }
   });
@@ -316,7 +308,7 @@ test.describe('Publicaciones de Instagram', () => {
   });
 });
 
-test.describe('Cabeceras de seguridad con los widgets puestos (§11)', () => {
+test.describe('Cabeceras de seguridad con los widgets puestos', () => {
   test('cargar los dos no rompe la CSP', async ({ page }) => {
     const violations: string[] = [];
     page.on('console', (message) => {
@@ -337,12 +329,12 @@ test.describe('Cabeceras de seguridad con los widgets puestos (§11)', () => {
   test('la CSP de las respuestas del Worker nombra los dos orígenes', async ({ page }) => {
     const response = await page.goto('/contact');
     const csp = response?.headers()['content-security-policy'] ?? '';
-    expect(csp).toContain(`script-src 'self' https://challenges.cloudflare.com ${SOUNDCLOUD_ORIGIN} ${INSTAGRAM_ORIGIN}`);
-    expect(csp).toContain(`frame-src https://challenges.cloudflare.com ${SOUNDCLOUD_ORIGIN} ${INSTAGRAM_ORIGIN}`);
+    expect(csp).toContain(`script-src 'self' ${SOUNDCLOUD_ORIGIN} ${INSTAGRAM_ORIGIN}`);
+    expect(csp).toContain(`frame-src ${SOUNDCLOUD_ORIGIN} ${INSTAGRAM_ORIGIN}`);
   });
 });
 
-/** El cursor propio se esconde encima de los iframes (C10), como en Turnstile. */
+/** El cursor propio se esconde encima de los iframes (C10). */
 test.describe('Cursor sobre los widgets (C10)', () => {
   test.skip(({ viewport }) => isMobileViewport(viewport), 'Solo escritorio (hay cursor)');
 

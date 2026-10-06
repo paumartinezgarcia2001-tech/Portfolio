@@ -1,20 +1,15 @@
 /**
- * Markdown mínimo y seguro para el texto de Info editado desde el panel (P2,
- * fase 6). Solo lo que usa Info (C12):
+ * Markdown mínimo y seguro para el texto de Info editado desde el panel. Solo
+ * lo que usa Info (C12):
  *
  * - `## Titulillo` (también `#` o `###`) → `<h2>`;
  * - párrafos separados por una línea en blanco;
  * - enlaces `[texto](https://…)` (se abren en otra pestaña) o `[texto](/contact)`
- *   (internos, con el `base` de la compilación).
+ *   (internos).
  *
  * Todo lo demás se escapa: no hay HTML en bruto, así que un texto guardado en
  * la base de datos no puede meter scripts en la web.
  */
-
-export interface MarkdownOptions {
-  /** Pone el `base` a las rutas internas (withBase). */
-  resolveInternal?: (path: string) => string;
-}
 
 export function escapeHtml(text: string): string {
   return text
@@ -34,7 +29,7 @@ function linkKind(href: string): LinkKind | null {
 }
 
 /** Texto de una línea con enlaces → HTML escapado. */
-export function renderInline(text: string, options: MarkdownOptions = {}): string {
+function renderInline(text: string): string {
   const pattern = /\[([^\]\n]+)\]\(([^)\s]+)\)/g;
   let html = '';
   let last = 0;
@@ -48,8 +43,7 @@ export function renderInline(text: string, options: MarkdownOptions = {}): strin
     } else if (kind === 'external') {
       html += `<a href="${escapeHtml(href!)}" target="_blank" rel="noopener">${escapeHtml(label!)}</a>`;
     } else {
-      const resolved = href!.startsWith('/') && options.resolveInternal ? options.resolveInternal(href!) : href!;
-      html += `<a href="${escapeHtml(resolved)}">${escapeHtml(label!)}</a>`;
+      html += `<a href="${escapeHtml(href!)}">${escapeHtml(label!)}</a>`;
     }
     last = index + whole.length;
   }
@@ -57,7 +51,7 @@ export function renderInline(text: string, options: MarkdownOptions = {}): strin
 }
 
 /** Markdown de Info → HTML (seguro para `set:html`). */
-export function renderInfoMarkdown(markdown: string, options: MarkdownOptions = {}): string {
+export function renderInfoMarkdown(markdown: string): string {
   const blocks = stripComments(markdown)
     .replace(/\r\n?/g, '\n')
     .split(/\n\s*\n/)
@@ -67,15 +61,15 @@ export function renderInfoMarkdown(markdown: string, options: MarkdownOptions = 
   return blocks
     .map((block) => {
       const heading = /^#{1,3}\s+(.+)$/.exec(block);
-      if (heading && !block.includes('\n')) return `<h2>${renderInline(heading[1]!.trim(), options)}</h2>`;
+      if (heading && !block.includes('\n')) return `<h2>${renderInline(heading[1]!.trim())}</h2>`;
       const lines = block.split('\n').map((line) => line.trim());
       // Un titulillo seguido de texto sin línea en blanco: se separan.
       const first = /^#{1,3}\s+(.+)$/.exec(lines[0] ?? '');
       if (first) {
         const rest = lines.slice(1).join(' ');
-        return `<h2>${renderInline(first[1]!.trim(), options)}</h2>\n<p>${renderInline(rest, options)}</p>`;
+        return `<h2>${renderInline(first[1]!.trim())}</h2>\n<p>${renderInline(rest)}</p>`;
       }
-      return `<p>${renderInline(lines.join(' '), options)}</p>`;
+      return `<p>${renderInline(lines.join(' '))}</p>`;
     })
     .join('\n');
 }

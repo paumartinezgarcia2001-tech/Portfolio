@@ -101,7 +101,7 @@ describe('rungSize', () => {
 });
 
 describe('maxBitrateKbps', () => {
-  it('sigue la tabla de §5 · C15 e interpola entre peldaños', () => {
+  it('sigue la tabla de C15 e interpola entre peldaños', () => {
     expect(maxBitrateKbps(1080)).toBe(5000);
     expect(maxBitrateKbps(720)).toBe(2800);
     expect(maxBitrateKbps(480)).toBe(1200);

@@ -54,11 +54,10 @@ export function resolveLoginEmail(identifier: string, alias: LoginAlias): string
 }
 
 /** Códigos de error de Supabase Auth que no son «usuario o contraseña». */
-export type LoginFailure = 'credentials' | 'captcha' | 'rate-limit' | 'unavailable';
+export type LoginFailure = 'credentials' | 'rate-limit' | 'unavailable';
 
 export function classifyAuthError(error: { code?: string | undefined; status?: number | undefined; message?: string }): LoginFailure {
   const code = error.code ?? '';
-  if (code === 'captcha_failed') return 'captcha';
   if (code === 'over_request_rate_limit' || code === 'over_email_send_rate_limit' || error.status === 429) {
     return 'rate-limit';
   }

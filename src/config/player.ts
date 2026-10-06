@@ -1,5 +1,5 @@
 /**
- * Reproductor de mixes (C06, fase 4).
+ * Reproductor de mixes (C06).
  *
  * - D43 (Luna, 19-09-2026): la música suena nada más abrir la web y el
  *   reproductor solo tiene tres botones en el centro: anterior,

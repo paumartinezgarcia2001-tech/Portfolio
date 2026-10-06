@@ -5,8 +5,6 @@
  *   de Supabase o, con claves simétricas, preguntando a Supabase).
  * - La pertenencia a `admins` se comprueba leyendo la propia fila (política
  *   `admins_self_read`), no por RPC: `is_admin()` está fuera de la API (D34).
- * - Solo usuario (o alias) y contraseña: sin verificación en dos pasos ni
- *   CAPTCHA (D61, Luna, 05-10-2026).
  *
  * Las políticas RLS siguen siendo la última barrera: aunque esto fallara, la
  * base de datos no deja escribir a quien no está en `admins`.

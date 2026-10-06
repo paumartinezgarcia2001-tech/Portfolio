@@ -42,7 +42,7 @@ describe('formatEventDate', () => {
   });
 });
 
-describe('getCutoffDate (§7.3)', () => {
+describe('getCutoffDate', () => {
   // Septiembre: horario de verano (UTC+2).
   it('26-09-2026 07:59 → el bolo del 25 sigue en próximas', () => {
     const now = new Date('2026-09-26T05:59:00Z'); // 07:59 en Madrid

@@ -1,6 +1,6 @@
 /**
  * Lecturas del panel (C19), con la sesión de la administradora: a diferencia
- * de la web pública, ve también los bolos y mixes sin publicar (RLS, §7.2).
+ * de la web pública, ve también los bolos y mixes sin publicar (RLS).
  * Solo se llaman cuando el middleware ya ha comprobado la sesión.
  */
 import { ARCHIVE_PAGE_SIZE } from '../../config/admin';
@@ -62,7 +62,7 @@ export async function getAdminSettings(supabase: TypedSupabaseClient): Promise<L
   return { data: data ?? null, ok: !error };
 }
 
-/** Próximos bolos (§7.3), publicados o no, en orden ascendente. */
+/** Próximos bolos, publicados o no, en orden ascendente. */
 export async function getAdminUpcoming(supabase: TypedSupabaseClient, now: Date = new Date()): Promise<Loaded<AdminGig[]>> {
   const { data, error } = await supabase
     .from('gigs')

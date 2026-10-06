@@ -5,7 +5,7 @@
  * - Sobre enlaces y botones crece (×1,6); sobre un ítem del menú toma su
  *   color; al pulsar se encoge (×0,8); se oculta al salir de la ventana.
  * - En campos de texto, iframes y zonas marcadas con `data-native-cursor`
- *   (el widget de Turnstile, C17) se oculta y vuelve el cursor del sistema.
+ *   (los widgets de SoundCloud e Instagram en contact) se oculta y vuelve el cursor del sistema.
  * - Cualquier elemento puede pedir otro color con la custom property
  *   `--cursor-over` (se hereda). La usan los ítems del menú (su color), el
  *   reproductor (violeta) y las zonas con fondo de acento (oscuro), para que

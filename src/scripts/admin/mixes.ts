@@ -1,5 +1,5 @@
 /**
- * Subida de mixes desde el panel (P2, fase 6).
+ * Subida de mixes desde el panel.
  *
  * 1. Mide la duración del audio en el navegador.
  * 2. Pide al servidor una URL firmada de R2 (`admin.mixUploadUrl`): el Worker

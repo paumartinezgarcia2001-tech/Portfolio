@@ -1,5 +1,5 @@
 /**
- * Variables `PUBLIC_*` con respaldo en tiempo de ejecución (fase 7).
+ * Variables `PUBLIC_*` con respaldo en tiempo de ejecución.
  *
  * `astro:env/client` escribe estas variables en el código **al compilar**: en
  * Cloudflare tienen que estar en *Settings → Build → Variables and secrets*
@@ -9,15 +9,13 @@
  *
  * Aquí se aceptan los dos sitios: manda el valor del build y, si no lo hay,
  * se lee el del Worker en cada petición (`cloudflare:workers`). Solo para
- * código de servidor; en el build estático de GitHub Pages `env` está vacío
- * (astro.config.pages.mjs) y se queda el valor del build.
+ * código de servidor.
  */
 import {
   PUBLIC_MEDIA_BASE_URL,
   PUBLIC_SITE_URL,
   PUBLIC_SUPABASE_PUBLISHABLE_KEY,
   PUBLIC_SUPABASE_URL,
-  PUBLIC_TURNSTILE_SITE_KEY,
 } from 'astro:env/client';
 import { env } from 'cloudflare:workers';
 import { normalizeUrlVar, readWorkerVar } from './env-values';
@@ -27,7 +25,6 @@ const BUILD_VALUES = {
   PUBLIC_SUPABASE_URL,
   PUBLIC_SUPABASE_PUBLISHABLE_KEY,
   PUBLIC_MEDIA_BASE_URL,
-  PUBLIC_TURNSTILE_SITE_KEY,
 } as const;
 
 export type PublicVarName = keyof typeof BUILD_VALUES;

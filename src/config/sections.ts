@@ -1,14 +1,11 @@
 /**
  * Secciones de la web, en el orden del menú (C05).
  * Los colores viven en `src/styles/tokens.css`; aquí solo se nombra el token.
- * `href` es la ruta lógica, sin el `base`: al pintarla, pásala por
- * `withBase()` (src/lib/url.ts).
  */
-import { withoutBase } from '../lib/url';
 
 export type SectionKey = 'info' | 'next' | 'media' | 'archive' | 'contact';
 
-/** Valor de `html[data-section]`. `none` = 404 y páginas legales. */
+/** Valor de `html[data-section]`. `none` = la 404. */
 export type SectionState = SectionKey | 'none';
 
 export interface Section {
@@ -28,17 +25,14 @@ export const SECTIONS = [
   { key: 'contact', label: 'contact', href: '/contact', colorVar: '--c-contact' },
 ] as const satisfies readonly Section[];
 
-/** Token de color del reproductor (C06). */
-export const PLAYER_COLOR_VAR = '--c-player';
-
 export function getSection(key: SectionKey): Section {
   const section = SECTIONS.find((s) => s.key === key);
   if (!section) throw new Error(`Sección desconocida: ${key}`);
   return section;
 }
 
-/** Devuelve la sección que corresponde a una ruta (con o sin `base` y barra final). */
+/** Devuelve la sección que corresponde a una ruta (con o sin barra final). */
 export function sectionFromPath(pathname: string): SectionState {
-  const clean = withoutBase(pathname).replace(/\/+$/, '') || '/';
+  const clean = pathname.replace(/\/+$/, '') || '/';
   return SECTIONS.find((s) => s.href === clean)?.key ?? 'none';
 }

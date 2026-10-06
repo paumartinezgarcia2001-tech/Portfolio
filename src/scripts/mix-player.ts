@@ -1,5 +1,5 @@
 /**
- * `<mix-player>` — reproductor de mixes (C06, fase 4; D43).
+ * `<mix-player>` — reproductor de mixes (C06; D43).
  *
  * - Tres botones: anterior · reproducir/pausar · siguiente (canción anterior o
  *   siguiente de la lista barajada). Nada más en pantalla.

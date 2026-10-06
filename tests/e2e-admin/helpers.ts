@@ -1,7 +1,7 @@
 import { expect, type APIRequestContext, type Page } from '@playwright/test';
 
 /**
- * Ayudas de los e2e del panel (fase 6). Ver playwright.admin.config.ts.
+ * Ayudas de los e2e del panel. Ver playwright.admin.config.ts.
  */
 
 export const ADMIN_PATH = process.env.E2E_ADMIN_PATH ?? 'panel-e2e';
@@ -34,7 +34,7 @@ export async function mockState(request: APIRequestContext): Promise<MockState> 
   return (await response.json()) as MockState;
 }
 
-/** Abre el panel y entra con usuario (email o alias) y contraseña: sin CAPTCHA ni segundo paso (D61). */
+/** Abre el panel y entra con usuario (email o alias) y contraseña. */
 export async function signIn(page: Page, user: { email: string; password: string } = PAU, path = ''): Promise<void> {
   await page.goto(adminUrl(path));
   await waitReady(page);

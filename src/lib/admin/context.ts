@@ -36,7 +36,7 @@ interface CacheContext {
 }
 
 /**
- * Purga la caché de la web pública (§6) tras guardar. Si falla (p. ej. en
+ * Purga la caché de la web pública tras guardar. Si falla (p. ej. en
  * local, sin la caché de Cloudflare), no pasa nada: las páginas caducan solas
  * en 60 s.
  */

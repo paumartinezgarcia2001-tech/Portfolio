@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { R2_ORIGIN, mockState, openAdmin, resetSupabase, signInAsPau, toast } from './helpers';
 
 /**
- * C19 · P2 (fase 6): texto de Info, vídeo de Media y mixes con subida a R2.
+ * C19 · texto de Info, vídeo de Media y mixes con subida a R2.
  */
 
 test.beforeEach(async ({ request }) => {

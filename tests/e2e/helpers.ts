@@ -10,7 +10,7 @@ export interface SectionCase {
   rgb: string;
 }
 
-/** Tabla del prompt maestro (§4.1 y C05). */
+/** Secciones con su color (C05). */
 export const SECTION_CASES: SectionCase[] = [
   { key: 'info', label: 'info', path: '/', rgb: 'rgb(255, 0, 255)' },
   { key: 'next', label: 'next dates', path: '/next-dates', rgb: 'rgb(0, 255, 255)' },
@@ -19,9 +19,7 @@ export const SECTION_CASES: SectionCase[] = [
   { key: 'contact', label: 'contact', path: '/contact', rgb: 'rgb(255, 95, 31)' },
 ];
 
-export const PLAYER_RGB = 'rgb(191, 0, 255)';
 export const MENU_FG_RGB = 'rgb(197, 199, 214)';
-export const PANEL_FG_RGB = 'rgb(39, 39, 43)';
 
 /** ¿El proyecto usa el layout móvil (<1024 px)? */
 export function isMobile(testInfo: TestInfo): boolean {

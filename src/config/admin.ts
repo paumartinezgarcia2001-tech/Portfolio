@@ -1,28 +1,22 @@
 /**
- * Panel oculto (C19, fase 6): textos, límites y rutas.
+ * Panel oculto (C19): textos, límites y rutas.
  *
  * ⚠️ El nombre de la página NO va aquí ni en ningún archivo del repo (que es
  * público): es el secreto `ADMIN_PATH`. Las rutas del panel se construyen con
  * el parámetro de la URL, que el middleware ya ha comparado con ese secreto.
  *
- * Los textos marcados con §8 son los del prompt maestro; el resto, propuestas
- * de la fase 6 (cámbialos aquí si Pau o Luna prefieren otros).
+ * Los textos se pueden cambiar aquí si Pau o Luna prefieren otros.
  */
 
 export const ADMIN_TEXT = {
-  /** §8 */
   loginFailed: 'Usuario o contraseña incorrectos.',
-  /** §8 */
   saved: 'Guardado.',
-  /** §8 */
   duplicate: 'Ya hay un bolo en esa fecha y sala. ¿Quieres guardarlo igualmente?',
   duplicateBulk: 'Algunas fechas ya tienen un bolo en esa sala. ¿Quieres guardarlas igualmente?',
   exactDuplicate: 'Ese bolo ya existe: misma fecha, sala y fiesta.',
   saveFailed: 'No se ha podido guardar. Inténtalo de nuevo.',
   loadFailed: 'No se han podido cargar los datos. Recarga la página.',
   sessionExpired: 'La sesión ha caducado. Vuelve a entrar.',
-  /** Si alguien vuelve a activar el CAPTCHA de Supabase (D61: el panel no lo usa). */
-  captchaEnabled: 'Supabase pide un CAPTCHA: desactívalo en Authentication → Attack Protection.',
   tooManyAttempts: 'Demasiados intentos. Espera un rato antes de volver a probar.',
   noScript: 'El panel necesita JavaScript.',
   notConfigured: 'Falta configurar Supabase (PUBLIC_SUPABASE_URL y PUBLIC_SUPABASE_PUBLISHABLE_KEY).',
@@ -50,7 +44,7 @@ export const ADMIN_FIELD_ERRORS = {
   colorInvalid: 'Escribe un color en formato #RRGGBB (p. ej. #ff00ff).',
 } as const;
 
-/** Límites (los mismos que las restricciones de la base de datos, §7.1). */
+/** Límites (los mismos que las restricciones de la base de datos). */
 export const ADMIN_LIMITS = {
   tickerMax: 500,
   partyMax: 120,
@@ -96,7 +90,7 @@ export function adminHref(slug: string, path = ''): string {
   return clean ? `/${slug}/${clean}` : `/${slug}`;
 }
 
-/** Tipos de archivo que acepta la subida de mixes (P2). */
+/** Tipos de archivo que acepta la subida de mixes. */
 export const MIX_AUDIO_TYPES = {
   'audio/mpeg': 'mp3',
   'audio/mp4': 'm4a',

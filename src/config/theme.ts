@@ -1,7 +1,7 @@
 /**
  * Colores de la web que se pueden cambiar desde el panel oculto (página
  * «colores», Luna, 06-10-2026). Los valores por defecto son los de
- * src/styles/tokens.css (§4.1): si cambias uno allí, cámbialo también aquí
+ * src/styles/tokens.css: si cambias uno allí, cámbialo también aquí
  * (tests/unit/theme.test.ts lo comprueba).
  *
  * Los textos no se eligen aparte: el diseño usa los dos fondos al revés, así

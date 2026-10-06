@@ -1,5 +1,5 @@
 /**
- * Secretos de prueba del preview para los e2e del panel (fase 6). Como
+ * Secretos de prueba del preview para los e2e del panel. Como
  * tests/e2e/dev-vars.mjs: sobrescribe `dist/server/.dev.vars`, que es lo que
  * lee `astro preview`, con valores inventados. Nunca los de verdad.
  *

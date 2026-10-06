@@ -2,7 +2,7 @@ import { gzipSync } from 'node:zlib';
 import { expect, test, type Page } from '@playwright/test';
 import { SECTION_CASES, isMobileViewport, openMobileMenu } from './helpers';
 
-/** Tamaños de §5 · C05. */
+/** Tamaños de C05. */
 const MENU_SIZES = [
   { width: 1024, height: 600 },
   { width: 1280, height: 720 },

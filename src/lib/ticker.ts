@@ -12,7 +12,7 @@ export const TICKER_SEPARATOR = ' ✦ ';
  */
 export const TICKER_MIN_CHARS = 180;
 
-/** Segundos por carácter (§5 · C04). */
+/** Segundos por carácter (C04). */
 export const TICKER_SECONDS_PER_CHAR = 0.18;
 
 /** Duración mínima del bucle, en segundos. */

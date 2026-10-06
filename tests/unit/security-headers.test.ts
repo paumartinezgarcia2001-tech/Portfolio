@@ -3,7 +3,6 @@ import {
   INSTAGRAM_ORIGIN,
   PERMISSIONS_POLICY,
   SOUNDCLOUD_WIDGET_ORIGIN,
-  TURNSTILE_ORIGIN,
   buildContentSecurityPolicy,
   buildHeadersFileBlock,
   buildSecurityHeaders,
@@ -11,7 +10,7 @@ import {
   withSecurityHeaders,
 } from '../../src/lib/security-headers';
 
-/** §11 · cabeceras de seguridad, iguales en toda la web. */
+/** Cabeceras de seguridad, iguales en toda la web. */
 
 const OPTIONS = { mediaBaseUrl: 'https://media.travest15m0.test/', supabaseUrl: 'https://proyecto.supabase.co' };
 
@@ -37,9 +36,9 @@ describe('originOf', () => {
 describe('buildContentSecurityPolicy', () => {
   const csp = directives(buildContentSecurityPolicy(OPTIONS));
 
-  it('deja cargar Turnstile y los widgets de contact: su script y su iframe (C17, D59)', () => {
-    expect(csp['script-src']).toEqual(["'self'", TURNSTILE_ORIGIN, SOUNDCLOUD_WIDGET_ORIGIN, INSTAGRAM_ORIGIN]);
-    expect(csp['frame-src']).toEqual([TURNSTILE_ORIGIN, SOUNDCLOUD_WIDGET_ORIGIN, INSTAGRAM_ORIGIN]);
+  it('deja cargar los widgets de contact: su script y su iframe (C17, D59)', () => {
+    expect(csp['script-src']).toEqual(["'self'", SOUNDCLOUD_WIDGET_ORIGIN, INSTAGRAM_ORIGIN]);
+    expect(csp['frame-src']).toEqual([SOUNDCLOUD_WIDGET_ORIGIN, INSTAGRAM_ORIGIN]);
   });
 
   it('no permite scripts en línea (por eso Astro no los incrusta)', () => {
@@ -72,7 +71,7 @@ describe('buildContentSecurityPolicy', () => {
 describe('buildSecurityHeaders', () => {
   const headers = buildSecurityHeaders(OPTIONS);
 
-  it('lleva las cinco cabeceras de §11', () => {
+  it('lleva las cinco cabeceras de seguridad', () => {
     expect(Object.keys(headers)).toEqual([
       'Content-Security-Policy',
       'Strict-Transport-Security',
@@ -96,7 +95,7 @@ describe('withSecurityHeaders', () => {
   it('añade las cabeceras a la respuesta', () => {
     const response = withSecurityHeaders(new Response('hola'), buildSecurityHeaders(OPTIONS));
     expect(response.headers.get('x-content-type-options')).toBe('nosniff');
-    expect(response.headers.get('content-security-policy')).toContain(TURNSTILE_ORIGIN);
+    expect(response.headers.get('content-security-policy')).toContain(SOUNDCLOUD_WIDGET_ORIGIN);
   });
 
   it('si las cabeceras son inmutables, copia la respuesta', async () => {

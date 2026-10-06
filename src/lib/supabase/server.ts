@@ -3,7 +3,7 @@
  *
  * - `createSupabasePublicClient()`: páginas públicas. Solo la clave publicable,
  *   sin sesión ni cookies, para que el HTML se pueda cachear.
- * - `createSupabaseServerClient()`: panel (fase 6). Sesión en cookies de Astro
+ * - `createSupabaseServerClient()`: panel. Sesión en cookies de Astro
  *   con el patrón getAll/setAll de @supabase/ssr.
  *
  * La clave secreta (sb_secret_…) nunca se usa aquí.

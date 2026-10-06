@@ -1,7 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
 /**
- * E2E del panel oculto (C19, fase 6): `npm run test:e2e:admin`.
+ * E2E del panel oculto (C19): `npm run test:e2e:admin`.
  *
  * Va aparte de playwright.config.ts porque necesita otra compilación: la web
  * lee de Supabase (DATA_SOURCE=supabase) para comprobar que lo que se guarda

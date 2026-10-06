@@ -16,7 +16,7 @@ import {
 } from './helpers';
 
 /**
- * C06 · Reproductor de mixes (fase 4, D43) con los mixes de prueba de
+ * C06 · Reproductor de mixes (D43) con los mixes de prueba de
  * `tests/e2e/global-setup.ts` (tonos de 20 s en MP3), servidos por
  * scripts/serve-media.mjs como si fuera R2.
  *
@@ -73,7 +73,7 @@ test.describe('Reproductor', () => {
     expect(Math.abs(layout.groupCenter - layout.rowCenter)).toBeLessThan(1);
     expect(Math.abs(layout.toggleCenter - layout.rowCenter)).toBeLessThan(1);
     expect(layout.order).toEqual([...layout.order].sort((a, b) => a - b));
-    // Zona táctil de al menos 44 × 44 px (§10).
+    // Zona táctil de al menos 44 × 44 px.
     expect(layout.smallest).toBeGreaterThanOrEqual(44);
   });
 

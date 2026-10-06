@@ -4,9 +4,7 @@
  * La imagen OG pixelada (1200×630) está pendiente de diseñar.
  */
 import { publicVar } from '../lib/public-env';
-import { SITE_NOINDEX } from 'astro:env/server';
 import { SITE } from '../config/site';
-import { cleanPathname, withBase } from '../lib/url';
 
 interface Props {
   /** Nombre de la sección, p. ej. «next dates». */
@@ -15,16 +13,13 @@ interface Props {
   noindex?: boolean | undefined;
 }
 
-const { title, description = SITE.description } = Astro.props;
-// SITE_NOINDEX saca toda la web de los buscadores (despliegue provisional).
-const noindex = (Astro.props.noindex ?? false) || SITE_NOINDEX;
+const { title, description = SITE.description, noindex = false } = Astro.props;
 
 const fullTitle = `${title} — ${SITE.name}`;
 const origin = publicVar('PUBLIC_SITE_URL') ?? Astro.site?.origin ?? Astro.url.origin;
-// `Astro.url.pathname` ya incluye el `base`. `originPathname`: la ruta que se
-// pidió, también cuando el middleware reescribe a la 404 (panel, fase 6), para
-// que esa 404 sea idéntica a la de cualquier otra ruta.
-const canonical = new URL(cleanPathname(Astro.originPathname ?? Astro.url.pathname), origin).href;
+// `originPathname`: la ruta que se pidió, también cuando el middleware reescribe
+// a la 404 (panel oculto), para que esa 404 sea idéntica a la de cualquier otra ruta.
+const canonical = new URL(Astro.originPathname ?? Astro.url.pathname, origin).href;
 
 const personLd = {
   '@context': 'https://schema.org',
@@ -32,7 +27,7 @@ const personLd = {
   name: SITE.personName,
   alternateName: SITE.name,
   jobTitle: SITE.jobTitle,
-  url: new URL(withBase('/'), origin).href,
+  url: new URL('/', origin).href,
   sameAs: [SITE.social.instagram, SITE.social.soundcloud],
 };
 

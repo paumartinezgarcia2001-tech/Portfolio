@@ -1,12 +1,12 @@
 /**
- * Caché de las páginas públicas (§6). Las respuestas se guardan unos 60 s en
+ * Caché de las páginas públicas. Las respuestas se guardan unos 60 s en
  * la red de Cloudflare y se sirven «caducadas» hasta 5 min mientras se
- * regeneran. El panel (fase 6) purga por etiqueta al guardar.
+ * regeneran. El panel purga por etiqueta al guardar.
  */
 export const CACHE_TAGS = {
   /**
-   * Ajustes: texto de la barra de noticias (en todas las páginas) y, desde la
-   * fase 6 (P2), el texto de Info y el vídeo de Media.
+   * Ajustes: texto de la barra de noticias (en todas las páginas), el texto
+   * de Info, el vídeo de Media y los colores.
    */
   settings: 'settings',
   /** Bolos: next dates, archive y la próxima fecha de la barra (todas las páginas). */

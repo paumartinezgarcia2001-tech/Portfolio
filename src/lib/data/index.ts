@@ -1,15 +1,10 @@
 /**
- * Capa de datos de la web pública (fase 2).
+ * Capa de datos de la web pública.
  * Cada consulta tiene un tiempo máximo y una alternativa: si Supabase no
  * responde, la web se sigue viendo con listas vacías y un aviso discreto.
- *
- * Excepción: con `DATA_STRICT` (build estático de GitHub Pages, ver
- * astro.config.pages.mjs) un fallo detiene la compilación. En una web
- * estática el aviso se quedaría publicado hasta el siguiente build; así sigue
- * en línea la última versión buena.
  */
 import { publicVar } from '../public-env';
-import { DATA_SOURCE, DATA_STRICT } from 'astro:env/server';
+import { DATA_SOURCE } from 'astro:env/server';
 import { MEDIA_VIDEO, type MediaVideoConfig } from '../../config/media';
 import { SITE } from '../../config/site';
 import { getCutoffDate } from '../dates';
@@ -22,7 +17,6 @@ import {
   DEFAULT_SETTINGS,
   GIG_COLUMNS,
   MIX_COLUMNS,
-  QUERY_TIMEOUT_MS,
   buildTickerText,
   runQuery,
   sortPast,
@@ -51,30 +45,7 @@ interface SettingsRow {
 const useFixtures = DATA_SOURCE === 'fixtures';
 let warnedNotConfigured = false;
 
-/**
- * Tiempo máximo de cada consulta. Al compilar la web estática no hay nadie
- * esperando, así que se da más margen (p. ej., si Supabase tarda en despertar).
- */
-const timeoutMs = DATA_STRICT ? 10_000 : QUERY_TIMEOUT_MS;
-
-/** En modo estricto, un resultado fallido detiene el build (ver arriba). */
-function checked<T>(result: DataResult<T>, label: string): DataResult<T> {
-  if (DATA_STRICT && !result.ok) {
-    throw new Error(
-      `[datos] ${label}: la consulta a Supabase ha fallado y DATA_STRICT está activo. ` +
-        'Se detiene el build para no publicar la web sin datos.',
-    );
-  }
-  return result;
-}
-
 function notConfigured<T>(fallback: T): DataResult<T> {
-  if (DATA_STRICT) {
-    throw new Error(
-      '[datos] Faltan PUBLIC_SUPABASE_URL y PUBLIC_SUPABASE_PUBLISHABLE_KEY, y DATA_STRICT está activo. ' +
-        'En GitHub van en Settings → Secrets and variables → Actions → Variables.',
-    );
-  }
   if (!warnedNotConfigured) {
     console.warn('[datos] Supabase no está configurado (PUBLIC_SUPABASE_URL / PUBLIC_SUPABASE_PUBLISHABLE_KEY).');
     warnedNotConfigured = true;
@@ -100,9 +71,9 @@ export async function getUpcomingGigs(now: Date = new Date()): Promise<DataResul
         .order('created_at', { ascending: true })
         .abortSignal(signal),
     [],
-    { label: 'próximas fechas', timeoutMs },
+    { label: 'próximas fechas' },
   );
-  return checked({ data: sortUpcoming(result.data.map(toGig)), ok: result.ok }, 'próximas fechas');
+  return { data: sortUpcoming(result.data.map(toGig)), ok: result.ok };
 }
 
 /** Bolos publicados anteriores a hoy, del más reciente al más antiguo (C16). */
@@ -124,9 +95,9 @@ export async function getPastGigs(now: Date = new Date()): Promise<DataResult<Gi
         .limit(5000)
         .abortSignal(signal),
     [],
-    { label: 'archivo', timeoutMs },
+    { label: 'archivo' },
   );
-  return checked({ data: sortPast(result.data.map(toGig)), ok: result.ok }, 'archivo');
+  return { data: sortPast(result.data.map(toGig)), ok: result.ok };
 }
 
 /** El próximo bolo, o `null` si no hay ninguno anunciado. */
@@ -148,10 +119,10 @@ export async function getNextGig(now: Date = new Date()): Promise<DataResult<Gig
         .limit(1)
         .abortSignal(signal),
     [],
-    { label: 'próxima fecha', timeoutMs },
+    { label: 'próxima fecha' },
   );
   const first = result.data[0];
-  return checked({ data: first ? toGig(first) : null, ok: result.ok }, 'próxima fecha');
+  return { data: first ? toGig(first) : null, ok: result.ok };
 }
 
 /**
@@ -163,7 +134,7 @@ async function getSettingsRow(): Promise<DataResult<SettingsRow | null>> {
   const result = await runQuery<SettingsRow | null>(
     (signal) => supabase.from('site_settings').select('*').eq('id', 1).abortSignal(signal).maybeSingle(),
     null,
-    { label: 'ajustes', timeoutMs },
+    { label: 'ajustes' },
   );
   return result.data ? result : { data: null, ok: false };
 }
@@ -177,8 +148,8 @@ export async function getSettings(): Promise<DataResult<SiteSettings>> {
   if (useFixtures) return { data: FIXTURE_SETTINGS, ok: true };
   if (!isSupabaseConfigured()) return notConfigured(DEFAULT_SETTINGS);
   const row = await getSettingsRow();
-  if (!row.data) return checked({ data: DEFAULT_SETTINGS, ok: false }, 'ajustes');
-  return checked({ data: toSettings(row.data), ok: row.ok }, 'ajustes');
+  if (!row.data) return { data: DEFAULT_SETTINGS, ok: false };
+  return { data: toSettings(row.data), ok: row.ok };
 }
 
 function tickerFrom(settings: DataResult<SiteSettings>, nextGig: DataResult<Gig | null>): DataResult<string> {
@@ -210,8 +181,8 @@ export async function getLayoutData(now: Date = new Date()): Promise<LayoutData>
   }
   const [row, nextGig] = await Promise.all([getSettingsRow(), getNextGig(now)]);
   const settings = row.data
-    ? checked({ data: toSettings(row.data), ok: row.ok }, 'ajustes')
-    : checked({ data: DEFAULT_SETTINGS, ok: false }, 'ajustes');
+    ? { data: toSettings(row.data), ok: row.ok }
+    : { data: DEFAULT_SETTINGS, ok: false };
   return { ticker: tickerFrom(settings, nextGig), theme: parseStoredTheme(row.data?.theme) };
 }
 
@@ -244,9 +215,9 @@ export async function getPublishedMixes(): Promise<DataResult<Mix[]>> {
         .limit(500)
         .abortSignal(signal),
     [],
-    { label: 'mixes', timeoutMs },
+    { label: 'mixes' },
   );
-  return checked({ data: toMixes(result.data, publicVar('PUBLIC_MEDIA_BASE_URL')), ok: result.ok }, 'mixes');
+  return { data: toMixes(result.data, publicVar('PUBLIC_MEDIA_BASE_URL')), ok: result.ok };
 }
 
 /** Consulta mínima para /api/health (keep-alive de Supabase). */
@@ -258,13 +229,13 @@ export async function checkDatabase(): Promise<DataResult<boolean>> {
   const result = await runQuery<{ id: number }[]>(
     (signal) => supabase.from('site_settings').select('id').limit(1).abortSignal(signal),
     [],
-    { label: 'health', timeoutMs },
+    { label: 'health' },
   );
-  return checked({ data: result.ok, ok: result.ok }, 'health');
+  return { data: result.ok, ok: result.ok };
 }
 
 /**
- * Texto de Info guardado desde el panel (P2, fase 6), o `null` si no hay
+ * Texto de Info guardado desde el panel, o `null` si no hay
  * (entonces la página usa src/content/info.md). Si la consulta falla, también
  * `null`: mejor el texto del repo que una página vacía.
  */
@@ -276,16 +247,16 @@ export async function getInfoMarkdown(): Promise<DataResult<string | null>> {
   const result = await runQuery<{ info_markdown: string | null } | null>(
     (signal) => supabase.from('site_settings').select('info_markdown').eq('id', 1).abortSignal(signal).maybeSingle(),
     null,
-    { label: 'texto de info', timeoutMs },
+    { label: 'texto de info' },
   );
   const text = result.data?.info_markdown?.trim();
-  return checked({ data: text ? text : null, ok: result.ok }, 'texto de info');
+  return { data: text ? text : null, ok: result.ok };
 }
 
 /**
  * Vídeo de Media (C15) con las URLs completas, o `null` si falta
  * `PUBLIC_MEDIA_BASE_URL`. Sale de `site_settings.video` si se ha guardado
- * desde el panel (P2, fase 6) y es válido; si no, de `src/config/media.ts`.
+ * desde el panel y es válido; si no, de `src/config/media.ts`.
  */
 export async function getMediaVideo(): Promise<ResolvedMediaVideo | null> {
   if (useFixtures) return resolveMediaVideo(FIXTURE_VIDEO, publicVar('PUBLIC_MEDIA_BASE_URL'));
@@ -302,7 +273,7 @@ export async function getStoredVideo(): Promise<DataResult<MediaVideoConfig | nu
   const result = await runQuery<{ video: unknown } | null>(
     (signal) => supabase.from('site_settings').select('video').eq('id', 1).abortSignal(signal).maybeSingle(),
     null,
-    { label: 'vídeo', timeoutMs },
+    { label: 'vídeo' },
   );
-  return checked({ data: parseStoredVideo(result.data?.video), ok: result.ok }, 'vídeo');
+  return { data: parseStoredVideo(result.data?.video), ok: result.ok };
 }

@@ -1,6 +1,6 @@
 // @ts-check
 /**
- * Normalización de bolos para la importación inicial (prompt maestro §7.4).
+ * Normalización de bolos para la importación inicial.
  * Funciones puras: las usa `scripts/import-gigs.mjs` y las prueban los tests.
  */
 

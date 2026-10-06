@@ -5,7 +5,6 @@
  * al navegar (src/scripts/app.ts).
  */
 import { SECTIONS, type SectionState } from '../config/sections';
-import { withBase } from '../lib/url';
 
 interface Props {
   current: SectionState;
@@ -21,7 +20,7 @@ const { current } = Astro.props;
         <li class="menu__row">
           <a
             class="menu__link"
-            href={withBase(section.href)}
+            href={section.href}
             lang="en"
             data-menu-link={section.key}
             aria-current={current === section.key ? 'page' : undefined}
@@ -89,7 +88,7 @@ const { current } = Astro.props;
       color: var(--item-color);
     }
 
-    /* Columna oscura: el foco es un contorno del acento (§4.1, regla 3). */
+    /* Columna oscura: el foco es un contorno del acento. */
     .menu__link:focus-visible {
       outline: var(--focus-w) solid var(--accent);
       outline-offset: calc(var(--focus-w) * -1);

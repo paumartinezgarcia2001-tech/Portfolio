@@ -1,5 +1,5 @@
 /**
- * Filtro pixelado (C11). Valores revisados en la fase 3 (18-09-2026).
+ * Filtro pixelado (C11). Valores revisados el 18-09-2026.
  *
  * El vídeo de Media NO se pixela (D40, decisión de Luna del 18-09-2026): se ve
  * nítido. Por eso ya no hay ajustes de `media`.
@@ -24,7 +24,7 @@ export const PIXEL = {
     /** Grosor de las líneas entre celdas, en px CSS. */
     line: 1,
     /**
-     * Opacidad de la rejilla (0–1). 0,12 revisado en la fase 3 en los cinco
+     * Opacidad de la rejilla (0–1). 0,12 revisado (18-09-2026) en los cinco
      * paneles, el menú y el vídeo: se nota la textura y los textos se leen
      * igual (ver el resumen de la fase).
      */

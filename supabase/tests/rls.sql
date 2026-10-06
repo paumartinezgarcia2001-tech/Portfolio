@@ -5,7 +5,7 @@
 --
 -- Todos los resultados deben decir «correcto», «sin efecto (correcto)»,
 -- «permitido (correcto)» o «bloqueado (42501)». La parte de administradora
--- solo se comprueba si ya hay alguien en `admins` (fase 6).
+-- solo se comprueba si ya hay alguien en `admins`.
 create or replace function pg_temp.rls_check() returns table(prueba text, resultado text) language plpgsql as $fn$
 declare
   v_count int;
@@ -121,7 +121,7 @@ begin
   select count(*) into v_count from public.admins;
   prueba := 'auth no admin: select admins'; resultado := case when v_count = 0 then 'nada visible (correcto)' else 'VE FILAS (mal)' end; return next;
 
-  -- ---------- administradora (fase 6; solo si ya hay alguien en `admins`) ----------
+  -- ---------- administradora (solo si ya hay alguien en `admins`) ----------
   reset role;
   select a.user_id into v_admin from public.admins a order by a.created_at limit 1;
   if v_admin is null then

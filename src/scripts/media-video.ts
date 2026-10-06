@@ -256,7 +256,7 @@ export class MediaVideoElement extends HTMLElement {
             // No pide más resolución de la que ocupa el panel.
             capLevelToPlayerSize: true,
             // Sin worker: los segmentos son fMP4 (no hay nada que transmuxar)
-            // y así la CSP de la fase 7 no necesita `worker-src blob:`.
+            // y así la CSP no necesita `worker-src blob:`.
             enableWorker: false,
           });
           this.#hls = hls;
