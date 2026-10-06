@@ -1,10 +1,9 @@
 /**
  * C11d · CRT: lo que no se puede hacer solo con CSS (src/config/crt.ts).
  *
- * - Nivel 2: marca `html[data-crt-filter]` para aplicar el filtro `#crt-screen`
- *   (bloom y, si está encendida, curvatura). Para la curvatura genera con un
- *   <canvas> el mapa de desplazamiento y lo pasa al <feImage> del filtro. En
- *   todos los navegadores, Safari incluido.
+ * - Curvatura (si está encendida): genera con un <canvas> el mapa de
+ *   desplazamiento, lo pasa al <feImage> del filtro `#crt-screen` y marca
+ *   `html[data-crt-filter]` para aplicarlo. El bloom es solo CSS.
  * - Nivel 3: detecta la API HTML-in-Canvas y marca `html[data-crt-html-in-canvas]`.
  *
  * El ClientRouter copia los atributos del <html> nuevo al navegar, así que las
@@ -55,7 +54,6 @@ function barrelMap(): string | null {
 function sizeFilter(): boolean {
   const filter = document.getElementById('crt-screen');
   if (!filter) return false;
-  if (!CRT.curvature.enabled) return true;
   const feImage = filter.querySelector('feImage');
   const displacement = filter.querySelector('feDisplacementMap');
   if (!feImage || !displacement) return false;
@@ -80,8 +78,7 @@ function mark(): void {
     // (p. ej. `import('./crt-webgl')`) cuando la API salga del origin trial.
     root.dataset.crtHtmlInCanvas = '';
   }
-  const wanted = CRT.curvature.enabled || CRT.bloom.enabled;
-  if (wanted && !lessEffects.matches && sizeFilter()) root.dataset.crtFilter = '';
+  if (CRT.curvature.enabled && !lessEffects.matches && sizeFilter()) root.dataset.crtFilter = '';
   else delete root.dataset.crtFilter;
 }
 

@@ -47,20 +47,29 @@ test.describe('CRT', () => {
     await expect(page.locator('html')).toHaveAttribute('data-crt', '');
   });
 
-  test('filtro de pantalla con bloom y sin curvatura (Luna, 05-10-2026)', async ({ page }) => {
+  test('bloom con sombras CSS en los neones, sin filtro sobre la página (rendimiento)', async ({ page }) => {
     expect(CRT.curvature.enabled).toBe(false);
     expect(CRT.bloom.enabled).toBe(true);
-    await page.goto('/');
-    await expect(page.locator('html')).toHaveAttribute('data-crt-filter', '');
-    await expect(page.locator('body')).toHaveCSS('filter', /url\(.*#crt-screen.*\)/);
-    const filter = await page.locator('#crt-screen').evaluate((el) => ({
-      displacement: el.querySelectorAll('feImage, feDisplacementMap').length,
-      blur: el.querySelector('feGaussianBlur')?.getAttribute('stdDeviation'),
-      source: el.querySelector('feComponentTransfer')?.getAttribute('in'),
-    }));
-    expect(filter.displacement).toBe(0);
-    expect(filter.blur).toBe(String(CRT.bloom.radius));
-    expect(filter.source).toBe('SourceGraphic');
+    await page.goto('/next-dates');
+    const html = page.locator('html');
+    await expect(html).toHaveAttribute('data-crt-bloom', '');
+    // Nada de filtros sobre toda la página: eran lo que iba a tirones.
+    expect(await html.getAttribute('data-crt-filter')).toBeNull();
+    await expect(page.locator('body')).toHaveCSS('filter', 'none');
+    await expect(page.locator('#crt-screen')).toHaveCount(0);
+    // Halo del color de la sección en la barra y en el rotulador (cian en next dates).
+    const glow = (selector: string) =>
+      page.locator(selector).first().evaluate((el) => getComputedStyle(el).boxShadow);
+    // color-mix() se lee como `color(srgb 0 1 1 / …)`.
+    const cyan = /color\(srgb 0 1 1 \/ [\d.]+\)|rgba\(0, 255, 255, [\d.]+\)/;
+    expect(await glow('[data-ticker]')).toMatch(cyan);
+    expect(await glow('.hl')).toMatch(cyan);
+    // El ítem activo del menú suma su halo a la sombra del texto.
+    const menuShadow = await page
+      .locator('[data-menu-link][aria-current="page"]')
+      .evaluate((el) => getComputedStyle(el).textShadow);
+    expect(menuShadow).toContain('rgba(255, 0, 80, 0.35)');
+    expect(menuShadow).toMatch(cyan);
   });
 
   test('el píxel del tubo mide 2 px (scanlines y fósforo)', async ({ page }) => {
@@ -89,6 +98,7 @@ test.describe('CRT', () => {
       const shadow = await page.locator('#panel p').first().evaluate((el) => getComputedStyle(el).textShadow);
       expect(shadow).toBe('none');
       await expect(page.locator('body')).toHaveCSS('filter', 'none');
+      await expect(page.locator('[data-ticker]')).toHaveCSS('box-shadow', 'none');
     });
   });
 });

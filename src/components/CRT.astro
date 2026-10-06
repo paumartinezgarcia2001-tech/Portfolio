@@ -10,14 +10,11 @@
 import { CRT as CONFIG } from '../config/crt';
 
 const { bloom, curvature } = CONFIG;
-/** El filtro SVG (nivel 2) hace falta para la curvatura o para el bloom. */
-const useFilter = CONFIG.enabled && (curvature.enabled || bloom.enabled);
-/** Umbral del bloom: (c − umbral) / (1 − umbral), recortado a 0…1. */
-const bloomSlope = 1 / (1 - bloom.threshold);
-const bloomIntercept = -bloom.threshold * bloomSlope;
-/** Imagen sobre la que se calcula el bloom: la curvada o la página tal cual. */
-const source = curvature.enabled ? 'screen' : 'SourceGraphic';
+/** El filtro SVG (nivel 2) solo hace falta para la curvatura. */
+const useFilter = CONFIG.enabled && curvature.enabled;
 const style = `--crt-px: ${CONFIG.pixel}px;`;
+/** Medidas del bloom para el CSS de abajo (se aplica con `html[data-crt-bloom]`). */
+const bloomVars = `:root{--crt-bloom-r:${bloom.radius}px;--crt-bloom-a:${Math.round(bloom.strength * 100)}%;}`;
 ---
 
 {
@@ -61,25 +58,12 @@ const style = `--crt-px: ${CONFIG.pixel}px;`;
             </>
           )
         }
-        {
-          bloom.enabled && (
-            <>
-              {/* Bloom: se queda solo con lo que pasa del umbral, se desenfoca
-                  y se suma encima. */}
-              <feComponentTransfer in={source} result="bright">
-                <feFuncR type="linear" slope={bloomSlope} intercept={bloomIntercept} />
-                <feFuncG type="linear" slope={bloomSlope} intercept={bloomIntercept} />
-                <feFuncB type="linear" slope={bloomSlope} intercept={bloomIntercept} />
-              </feComponentTransfer>
-              <feGaussianBlur in="bright" stdDeviation={bloom.radius} result="glow" />
-              <feComposite in={source} in2="glow" operator="arithmetic" k1="0" k2="1" k3={bloom.strength} k4="0" />
-            </>
-          )
-        }
       </filter>
     </svg>
   )
 }
+
+{CONFIG.enabled && bloom.enabled && <style is:inline set:html={bloomVars} />}
 
 <script>
   import '../scripts/crt';
@@ -87,12 +71,15 @@ const style = `--crt-px: ${CONFIG.pixel}px;`;
 
 <style is:global>
   @layer components {
-    /* Resplandor y aberración cromática del texto (rojo a un lado, cian al otro). */
+    /* Resplandor y aberración cromática del texto (rojo a un lado, cian al
+       otro). En una variable para que el bloom pueda sumarle su halo. */
+    html[data-crt] {
+      --crt-text-shadow:
+        0.06rem 0 1px rgb(255 0 80 / 0.35), -0.06rem 0 1px rgb(0 220 255 / 0.35), 0 0 4px currentColor;
+    }
+
     html[data-crt] body {
-      text-shadow:
-        0.06rem 0 1px rgb(255 0 80 / 0.35),
-        -0.06rem 0 1px rgb(0 220 255 / 0.35),
-        0 0 4px currentColor;
+      text-shadow: var(--crt-text-shadow);
     }
 
     .crt-overlay {
@@ -117,6 +104,9 @@ const style = `--crt-px: ${CONFIG.pixel}px;`;
         );
       /* En las view transitions queda encima de todo (src/styles/global.css). */
       view-transition-name: crt-overlay;
+      /* Capa propia desde el principio: el parpadeo solo cambia su opacidad y
+         lo hace la GPU, sin volver a pintar la página. */
+      will-change: opacity;
     }
 
     .crt-overlay[data-flicker='true'] {
@@ -133,8 +123,60 @@ const style = `--crt-px: ${CONFIG.pixel}px;`;
       }
     }
 
-    /* Nivel 2 · filtro de pantalla: curvatura y bloom
-       (src/scripts/crt.ts pone `data-crt-filter`). */
+    /*
+     * Bloom (BaseLayout pone `html[data-crt-bloom]`). Halo de luz alrededor de
+     * lo que brilla de verdad: los neones del color de la sección (barra de
+     * noticias, ítem del menú, rotulador, cursor). Antes era un filtro SVG
+     * sobre toda la página, que el navegador recalculaba en cada fotograma
+     * mientras algo se movía (la barra, el parpadeo, el cursor, el vídeo):
+     * iba a tirones, sobre todo en móvil. Así solo se pinta alrededor de esos
+     * elementos y casi no cuesta.
+     */
+    /* Sin halo con más contraste, colores forzados ni al imprimir. */
+    @media screen and (forced-colors: none) and (prefers-contrast: no-preference) {
+      /* Doble halo: uno corto e intenso y otro ancho y suave. `--glow` es el
+         color de cada elemento (la variable se resuelve en el propio elemento). */
+      html[data-crt-bloom] :is(.ticker, .menu__link, .hl, .prose a, .cursor) {
+        --crt-glow:
+          0 0 calc(var(--crt-bloom-r) / 3) color-mix(in srgb, var(--glow) 80%, transparent),
+          0 0 var(--crt-bloom-r) color-mix(in srgb, var(--glow) var(--crt-bloom-a), transparent);
+      }
+
+      html[data-crt-bloom] .ticker {
+        --glow: var(--accent);
+
+        box-shadow: var(--crt-glow);
+      }
+
+      html[data-crt-bloom] .menu__link:is([aria-current='page'], :hover, :focus-visible) {
+        --glow: var(--item-color);
+
+        text-shadow: var(--crt-text-shadow), var(--crt-glow);
+      }
+
+      html[data-crt-bloom] :is(.hl, .prose a) {
+        --glow: var(--hl-ink);
+
+        box-shadow: var(--crt-glow);
+      }
+
+      /* Donde el rotulador solo sale al pasar el ratón, el halo también. */
+      html[data-crt-bloom] .embed__link a:not(:hover, :focus-visible) {
+        box-shadow: none;
+      }
+
+      html[data-crt-bloom].has-cursor .cursor[data-shape='circle'] {
+        --glow: var(--cursor-color, var(--accent));
+
+        box-shadow: var(--crt-glow);
+      }
+
+      html[data-crt-bloom] .player__button:not(:disabled):is(:hover, :focus-visible) {
+        filter: drop-shadow(0 0 calc(var(--crt-bloom-r) / 3) currentColor);
+      }
+    }
+
+    /* Nivel 2 · curvatura (filtro SVG; src/scripts/crt.ts pone `data-crt-filter`). */
     .crt-filters {
       position: absolute;
       width: 0;

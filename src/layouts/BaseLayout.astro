@@ -41,6 +41,7 @@ const startView = section === 'none' ? 'page' : MOBILE_START_VIEW;
   data-section={section}
   data-view={startView}
   data-crt={CRT_CONFIG.enabled ? '' : undefined}
+  data-crt-bloom={CRT_CONFIG.enabled && CRT_CONFIG.bloom.enabled ? '' : undefined}
   transition:animate="none"
 >
   <head>
