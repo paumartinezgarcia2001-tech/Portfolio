@@ -1,5 +1,5 @@
-import { expect, test } from '@playwright/test';
-import { adminUrl, resetSupabase, signInAsPau, toast } from './helpers';
+import { expect } from '@playwright/test';
+import { adminUrl, resetSupabase, signInAsPau, test, toast } from './helpers';
 
 /**
  * C19 · Criterio de aceptación: Pau publica un bolo nuevo desde el móvil en

@@ -1,6 +1,6 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 import { existsSync } from 'node:fs';
-import { PAU, R2_ORIGIN, adminUrl, openAdmin, resetSupabase, waitReady } from './helpers';
+import { adminUrl, openAdmin, PAU, R2_ORIGIN, resetSupabase, test, waitReady } from './helpers';
 
 /**
  * Capturas del panel para revisión visual y para la guía de Pau (sin

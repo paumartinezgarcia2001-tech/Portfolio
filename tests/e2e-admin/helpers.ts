@@ -1,4 +1,4 @@
-import { expect, type APIRequestContext, type Page } from '@playwright/test';
+import { test as base, expect, type APIRequestContext, type Page } from '@playwright/test';
 
 /**
  * Ayudas de los e2e del panel. Ver playwright.admin.config.ts.
@@ -10,6 +10,26 @@ export const SUPABASE_URL = `http://127.0.0.1:${process.env.E2E_SUPABASE_PORT ??
 export const PAU = { email: 'pau@e2e.test', alias: 'pau', password: 'contraseña-e2e-123' };
 export const INTRUDER = { email: 'intrusa@e2e.test', password: 'contraseña-e2e-456' };
 export const R2_ORIGIN = 'https://e2e-account.r2.cloudflarestorage.com';
+
+let ipCounter = 0;
+
+/**
+ * `test` de los e2e del panel: cada test entra desde una IP distinta
+ * (`CF-Connecting-IP`, que el preview local respeta), para que el límite de
+ * 5 intentos de login por minuto y por IP (src/lib/admin/login-guard.ts) no
+ * se pise entre tests. El test que prueba el límite fija la suya.
+ */
+export const test = base.extend<{ clientIp: string }>({
+  clientIp: [
+    async ({ context }, use, testInfo) => {
+      ipCounter += 1;
+      const ip = `10.${testInfo.workerIndex % 250}.${Math.floor(ipCounter / 250) % 250}.${(ipCounter % 250) + 1}`;
+      await context.setExtraHTTPHeaders({ 'CF-Connecting-IP': ip });
+      await use(ip);
+    },
+    { auto: true },
+  ],
+});
 
 export function adminUrl(path = ''): string {
   return path ? `/${ADMIN_PATH}/${path.replace(/^\/+/, '')}` : `/${ADMIN_PATH}`;

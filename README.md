@@ -71,8 +71,13 @@ simula en los tests que lo necesitan.
   que cambia. Lo normal ahora es añadirlos desde el panel.
 - `supabase/tests/rls.sql` comprueba dentro de la base de datos que el público solo
   puede leer lo publicado.
-- `GET /api/health` hace una consulta mínima: sirve de keep-alive para que el proyecto
-  gratuito de Supabase no se pause.
+- **Keep-alive.** El plan gratuito de Supabase pausa el proyecto tras una semana sin
+  actividad. Para que no pase, el Worker tiene un **Cron Trigger** (`triggers` en
+  `wrangler.jsonc`, cada día a las 06:17 UTC) que pide `/api/health` —una consulta mínima a
+  `site_settings`— dentro del propio Worker (`src/worker.ts` y `src/lib/keep-alive.ts`). No
+  hay que configurar nada: el despliegue lo crea. Se ve en *Workers & Pages → portfolio →
+  Settings → Trigger events*, y cada ejecución deja «[keep-alive] Supabase OK» en los logs
+  (*Observability*); si Supabase no responde, la ejecución sale como fallida.
 
 ## Vídeo de Media
 
@@ -246,20 +251,42 @@ desde ningún sitio, no está en `robots.txt` ni en el sitemap, y lleva `noindex
 **Seguridad.** Sin sistema de usuarios propio: Supabase Auth con cookies `httpOnly`,
 `secure` y `sameSite=lax` (`@supabase/ssr`), el JWT validado con `getClaims()` y la
 pertenencia a `admins` comprobada en cada petición. Errores genéricos («Usuario o
-contraseña incorrectos.»), el límite de intentos de Supabase, protección CSRF
-de Astro (`security.checkOrigin`) y todas las escrituras con la sesión de Pau y la clave
-publicable: las políticas RLS son la última barrera, y la clave secreta de Supabase no
-está en el Worker. No hay «olvidé mi contraseña» público: se cambia desde el dashboard.
-Lo que protege la entrada es que la ruta es secreta, una **contraseña larga y única** y
-ese límite de intentos (D61: sin CAPTCHA ni verificación en dos pasos).
+contraseña incorrectos.»), protección CSRF de Astro (`security.checkOrigin`) y todas las
+escrituras con la sesión de Pau y la clave publicable: las políticas RLS son la última
+barrera, y la clave secreta de Supabase no está en el Worker. No hay «olvidé mi
+contraseña» público: se cambia desde el dashboard.
+
+Contra la fuerza bruta (`src/lib/admin/login-guard.ts`):
+
+- **5 intentos por minuto y por IP**, con el binding de Rate Limiting de Workers
+  (`ratelimits` en `wrangler.jsonc`; no hay que crear nada en Cloudflare). Hace falta
+  porque Supabase ve la IP del Worker, no la de quien intenta entrar. Del sexto en
+  adelante: «Demasiados intentos…», también con la contraseña buena.
+- **Todo fallo tarda lo mismo** (≈ 0,8 s): no se puede adivinar el alias por lo que
+  tarda la respuesta.
+- Y el límite de intentos del propio Supabase.
+
+**Inyección SQL**: no hay ninguna consulta escrita a mano. El usuario y la contraseña
+van como datos a Supabase Auth, y todo lo demás usa el cliente de Supabase (PostgREST),
+que manda los valores como parámetros. El HTML que sale de la base de datos (el texto
+de Info) se escapa entero (`src/lib/markdown.ts`), y la CSP no deja ejecutar scripts en
+línea. Lo prueban `tests/e2e-admin/auth.spec.ts` y `tests/unit/admin.test.ts`.
+
+Lo que protege la entrada es que la ruta es secreta, una **contraseña larga y única**
+(16 caracteres o más, que no se use en ningún otro sitio) y esos límites (D61: sin
+CAPTCHA ni verificación en dos pasos). En el dashboard de Supabase conviene subir la
+longitud mínima de la contraseña («Minimum password length», en *Authentication → Sign In /
+Providers → Email*) a 16.
 
 **Tests.** `npm run test:e2e:admin` compila la web leyendo de un Supabase simulado
 (`tests/e2e-admin/mock-supabase.mjs`, con las mismas reglas que las políticas RLS) y
-prueba el login, los errores, la 404, las cabeceras, la barra, los bolos (y que aparecen
+prueba el login, los errores, el límite de intentos por IP, los intentos de inyección SQL, la 404, las cabeceras, la barra, los bolos (y que aparecen
 en la web), los duplicados, las varias fechas, el archivo, Info, el vídeo, los colores, la
 subida de mixes (R2 interceptado en el navegador), el login con alias (también sin
 JavaScript) y el uso a 375 px. Las migraciones y `supabase/tests/rls.sql` se prueban en
 un Postgres de verdad sin red (PGlite) dentro de `npm test` (`tests/unit/rls-sql.test.ts`).
+Cada test entra desde una IP distinta (`CF-Connecting-IP`, el `test` de
+`tests/e2e-admin/helpers.ts`) para no tropezar con el límite de intentos.
 
 El código: `src/pages/[admin]/`, `src/layouts/AdminLayout.astro`,
 `src/components/admin/`, `src/actions/admin.ts`, `src/lib/admin/`,
@@ -329,6 +356,8 @@ que no existe).
    las `PUBLIC_*`).
 4. `/<ADMIN_PATH>` enseña el login del panel; cualquier otra ruta, el 404. Con
    `ADMIN_USERNAME` y `ADMIN_EMAIL` puestos, se entra con el alias.
+5. En *Settings → Trigger events* sale el Cron `17 6 * * *` (keep-alive de Supabase) y, en
+   *Settings → Bindings*, el rate limiter `LOGIN_RATE_LIMIT`.
 
 ## Estructura
 
@@ -341,11 +370,13 @@ src/
   components/  piezas del layout (menú, barra de noticias, cursor, vídeo, widgets de redes…)
   layouts/     BaseLayout y AdminLayout (panel)
   pages/       una página por sección; [admin]/ es el panel oculto; api/health
+  worker.ts    punto de entrada del Worker: la web y el keep-alive diario de Supabase
   scripts/     JS del navegador (navegación, móvil, cursor, vídeo, reproductor, píxeles,
                CRT, widgets de redes y panel)
   styles/      reset, tokens, estilos globales, el rotulador (highlighter.css) y el panel
   lib/         fechas, datos (Supabase o fixtures), barajado, SEO, colores, cabeceras de
-               seguridad y el panel (admin/: sesión, esquemas, firma de R2, vídeo)
+               seguridad, keep-alive y el panel (admin/: sesión, límite de intentos,
+               esquemas, firma de R2, vídeo)
   actions/     Astro Actions del panel (admin.*)
   middleware.ts  datos de la columna izquierda, caché, cabeceras de seguridad y
                acceso al panel

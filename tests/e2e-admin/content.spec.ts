@@ -1,5 +1,5 @@
-import { expect, test, type Page } from '@playwright/test';
-import { adminUrl, mockState, openAdmin, resetSupabase, signInAsPau, toast, waitReady } from './helpers';
+import { expect, type Page } from '@playwright/test';
+import { adminUrl, mockState, openAdmin, resetSupabase, signInAsPau, test, toast, waitReady } from './helpers';
 
 /**
  * C19 · Barra de noticias y bolos: lo que se guarda en el panel aparece en la

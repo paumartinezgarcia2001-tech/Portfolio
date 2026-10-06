@@ -1,7 +1,8 @@
 {
 	"$schema": "./node_modules/wrangler/config-schema.json",
 	"name": "portfolio",
-	"main": "@astrojs/cloudflare/entrypoints/server",
+	// La web de Astro y el keep-alive de Supabase (src/worker.ts).
+	"main": "./src/worker.ts",
 	"compatibility_date": "2026-09-16",
 	"compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
 	"assets": {
@@ -13,7 +14,22 @@
 	"keep_vars": true,
 	"observability": {
 		"enabled": true
-	}
+	},
+	// Keep-alive de Supabase: cada día a las 06:17 UTC el Worker consulta
+	// /api/health para que el proyecto gratuito no se pause por inactividad.
+	"triggers": {
+		"crons": ["17 6 * * *"]
+	},
+	// Login del panel: como mucho 5 intentos por minuto y por IP
+	// (src/lib/admin/login-guard.ts). No hay que crear nada en Cloudflare: el
+	// contador vive en el binding. `namespace_id` es un número libre de la cuenta.
+	"ratelimits": [
+		{
+			"name": "LOGIN_RATE_LIMIT",
+			"namespace_id": "1001",
+			"simple": { "limit": 5, "period": 60 }
+		}
+	]
 	// Variables públicas: en "vars" (o en el panel de Cloudflare).
 	// Secretos: `npx wrangler secret put NOMBRE` (ver .env.example).
 }

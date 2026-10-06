@@ -1,5 +1,5 @@
-import { expect, test, type Page } from '@playwright/test';
-import { mockState, openAdmin, resetSupabase, signInAsPau, toast } from './helpers';
+import { expect, type Page } from '@playwright/test';
+import { mockState, openAdmin, resetSupabase, signInAsPau, test, toast } from './helpers';
 
 /**
  * Colores de la web desde el panel (Luna, 06-10-2026): secciones, fondos y

@@ -1,5 +1,5 @@
-import { expect, test } from '@playwright/test';
-import { R2_ORIGIN, mockState, openAdmin, resetSupabase, signInAsPau, toast } from './helpers';
+import { expect } from '@playwright/test';
+import { mockState, openAdmin, R2_ORIGIN, resetSupabase, signInAsPau, test, toast } from './helpers';
 
 /**
  * C19 · texto de Info, vídeo de Media y mixes con subida a R2.
@@ -113,8 +113,11 @@ test('mixes: subir a R2 (URL firmada), publicar y quitar', async ({ page, reques
   const item = page.locator('[data-region="mixes"] .a-item', { has: page.locator('input[value="MIX DE PRUEBA"]') });
   await item.getByLabel('publicado (suena en la web)').uncheck();
   await item.getByRole('button', { name: 'guardar' }).click();
+  // El aviso aún dice «Guardado.» por la subida de antes: se espera al dato, no al aviso.
+  await expect
+    .poll(async () => (await mockState(request)).tables.mixes.find((m) => m.title === 'MIX DE PRUEBA')!.published)
+    .toBe(false);
   await expect(toast(page)).toHaveText('Guardado.');
-  expect((await mockState(request)).tables.mixes.find((m) => m.title === 'MIX DE PRUEBA')!.published).toBe(false);
 
   // Borrar el nuevo (el archivo de R2 no se puede borrar desde los tests: lo avisa)
   const created = page.locator('[data-region="mixes"] .a-item', { has: page.locator('input[value="Sesión de otoño"]') });

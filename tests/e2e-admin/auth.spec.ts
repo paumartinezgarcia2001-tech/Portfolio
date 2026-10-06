@@ -1,5 +1,5 @@
-import { expect, test } from '@playwright/test';
-import { ADMIN_PATH, INTRUDER, PAU, adminUrl, resetSupabase, signIn, signInAsPau } from './helpers';
+import { expect } from '@playwright/test';
+import { ADMIN_PATH, adminUrl, INTRUDER, mockState, PAU, resetSupabase, signIn, signInAsPau, test } from './helpers';
 
 /**
  * C19 · Acceso al panel: ruta secreta, login, errores genéricos, cabeceras,
@@ -38,6 +38,40 @@ test('credenciales incorrectas → error genérico', async ({ page }) => {
   await page.getByLabel('contraseña').fill('lo-que-sea');
   await page.getByRole('button', { name: 'entrar' }).click();
   await expect(page.getByRole('alert')).toHaveText('Usuario o contraseña incorrectos.');
+  await expect(page.getByRole('button', { name: 'cerrar sesión' })).toHaveCount(0);
+});
+
+test('inyección SQL en el usuario o la contraseña: error genérico y nada cambia', async ({ page, request }) => {
+  // El login no escribe SQL: el usuario y la contraseña van como datos a
+  // Supabase Auth, y las consultas del panel usan el cliente de Supabase
+  // (parámetros, nunca texto concatenado). Esto comprueba el comportamiento.
+  const before = JSON.stringify((await mockState(request)).tables);
+  for (const attempt of [
+    { email: "' OR '1'='1", password: "' OR '1'='1" },
+    { email: `${PAU.email}'--`, password: 'x' },
+    { email: PAU.email, password: "' OR 1=1; DROP TABLE gigs; --" },
+  ]) {
+    await signIn(page, attempt);
+    await expect(page.getByRole('alert')).toHaveText('Usuario o contraseña incorrectos.');
+    await expect(page.getByRole('button', { name: 'cerrar sesión' })).toHaveCount(0);
+  }
+  // Ni una fila cambiada.
+  expect(JSON.stringify((await mockState(request)).tables)).toBe(before);
+});
+
+test('más de 5 intentos por minuto desde la misma IP → bloqueado, también con la contraseña buena', async ({ page }) => {
+  // El contador va por minutos de reloj (como en Cloudflare): si queda poco
+  // para el siguiente, se espera a que empiece, para que los 6 intentos caigan
+  // en el mismo minuto.
+  const secondsLeft = 60 - (Date.now() / 1000) % 60;
+  if (secondsLeft < 15) await page.waitForTimeout(secondsLeft * 1000 + 200);
+  await page.goto(adminUrl());
+  for (let i = 0; i < 5; i += 1) {
+    await signIn(page, { email: PAU.email, password: `mala-${i}` });
+    await expect(page.getByRole('alert')).toHaveText('Usuario o contraseña incorrectos.');
+  }
+  await signIn(page, PAU);
+  await expect(page.getByRole('alert')).toHaveText('Demasiados intentos. Espera un rato antes de volver a probar.');
   await expect(page.getByRole('button', { name: 'cerrar sesión' })).toHaveCount(0);
 });
 

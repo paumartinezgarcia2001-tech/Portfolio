@@ -35,7 +35,8 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [['list'], ['html', { open: 'never', outputFolder: 'playwright-report-admin' }]] : 'list',
-  timeout: 45_000,
+  // 60 s: el test del límite de intentos puede esperar al siguiente minuto.
+  timeout: 60_000,
   expect: { timeout: 7_000 },
   use: {
     baseURL,

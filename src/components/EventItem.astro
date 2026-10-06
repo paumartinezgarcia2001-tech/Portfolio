@@ -70,7 +70,10 @@ const date = formatEventDate(gig.eventDate);
 
     .event__date {
       display: block;
-      font-size: 9.4cqi;
+      /* La fecha más larga («30 SEPTIEMBRE 2099») tiene que caber en una línea,
+         con el trazo del rotulador, también con la Helvetica de verdad (o un
+         clon como TeX Gyre Heros), que es algo más ancha que Arial. */
+      font-size: 9.2cqi;
       font-weight: var(--fw-regular);
       line-height: var(--lh-tight);
       white-space: nowrap;

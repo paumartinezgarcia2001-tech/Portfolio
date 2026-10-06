@@ -131,6 +131,7 @@ export class MediaVideoElement extends HTMLElement {
     document.addEventListener('visibilitychange', () => this.#sync(), { signal });
     document.addEventListener(PLAYER_PLAY, () => {
       if (!video.muted) video.muted = true;
+      this.#syncSoundButton();
     }, { signal });
 
     this.#intersection = new IntersectionObserver((entries) => {
@@ -220,6 +221,7 @@ export class MediaVideoElement extends HTMLElement {
         break;
       case 'sound':
         video.muted = !video.muted;
+        this.#syncSoundButton();
         if (!video.muted) this.#announceSound();
         break;
     }
@@ -365,6 +367,9 @@ export class MediaVideoElement extends HTMLElement {
           // Sin haber tocado la página, el navegador no deja arrancar con
           // sonido: se silencia («sonido» queda apagado) y se vuelve a probar.
           video.muted = true;
+          // El botón se pone al día aquí: Chromium no siempre avisa con
+          // `volumechange` si se silencia justo después de un play() rechazado.
+          this.#syncSoundButton();
           this.#sync();
         } else if (name === 'NotAllowedError') {
           // Ni siquiera sin sonido (p. ej., ahorro de batería en iOS).

@@ -18,6 +18,7 @@ import {
   R2_SECRET_ACCESS_KEY,
 } from 'astro:env/server';
 import type { AstroCookies } from 'astro';
+import { env } from 'cloudflare:workers';
 import {
   ADMIN_LIMITS,
   ADMIN_TEXT as TEXT,
@@ -29,6 +30,7 @@ import { CACHE_TAGS } from '../config/cache';
 import { MEDIA_VIDEO } from '../config/media';
 import { classifyAuthError, resolveLoginEmail } from '../lib/admin/access';
 import { invalidatePublicCache, openAdminContext } from '../lib/admin/context';
+import { allowLoginAttempt, waitUntilElapsed, type LoginRateLimiter } from '../lib/admin/login-guard';
 import { isMixObjectKey, presignR2, uploadKey, type R2Credentials } from '../lib/admin/r2';
 import {
   findDuplicates,
@@ -120,6 +122,24 @@ async function gigsAt(supabase: TypedSupabaseClient, dates: string[], venue: str
   return data ?? [];
 }
 
+/** Binding de Rate Limiting del login (wrangler.jsonc); no existe en `astro dev` sin wrangler. */
+function loginRateLimiter(): LoginRateLimiter | undefined {
+  try {
+    return (env as { LOGIN_RATE_LIMIT?: LoginRateLimiter }).LOGIN_RATE_LIMIT;
+  } catch {
+    return undefined;
+  }
+}
+
+/** IP de quien intenta entrar (`CF-Connecting-IP` en Cloudflare). */
+function clientIp(context: { clientAddress: string }): string | undefined {
+  try {
+    return context.clientAddress;
+  } catch {
+    return undefined;
+  }
+}
+
 function r2Credentials(): R2Credentials | null {
   if (!R2_ACCOUNT_ID || !R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY || !R2_BUCKET) return null;
   return { accountId: R2_ACCOUNT_ID, accessKeyId: R2_ACCESS_KEY_ID, secretAccessKey: R2_SECRET_ACCESS_KEY, bucket: R2_BUCKET };
@@ -132,10 +152,20 @@ export const admin = {
     input: loginSchema,
     handler: async (input, context) => {
       if (!isSupabaseConfigured()) throw new ActionError({ code: 'INTERNAL_SERVER_ERROR', message: TEXT.notConfigured });
-      const failed = () => new ActionError({ code: 'UNAUTHORIZED', message: TEXT.loginFailed });
+      const startedAt = Date.now();
+      // Todo fallo tarda lo mismo (src/lib/admin/login-guard.ts).
+      const failed = async () => {
+        await waitUntilElapsed(startedAt);
+        return new ActionError({ code: 'UNAUTHORIZED', message: TEXT.loginFailed });
+      };
+
+      // 5 intentos por minuto y por IP, antes de preguntar nada a Supabase.
+      if (!(await allowLoginAttempt(loginRateLimiter(), clientIp(context)))) {
+        throw new ActionError({ code: 'TOO_MANY_REQUESTS', message: TEXT.tooManyAttempts });
+      }
 
       const email = resolveLoginEmail(input.usuario, { username: ADMIN_USERNAME, email: ADMIN_EMAIL });
-      if (!email) throw failed();
+      if (!email) throw await failed();
 
       const { supabase } = createSupabaseServerClient(context);
       const { data, error } = await supabase.auth.signInWithPassword({ email, password: input.password });
@@ -143,14 +173,14 @@ export const admin = {
         const kind = error ? classifyAuthError(error) : 'credentials';
         if (kind === 'rate-limit') throw new ActionError({ code: 'TOO_MANY_REQUESTS', message: TEXT.tooManyAttempts });
         if (kind === 'unavailable') saveFailed('login', error);
-        throw failed();
+        throw await failed();
       }
 
       // Una cuenta que no está en `admins` no entra (y no se le dice por qué).
       const { data: row } = await supabase.from('admins').select('user_id').eq('user_id', data.user.id).maybeSingle();
       if (!row) {
         await supabase.auth.signOut({ scope: 'local' });
-        throw failed();
+        throw await failed();
       }
 
       return { status: 'signed-in' as const };
