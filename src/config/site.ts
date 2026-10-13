@@ -17,10 +17,11 @@ export const SITE = {
     soundcloud: 'https://soundcloud.com/travest15m0',
   },
   /**
-   * Email a la vista en contact, como enlace `mailto:` (D58, Luna, 25-09-2026).
+   * Email a la vista en contact, como enlace `mailto:` (D58, Luna, 25-09-2026;
+   * cambiado a travest15sm00@gmail.com el 13-10-2026).
    * Aparece en el HTML de una web pública: los robots de spam lo encontrarán.
    */
-  contactEmail: 'pau.martinez.garcia.2001@gmail.com',
+  contactEmail: 'travest15sm00@gmail.com',
   /** Texto de la barra de noticias si `site_settings` no tiene ninguno. */
   tickerText: 'travest15m0 · DJ · Madrid',
 } as const;

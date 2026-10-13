@@ -2,7 +2,7 @@
 /**
  * C07 · RightPanel — contenido de la sección activa, con scroll propio.
  * El <h1> está oculto visualmente en escritorio (el menú ya indica dónde
- * estás) y se ve como título grande en móvil.
+ * estás) y se ve como título grande en móvil, salvo en media.
  */
 import type { SectionState } from '../config/sections';
 
@@ -82,15 +82,16 @@ const { section, heading, headingLang } = Astro.props;
         padding-bottom: calc(var(--pad) + var(--mini-player-h) + var(--safe-bottom));
       }
 
+      /* Media: sin título encima de la animación (Luna, 13-10-2026). Queda
+         oculto a la vista pero sigue ahí para el lector de pantalla y el foco. */
       .panel[data-panel='media'] .panel__title {
         position: absolute;
-        top: calc(var(--pad) + 3.5rem + var(--safe-top));
-        left: calc(var(--pad) + var(--safe-left));
-        z-index: 1;
-        /* Encima del vídeo: mismo fondo que sus controles, para que se lea
-           sobre cualquier fotograma (C15). */
-        padding: 0 0.1em 0.04em;
-        background: var(--c-scrim);
+        width: 1px;
+        height: 1px;
+        margin: 0;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
       }
 
       /* Con el menú abierto, el panel queda fuera del foco y del lector. */
