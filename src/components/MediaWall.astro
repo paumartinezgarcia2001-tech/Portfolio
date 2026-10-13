@@ -1,0 +1,386 @@
+---
+/**
+ * Muro animado de Media (D65). Ocupa todo el panel: fotos, bucles de vídeo y
+ * rótulos de bolos bajan a velocidad constante, cada pieza con su filtro.
+ *
+ * - Con JavaScript se anima siempre (src/scripts/media-wall/element.ts):
+ *   WebGL, o el bucle pre-renderizado, o piezas con filtros CSS.
+ * - La lista de piezas es HTML de verdad: la leen los lectores de pantalla y,
+ *   con el teclado, cada enlace aparece al recibir el foco y abre el visor.
+ * - Sin JavaScript, esa misma lista es una rejilla de miniaturas que abren el
+ *   archivo (estilos en el <noscript> de abajo).
+ * - Pausa abajo a la izquierda, como los controles del vídeo (WCAG 2.2.2).
+ */
+import type { ResolvedMediaWall } from '../lib/media-wall';
+
+interface Props {
+  wall: ResolvedMediaWall;
+}
+
+const { wall } = Astro.props;
+const { items } = wall.client;
+// En un <script type="application/json"> no se ejecuta nada (la CSP no aplica),
+// pero «</script>» lo cerraría: se escapan los «<».
+const json = JSON.stringify(wall.client).replace(/</g, '\\u003c');
+---
+
+<media-wall class="media-wall" data-state="idle">
+  <script type="application/json" data-wall-config set:html={json} />
+  <div class="media-wall__videos" data-wall-videos aria-hidden="true"></div>
+  <canvas class="media-wall__canvas" data-wall-canvas aria-hidden="true"></canvas>
+
+  <ol class="media-wall__index" aria-label="Piezas del muro de media">
+    {
+      items.map((item, i) => (
+        <li class="media-wall__item">
+          <a class="media-wall__link" href={item.video?.mp4 ?? item.image.jpg} data-wall-item={i} aria-label={item.title}>
+            <picture class="media-wall__thumb">
+              {item.image.avif && <source srcset={item.image.avif} type="image/avif" />}
+              <img src={item.image.jpg} alt="" loading="lazy" decoding="async" crossorigin="anonymous" />
+            </picture>
+            <span class="media-wall__caption">
+              {item.kind === 'video' && <span aria-hidden="true">▶ </span>}
+              {item.caption}
+            </span>
+          </a>
+        </li>
+      ))
+    }
+  </ol>
+
+  <div class="media-wall__controls" role="group" aria-label="Animación del muro">
+    <button type="button" class="media-wall__button" data-action="toggle" aria-pressed="false">pausa</button>
+  </div>
+
+  <div class="media-wall__viewer" data-wall-viewer role="dialog" aria-label="Pieza del muro" hidden>
+    <figure class="media-wall__figure">
+      <div class="media-wall__media" data-viewer-media></div>
+      <figcaption class="media-wall__figcaption" data-viewer-caption></figcaption>
+    </figure>
+    <button type="button" class="media-wall__button media-wall__close" data-action="close">cerrar</button>
+  </div>
+
+  <noscript>
+    <style is:inline>
+      .media-wall {
+        overflow-y: auto;
+      }
+      .media-wall__index {
+        position: static;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
+        gap: 1rem;
+        padding: 1.5rem;
+      }
+      .media-wall__item {
+        position: static;
+        width: auto;
+        height: auto;
+        clip-path: none;
+      }
+      .media-wall__link {
+        display: grid;
+        gap: 0.4rem;
+        padding: 0;
+        background: none;
+      }
+      .media-wall__thumb {
+        display: block;
+      }
+      .media-wall__controls,
+      .media-wall__canvas {
+        display: none;
+      }
+    </style>
+  </noscript>
+</media-wall>
+
+<script>
+  import '../scripts/media-wall/element';
+</script>
+
+<style>
+  @layer components {
+    .media-wall {
+      /* En móvil, el alto de la mini-barra del reproductor (abajo). */
+      --media-inset-bottom: 0px;
+
+      position: absolute;
+      inset: 0 0 var(--media-inset-bottom);
+      display: block;
+      overflow: hidden;
+      background: var(--c-menu-bg);
+      color: var(--c-menu-fg);
+      font-family: var(--font-sans);
+      /* El muro se toca (abrir piezas): sin zoom por doble toque. */
+      touch-action: manipulation;
+    }
+
+    @media (max-width: 1023.98px) {
+      :global(html[data-view='page']:has(mix-player:not([data-state='empty']))) .media-wall {
+        --media-inset-bottom: calc(var(--mini-player-h) + var(--safe-bottom));
+        --media-controls-safe: 0px;
+      }
+    }
+
+    .media-wall[data-over-piece] {
+      cursor: pointer;
+    }
+
+    /* Los bucles se decodifican aquí, tapados por el canvas (Safari pausa los
+       vídeos que no están en el documento o no se ven). */
+    .media-wall__videos {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 4px;
+      height: 4px;
+      overflow: hidden;
+      pointer-events: none;
+    }
+
+    .media-wall__videos :global(video) {
+      width: 4px;
+      height: 4px;
+    }
+
+    .media-wall__canvas,
+    .media-wall :global(.media-wall__fallback) {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      opacity: 0;
+      transition: opacity 600ms linear;
+    }
+
+    .media-wall[data-ready] .media-wall__canvas,
+    .media-wall[data-ready] :global(.media-wall__fallback) {
+      opacity: 1;
+    }
+
+    .media-wall:not([data-mode='gl']) .media-wall__canvas {
+      display: none;
+    }
+
+    /* --- Lista de piezas: oculta, salvo el enlace con el foco (teclado) --- */
+    .media-wall__index {
+      position: absolute;
+      left: calc(var(--pad) + var(--safe-left));
+      bottom: calc(var(--pad) + var(--media-controls-safe, var(--safe-bottom)) + 44px + 0.5rem);
+      z-index: 1;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .media-wall__item:not(:focus-within) {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+
+    .media-wall__link {
+      display: inline-flex;
+      align-items: center;
+      min-height: 44px;
+      padding: 0.5em 0.75em;
+      background: var(--c-scrim);
+      color: var(--c-menu-fg);
+      font-size: var(--fs-small);
+      line-height: 1;
+      text-decoration: none;
+    }
+
+    .media-wall__link:focus-visible {
+      outline: var(--focus-w) solid var(--c-media);
+      outline-offset: 0;
+      box-shadow: none;
+    }
+
+    .media-wall__thumb {
+      display: none;
+    }
+
+    .media-wall__thumb img {
+      width: 100%;
+      aspect-ratio: 9 / 16;
+      object-fit: cover;
+    }
+
+    /* Sin negrita: en la web solo la llevan el menú y los nombres de fiesta (D16). */
+    .media-wall__caption {
+      font-size: var(--fs-label);
+    }
+
+    /* --- Controles (mismo aspecto que los del vídeo, C15) --- */
+    .media-wall__controls {
+      position: absolute;
+      left: calc(var(--pad) + var(--safe-left));
+      bottom: calc(var(--pad) + var(--media-controls-safe, var(--safe-bottom)));
+      z-index: 1;
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .media-wall__button {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5em;
+      min-height: 44px;
+      padding: 0.5em 0.75em;
+      background: var(--c-scrim);
+      color: var(--c-menu-fg);
+      font-size: var(--fs-small);
+      line-height: 1;
+      white-space: nowrap;
+      touch-action: manipulation;
+      transition: color var(--dur-hover) linear;
+    }
+
+    @media (hover: hover) {
+      .media-wall__button:hover {
+        color: var(--accent);
+      }
+    }
+
+    .media-wall__button:focus-visible {
+      outline: var(--focus-w) solid var(--accent);
+      outline-offset: 0;
+      box-shadow: none;
+    }
+
+    /* --- Visor --- */
+    .media-wall__viewer {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      display: grid;
+      place-items: center;
+      padding: calc(var(--pad) * 2) var(--pad) calc(var(--pad) * 2 + 44px);
+      background: color-mix(in srgb, var(--c-menu-bg) 94%, transparent);
+    }
+
+    .media-wall__viewer[hidden] {
+      display: none;
+    }
+
+    .media-wall__figure {
+      display: grid;
+      gap: 0.75rem;
+      justify-items: start;
+      max-width: 100%;
+      max-height: 100%;
+      margin: 0;
+    }
+
+    .media-wall__media :global(img),
+    .media-wall__media :global(video) {
+      display: block;
+      max-width: 100%;
+      max-height: calc(100dvh - 10rem - var(--media-inset-bottom));
+      width: auto;
+      height: auto;
+      object-fit: contain;
+    }
+
+    .media-wall__figcaption {
+      font-size: var(--fs-label);
+    }
+
+    .media-wall__close {
+      position: absolute;
+      right: calc(var(--pad) + var(--safe-right));
+      bottom: calc(var(--pad) + var(--media-controls-safe, var(--safe-bottom)));
+    }
+
+    /* --- Último recurso sin WebGL (dom.ts): piezas con filtros CSS --- */
+    .media-wall :global(.media-wall__dom) {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+    }
+
+    .media-wall :global(.media-wall__dom-piece) {
+      --edge: 1;
+
+      position: absolute;
+      top: 0;
+      left: 0;
+      will-change: transform;
+      opacity: calc(1 - var(--edge) * 0.55);
+    }
+
+    .media-wall :global(.media-wall__dom-frame) {
+      position: relative;
+      overflow: hidden;
+      background: var(--c-menu-bg);
+    }
+
+    .media-wall :global(.media-wall__dom-frame img) {
+      width: 100%;
+      height: 100%;
+      max-width: none;
+      object-fit: cover;
+    }
+
+    .media-wall :global([data-filter='duotone'] .media-wall__dom-frame::after),
+    .media-wall :global([data-filter='halftone'] .media-wall__dom-frame::after),
+    .media-wall :global([data-filter='dither'] .media-wall__dom-frame::after) {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: var(--c-media);
+      mix-blend-mode: multiply;
+    }
+
+    .media-wall :global([data-filter='duotone'] img),
+    .media-wall :global([data-filter='halftone'] img) {
+      filter: grayscale(1) contrast(calc(1 + var(--edge) * 2));
+    }
+
+    .media-wall :global([data-filter='dither'] img) {
+      filter: grayscale(1) contrast(4);
+    }
+
+    .media-wall :global([data-filter='pixel'] img),
+    .media-wall :global([data-filter='scan'] img),
+    .media-wall :global([data-filter='rgb'] img) {
+      filter: saturate(calc(1 - var(--edge))) contrast(calc(1 + var(--edge)));
+    }
+
+    .media-wall :global(.media-wall__dom-tag) {
+      display: flex;
+      align-items: center;
+    }
+
+    .media-wall :global(.media-wall__dom-tag span) {
+      padding: 0.3em 0.5em;
+      overflow: hidden;
+      background: var(--c-media);
+      color: var(--c-menu-bg);
+      font-size: 12px;
+      font-weight: var(--fw-bold);
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    .media-wall :global(.media-wall__dom-caption) {
+      display: block;
+      padding-top: 6px;
+      font-size: 11px;
+      opacity: 0.85;
+    }
+
+    @media (forced-colors: active) {
+      .media-wall__button,
+      .media-wall__link {
+        border: 1px solid ButtonText;
+      }
+    }
+  }
+</style>

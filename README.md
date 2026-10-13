@@ -37,6 +37,8 @@ con un aviso: la capa de datos nunca rompe la página.
 | `npm run test:e2e:admin` | Tests e2e del panel, con Supabase simulado (ver [Panel oculto](#panel-oculto)) |
 | `npm run test:rls` | Comprueba contra Supabase que nadie puede escribir con la clave pública |
 | `npm run media:hls -- "<vídeo>" --slug <nombre>` | Convierte un vídeo en HLS para Media (necesita ffmpeg) |
+| `npm run media:wall -- "<archivo>" --slug <nombre> --title "…"` | Prepara una foto o un bucle para el muro de Media (necesita ffmpeg) |
+| `npm run media:wall-render` | Exporta el muro a vídeo (bucle para dispositivos sin WebGL o piezas para redes) |
 | `npm run media:upload` | Sube `.media/` a R2 (necesita las claves `R2_*` en `.env`) |
 | `npm run media:serve` | Sirve `.media/` en `http://localhost:4322`, como si fuera R2 |
 | `npm run media:mix -- "<audio>" --title "…"` | Prepara un mix para el reproductor y crea su fila en Supabase (necesita ffmpeg) |
@@ -79,7 +81,69 @@ simula en los tests que lo necesitan.
   Settings → Trigger events*, y cada ejecución deja «[keep-alive] Supabase OK» en los logs
   (*Observability*); si Supabase no responde, la ejecución sale como fallida.
 
+## Muro de Media
+
+Media es un **muro animado** (`<media-wall>`, D65): fotos, bucles de vídeo y rótulos con
+los bolos del archivo bajan a velocidad constante por todo el panel. Cada pieza lleva un
+filtro (pixelado, duotono, dither de 1 bit, separación RGB con glitch, trama de puntos o
+línea de escaneo): entra filtrada por arriba, se aclara al pasar por el centro y se
+vuelve a filtrar al salir por abajo. Al pasar el ratón se limpia; un clic (o Intro con el
+teclado) la abre en un visor. El muro es mudo: la banda sonora es el reproductor de mixes.
+
+**Cómo se pinta.** Un solo canvas con WebGL (2 o 1; los shaders son GLSL ES 1.0) y un
+programa para todo: las piezas son rectángulos con su textura y el filtro se calcula en la
+GPU (`src/scripts/media-wall/shaders.ts`). El movimiento es una simulación pura
+(`src/lib/media-wall.ts`, con tests) que avanza por tiempo, no por fotogramas: si un
+dispositivo pinta menos, las piezas caen igual de rápido. Un gobernador baja la
+resolución interna (y luego los vídeos simultáneos) si no llega a ~50 fps y la vuelve a
+subir cuando sobra. Como mucho 4 vídeos decodificándose (2 en móvil); el resto, con su
+foto. Se para fuera de la vista, con la pestaña oculta, con el menú móvil abierto y con
+«pausa». Al cambiar de página se libera todo.
+
+**Siempre se anima** (Luna, 13-10-2026), también con «reducir movimiento» (queda la
+pausa, WCAG 2.2.2): con WebGL, en tiempo real; sin WebGL (o si la GPU no da para
+más), el **bucle pre-renderizado** de `MEDIA_WALL.fallback`; sin bucle, piezas HTML con
+filtros CSS aproximados. Sin JavaScript queda una rejilla de miniaturas.
+
+Todo se ajusta en `src/config/media-wall.ts`: `enabled` (en `false` vuelve el vídeo único
+de antes), `crossSeconds` (segundos en cruzar el panel), carriles, velocidades, huecos,
+rótulos, vídeos simultáneos, cuánto filtro conserva cada tratamiento en el centro
+(`rest`) y las piezas (`items`).
+
+Para **añadir una pieza**:
+
+1. **Prepararla** (ffmpeg):
+
+   ```sh
+   npm run media:wall -- "../Raw_Files/Audiovisual Content/INSULTO CLUB/CUKI.mp4" --slug cuki --title "Insulto Club · Cuki" --start 12 --duration 6
+   npm run media:wall -- "../Raw_Files/Fotos/insulto-01.jpg" --slug insulto-foto-01 --title "Insulto Club, en cabina"
+   ```
+
+   Un vídeo da un bucle mudo de 6 s (H.264 y AV1, 480 px de ancho) y su imagen; una foto,
+   la imagen en JPG y AVIF. Con `--image --still-at <s>` se saca una «foto» de un vídeo.
+   Opciones: `--caption`, `--filter`, `--focus-x/-y`. Todo en `npm run media:wall -- --help`.
+2. **Subirla**: `npm run media:upload -- wall/<slug>-<hash>`.
+3. **Añadirla** a `MEDIA_WALL.items` con el bloque que imprime el paso 1.
+
+**Bucle pre-renderizado** (y piezas para redes). Con la web en marcha en local
+(`npm run dev` + `npm run media:serve`):
+
+```sh
+npm run media:wall-render                      # 4:5 y 9:16, 20 s → .media/wall/wall-loop-*/
+npm run media:wall-render -- --aspect 9x16 --seconds 15 --seed 3 --slug story
+```
+
+Abre `/media?wall-render` en el Chromium de Playwright, pinta cada fotograma con el mismo
+motor (paso fijo y semilla: mismo vídeo cada vez) y lo encadena con ffmpeg en un MP4 que
+hace bucle sin corte. Se sube con `npm run media:upload` y el bloque que imprime va en
+`MEDIA_WALL.fallback`. Conviene regenerarlo cuando cambien las piezas.
+
+Las imágenes y los vídeos del muro se piden con CORS (WebGL no deja usar una textura de
+otro origen sin él): el dominio de la web tiene que estar en `r2/cors.json`.
+
 ## Vídeo de Media
+
+Con el muro apagado (`MEDIA_WALL.enabled: false`), Media enseña un vídeo a sangre.
 
 El vídeo no está en el repo: se sirve en HLS desde el bucket de R2
 `travest15m0-media`, en el dominio de `PUBLIC_MEDIA_BASE_URL`. Sin esa variable,

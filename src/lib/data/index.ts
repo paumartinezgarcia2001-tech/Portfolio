@@ -6,12 +6,14 @@
 import { publicVar } from '../public-env';
 import { DATA_SOURCE } from 'astro:env/server';
 import { MEDIA_VIDEO, type MediaVideoConfig } from '../../config/media';
+import { MEDIA_WALL } from '../../config/media-wall';
 import { SITE } from '../../config/site';
 import { getCutoffDate } from '../dates';
 import { parseStoredVideo } from '../admin/video';
 import { parseStoredTheme } from '../theme';
 import type { Theme } from '../../config/theme';
 import { resolveMediaVideo, type ResolvedMediaVideo } from '../media';
+import { resolveMediaWall, type ResolvedMediaWall } from '../media-wall';
 import { createSupabasePublicClient, isSupabaseConfigured } from '../supabase/server';
 import {
   DEFAULT_SETTINGS,
@@ -31,7 +33,7 @@ import {
   type MixRow,
   type SiteSettings,
 } from './core';
-import { FIXTURE_GIGS, FIXTURE_MIXES, FIXTURE_SETTINGS, FIXTURE_VIDEO } from './fixtures';
+import { FIXTURE_GIGS, FIXTURE_MIXES, FIXTURE_SETTINGS, FIXTURE_VIDEO, FIXTURE_WALL } from './fixtures';
 
 export type { DataResult, Gig, Mix, SiteSettings } from './core';
 
@@ -276,4 +278,19 @@ export async function getStoredVideo(): Promise<DataResult<MediaVideoConfig | nu
     { label: 'vídeo' },
   );
   return { data: parseStoredVideo(result.data?.video), ok: result.ok };
+}
+
+/**
+ * Muro de Media (D65) con las URLs completas y los rótulos del archivo, o
+ * `null` si está apagado (`MEDIA_WALL.enabled`) o si no hay ninguna pieza que
+ * se pueda mostrar (p. ej. sin `PUBLIC_MEDIA_BASE_URL`). Si el archivo no
+ * responde, el muro sale igual, sin rótulos.
+ */
+export async function getMediaWall(now: Date = new Date()): Promise<ResolvedMediaWall | null> {
+  const config = useFixtures ? FIXTURE_WALL : MEDIA_WALL;
+  if (!config.enabled) return null;
+  const base = publicVar('PUBLIC_MEDIA_BASE_URL');
+  if (!resolveMediaWall(config, base)) return null;
+  const gigs = config.tagCount > 0 ? (await getPastGigs(now)).data : [];
+  return resolveMediaWall(config, base, gigs);
 }

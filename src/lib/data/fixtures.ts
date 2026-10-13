@@ -6,6 +6,7 @@
  * lineup de diez artistas y enlace de entradas.
  */
 import { LAGRIMA_FULL_SET, type MediaVideoConfig } from '../../config/media';
+import { MEDIA_WALL, type MediaWallConfig } from '../../config/media-wall';
 import type { Gig, MixRow, SiteSettings } from './core';
 
 export const FIXTURE_SETTINGS: SiteSettings = {
@@ -140,4 +141,50 @@ export const FIXTURE_VIDEO: MediaVideoConfig = {
   focusX: 0.5,
   focusY: 0.5,
   fullSet: LAGRIMA_FULL_SET,
+};
+
+/**
+ * Muro de Media de los tests e2e (D65): lo genera `tests/e2e/global-setup.ts`
+ * en `.media/wall/` con `scripts/media-wall.mjs` (patrones de ffmpeg; los
+ * vídeos se reproducen en AV1, que sí trae el Chromium de Playwright). Los
+ * ajustes son los de la web; solo cambian las piezas. Si el muro está apagado
+ * en la web, también aquí.
+ */
+export const FIXTURE_WALL: MediaWallConfig = {
+  ...MEDIA_WALL,
+  items: [
+    {
+      id: 'e2e-wall-video',
+      kind: 'video',
+      title: 'Bucle de prueba (tests)',
+      caption: 'BUCLE DE PRUEBA',
+      image: { jpg: 'wall/e2e-wall-video/still.jpg' },
+      video: { mp4: 'wall/e2e-wall-video/loop.mp4', av1: 'wall/e2e-wall-video/loop-av1.mp4' },
+      width: 360,
+      height: 640,
+    },
+    {
+      id: 'e2e-wall-photo',
+      kind: 'image',
+      title: 'Foto de prueba (tests)',
+      caption: 'FOTO DE PRUEBA',
+      image: { jpg: 'wall/e2e-wall-photo/still.jpg' },
+      width: 360,
+      height: 450,
+    },
+    {
+      id: 'e2e-wall-square',
+      kind: 'image',
+      title: 'Foto cuadrada de prueba (tests)',
+      caption: 'CUADRADA',
+      image: { jpg: 'wall/e2e-wall-square/still.jpg' },
+      width: 360,
+      height: 360,
+    },
+  ],
+  // El respaldo del vídeo de prueba hace de bucle pre-renderizado.
+  fallback: {
+    wide: { mp4: 'video/e2e-fixture/4x5/fallback.mp4', poster: 'video/e2e-fixture/4x5/poster.jpg', width: 360, height: 450 },
+    narrow: { mp4: 'video/e2e-fixture/9x16/fallback.mp4', poster: 'video/e2e-fixture/9x16/poster.jpg', width: 360, height: 640 },
+  },
 };

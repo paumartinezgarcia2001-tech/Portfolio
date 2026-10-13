@@ -1,28 +1,42 @@
 ---
 /**
- * C15 · Media — vídeo a sangre, servido en HLS desde R2 (`<media-video>`).
- * Sin pixelado (D40). Sin `PUBLIC_MEDIA_BASE_URL` (el dominio del bucket),
- * un aviso discreto en su lugar.
+ * C15 · Media.
+ * - Por defecto, el muro animado (`<media-wall>`, D65): fotos, bucles de vídeo
+ *   y rótulos de bolos que caen por todo el panel. Se apaga con
+ *   `MEDIA_WALL.enabled` (src/config/media-wall.ts).
+ * - Con el muro apagado, el vídeo a sangre de siempre (`<media-video>`, HLS
+ *   desde R2, sin pixelado: D40).
+ * Sin `PUBLIC_MEDIA_BASE_URL` (el dominio del bucket), un aviso discreto.
  */
 import MediaVideo from '../components/MediaVideo.astro';
+import MediaWall from '../components/MediaWall.astro';
 import BaseLayout from '../layouts/BaseLayout.astro';
-import { getMediaVideo } from '../lib/data';
+import { getMediaVideo, getMediaWall } from '../lib/data';
 
-const video = await getMediaVideo();
+const wall = await getMediaWall();
+const video = wall ? null : await getMediaVideo();
+const origin = wall?.origin ?? video?.origin ?? null;
 ---
 
-<BaseLayout section="media" title="media" headingLang="en" description="Vídeo de travest15m0, DJ en Madrid.">
+<BaseLayout
+  section="media"
+  title="media"
+  headingLang="en"
+  description={wall ? 'Fotos y vídeos de travest15m0, DJ en Madrid.' : 'Vídeo de travest15m0, DJ en Madrid.'}
+>
   {
-    video?.origin && (
+    origin && (
       <Fragment slot="head">
-        {/* El póster (sin CORS) y hls.js (con CORS) usan conexiones distintas. */}
-        <link rel="preconnect" href={video.origin} />
-        <link rel="preconnect" href={video.origin} crossorigin />
+        {/* Las imágenes y vídeos del muro van con CORS (WebGL); el póster del vídeo, sin. */}
+        <link rel="preconnect" href={origin} />
+        <link rel="preconnect" href={origin} crossorigin />
       </Fragment>
     )
   }
   {
-    video ? (
+    wall ? (
+      <MediaWall wall={wall} />
+    ) : video ? (
       <MediaVideo video={video} />
     ) : (
       <div class="media-stage">

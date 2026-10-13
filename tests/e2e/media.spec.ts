@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { MEDIA_WALL } from '../../src/config/media-wall';
 import {
   audioInfo,
   blockSoundWithoutInteraction,
@@ -80,6 +81,9 @@ function soundOnEvents(page: Page): Promise<unknown[]> {
 }
 
 test.describe('Media', () => {
+  // Con el muro encendido (D65), Media no enseña este vídeo: sus tests están en
+  // media-wall.spec.ts. Vuelven solos con `MEDIA_WALL.enabled = false`.
+  test.skip(MEDIA_WALL.enabled, 'Media enseña el muro animado (D65)');
   test.skip(Boolean(process.env.E2E_BASE_URL), 'Usa el vídeo de prueba y el servidor local de .media');
   test.skip(process.env.E2E_MEDIA !== 'ok', `Sin vídeo de prueba: ${process.env.E2E_MEDIA ?? 'sin preparar'}`);
 

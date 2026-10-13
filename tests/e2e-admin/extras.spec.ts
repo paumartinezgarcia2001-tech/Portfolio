@@ -1,4 +1,5 @@
 import { expect } from '@playwright/test';
+import { MEDIA_WALL } from '../../src/config/media-wall';
 import { mockState, openAdmin, resetSupabase, signInAsPau, test, toast } from './helpers';
 
 /**
@@ -60,6 +61,12 @@ test('vídeo: punto focal y enlace al set; «avanzado» valida el bloque', async
   expect(video.fullSet).toEqual({ href: 'https://www.youtube.com/watch?v=XokoqVkCmQg&t=2541s', label: 'ver set completo' });
 
   await page.goto('/media');
+  // Con el muro encendido (D65), el vídeo guardado se usa solo si se apaga.
+  if (MEDIA_WALL.enabled) {
+    await expect(page.locator('media-wall')).toHaveCount(1);
+    await expect(page.locator('media-video')).toHaveCount(0);
+    return;
+  }
   await expect(page.locator('media-video')).toHaveAttribute('style', /--media-position: 25% 70%/);
   await expect(page.locator('media-video a', { hasText: 'ver set completo' })).toHaveAttribute(
     'href',

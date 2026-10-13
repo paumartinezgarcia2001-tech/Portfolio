@@ -7,6 +7,9 @@
  *   En AV1 + Opus: el Chromium de Playwright no trae H.264 ni AAC.
  * - Mixes: tres tonos de 20 s en MP3 (como los de verdad), en
  *   `.media/mixes/e2e-mix-{1,2,3}.mp3` (ver FIXTURE_MIXES).
+ * - Muro de Media (D65): un bucle y dos fotos hechos con patrones de ffmpeg y
+ *   pasados por `scripts/media-wall.mjs`, en `.media/wall/e2e-wall-*`
+ *   (ver FIXTURE_WALL).
  * - Lo sirve `scripts/serve-media.mjs` (ver playwright.config.ts), en
  *   .gitignore. Solo se regenera si cambia el pipeline o esta receta.
  * - Sin ffmpeg (o sin AV1/Opus/MP3), los tests de Media y del reproductor se
@@ -23,6 +26,7 @@ const FIXTURE_DIR = path.join(ROOT, '.media', 'video', 'e2e-fixture');
 const MIXES_DIR = path.join(ROOT, '.media', 'mixes');
 const SOURCE = path.join(ROOT, '.media', '_src', 'e2e-source.mp4');
 const STAMP = path.join(FIXTURE_DIR, '.stamp');
+const WALL_DIR = path.join(ROOT, '.media', 'wall');
 const FFMPEG = process.env.FFMPEG_PATH || 'ffmpeg';
 
 /** Patrón de prueba: 360×640 (9:16), 30 fps, 6 s, con un tono de 440 Hz. */
@@ -33,6 +37,13 @@ const SOURCE_ARGS = [
 ];
 const PIPELINE_ARGS = ['--slug', 'e2e-fixture', '--no-hash', '--codec', 'av1', '--ladder', '360,240', '--force', '--quiet'];
 
+/** Piezas del muro: [slug, patrón de ffmpeg, opciones de scripts/media-wall.mjs]. */
+const WALL_PIECES: Array<[string, string, string[]]> = [
+  ['e2e-wall-video', 'testsrc2=size=360x640:rate=30:duration=4', ['--duration', '3']],
+  ['e2e-wall-photo', 'smptebars=size=360x450:rate=30:duration=2', ['--image']],
+  ['e2e-wall-square', 'mandelbrot=size=360x360:rate=30', ['--image']],
+];
+
 /** Mixes de prueba: 20 s cada uno, con tonos distintos. */
 const MIX_FREQUENCIES = [330, 440, 550];
 const mixArgs = (frequency: number) => [
@@ -42,8 +53,8 @@ const mixArgs = (frequency: number) => [
 
 function stampOf(): string {
   const hash = createHash('sha256');
-  for (const file of ['scripts/video-to-hls.mjs', 'scripts/lib/video.mjs']) hash.update(readFileSync(path.join(ROOT, file)));
-  hash.update(JSON.stringify([SOURCE_ARGS, PIPELINE_ARGS, MIX_FREQUENCIES.map(mixArgs)]));
+  for (const file of ['scripts/video-to-hls.mjs', 'scripts/lib/video.mjs', 'scripts/media-wall.mjs']) hash.update(readFileSync(path.join(ROOT, file)));
+  hash.update(JSON.stringify([SOURCE_ARGS, PIPELINE_ARGS, MIX_FREQUENCIES.map(mixArgs), WALL_PIECES]));
   return hash.digest('hex');
 }
 
@@ -63,7 +74,7 @@ export default function globalSetup(): void {
 
   const stamp = stampOf();
   const mixFiles = MIX_FREQUENCIES.map((_, i) => path.join(MIXES_DIR, `e2e-mix-${i + 1}.mp3`));
-  if (existsSync(STAMP) && readFileSync(STAMP, 'utf8') === stamp && mixFiles.every((file) => existsSync(file))) {
+  if (existsSync(STAMP) && readFileSync(STAMP, 'utf8') === stamp && mixFiles.every((file) => existsSync(file)) && WALL_PIECES.every(([slug]) => existsSync(path.join(WALL_DIR, slug, 'still.jpg')))) {
     process.env.E2E_MEDIA = 'ok';
     return;
   }
@@ -84,6 +95,21 @@ export default function globalSetup(): void {
   for (const [i, frequency] of MIX_FREQUENCIES.entries()) {
     const mix = ffmpeg([...mixArgs(frequency), mixFiles[i]!]);
     if (!mix.ok) return unavailable(`ffmpeg no ha podido crear los mixes de prueba: ${mix.error}`);
+  }
+
+  for (const [slug, pattern, options] of WALL_PIECES) {
+    const source = path.join(ROOT, '.media', '_src', `${slug}.mp4`);
+    const made = ffmpeg(['-f', 'lavfi', '-i', pattern, '-t', '4', '-c:v', 'libx264', '-preset', 'ultrafast', '-pix_fmt', 'yuv420p', source]);
+    if (!made.ok) return unavailable(`ffmpeg no ha podido crear la pieza ${slug}: ${made.error}`);
+    const piece = spawnSync(
+      process.execPath,
+      [
+        path.join(ROOT, 'scripts/media-wall.mjs'), source, '--slug', slug, '--title', slug, '--no-hash', '--force', '--quiet',
+        '--out', path.dirname(WALL_DIR), '--width', '360', '--still-width', '360', ...options,
+      ],
+      { cwd: ROOT, encoding: 'utf8' },
+    );
+    if (piece.status !== 0) return unavailable(`el muro ha fallado: ${(piece.stderr || piece.stdout).trim().split('\n').slice(-3).join(' ')}`);
   }
 
   writeFileSync(STAMP, stamp);
