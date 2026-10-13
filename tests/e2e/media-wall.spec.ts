@@ -88,15 +88,36 @@ test.describe('Muro de Media', () => {
     await openMedia(page);
     await expectAnimating(page);
 
+    await expect(pauseButton(page)).toHaveAccessibleName('pausar la animación');
+    await expect(wall(page).locator('.media-wall__icon-pause')).toBeVisible();
     await pauseButton(page).click();
-    await expect(pauseButton(page)).toHaveText('reanudar');
-    await expect(pauseButton(page)).toHaveAttribute('aria-pressed', 'true');
+    await expect(pauseButton(page)).toHaveAccessibleName('reanudar la animación');
+    await expect(wall(page).locator('.media-wall__icon-play')).toBeVisible();
+    await expect(wall(page).locator('.media-wall__icon-pause')).toBeHidden();
     await expect(wall(page)).toHaveAttribute('data-state', 'paused');
     await expectStill(page);
 
     await pauseButton(page).click();
-    await expect(pauseButton(page)).toHaveText('pausa');
+    await expect(pauseButton(page)).toHaveAccessibleName('pausar la animación');
     await expectAnimating(page);
+  });
+
+  test('la pausa es un botón redondo pequeño, solo con el símbolo, y se puede tocar bien', async ({ page }) => {
+    await openMedia(page);
+    const button = pauseButton(page);
+    await expect(button).toHaveText('');
+    const look = await button.evaluate((el) => {
+      const style = getComputedStyle(el);
+      const before = getComputedStyle(el, '::before');
+      const box = el.getBoundingClientRect();
+      return { w: box.width, h: box.height, radius: style.borderRadius, border: style.borderTopWidth, inset: before.top };
+    });
+    expect(look.w).toBeLessThanOrEqual(36);
+    expect(look.w).toBeCloseTo(look.h, 0);
+    expect(look.radius).toBe('50%');
+    expect(look.border).toBe('0px');
+    // Área táctil: 32 px + 6 px por lado = 44 px.
+    expect(look.w - 2 * parseFloat(look.inset)).toBeGreaterThanOrEqual(44);
   });
 
   test('los bucles de vídeo se reproducen sin pasar del límite', async ({ page }, testInfo) => {

@@ -49,7 +49,13 @@ const json = JSON.stringify(wall.client).replace(/</g, '\\u003c');
   </ol>
 
   <div class="media-wall__controls" role="group" aria-label="Animación del muro">
-    <button type="button" class="media-wall__button" data-action="toggle" aria-pressed="false">pausa</button>
+    {/* Redondo, solo el símbolo: ⏸ mientras se mueve, ▶ en pausa. El nombre lo lleva aria-label. */}
+    <button type="button" class="media-wall__toggle" data-action="toggle" aria-label="pausar la animación">
+      <svg class="media-wall__toggle-icon" viewBox="0 0 12 12" aria-hidden="true" focusable="false">
+        <path class="media-wall__icon-pause" d="M2.5 1.5h2.5v9H2.5zM7 1.5h2.5v9H7z"></path>
+        <path class="media-wall__icon-play" d="M3 1.2 10.6 6 3 10.8z"></path>
+      </svg>
+    </button>
   </div>
 
   <div class="media-wall__viewer" data-wall-viewer role="dialog" aria-label="Pieza del muro" hidden>
@@ -168,7 +174,7 @@ const json = JSON.stringify(wall.client).replace(/</g, '\\u003c');
     .media-wall__index {
       position: absolute;
       left: calc(var(--pad) + var(--safe-left));
-      bottom: calc(var(--pad) + var(--media-controls-safe, var(--safe-bottom)) + 44px + 0.5rem);
+      bottom: calc(var(--pad) + var(--media-controls-safe, var(--safe-bottom)) + 2rem + 0.5rem);
       z-index: 1;
       margin: 0;
       padding: 0;
@@ -225,6 +231,70 @@ const json = JSON.stringify(wall.client).replace(/</g, '\\u003c');
       z-index: 1;
       display: flex;
       gap: 0.5rem;
+    }
+
+    /* Pausa: un círculo pequeño y translúcido con el símbolo; se aviva al
+       pasar el ratón o con el foco. El área táctil llega a 44 px con ::before. */
+    .media-wall__toggle {
+      position: relative;
+      display: grid;
+      place-items: center;
+      width: 2rem;
+      height: 2rem;
+      padding: 0;
+      border: 0;
+      border-radius: 50%;
+      background: color-mix(in srgb, var(--c-menu-bg) 70%, transparent);
+      color: var(--c-menu-fg);
+      opacity: 0.8;
+      cursor: pointer;
+      touch-action: manipulation;
+      transition:
+        opacity var(--dur-hover) linear,
+        color var(--dur-hover) linear,
+        background-color var(--dur-hover) linear;
+    }
+
+    .media-wall__toggle::before {
+      content: '';
+      position: absolute;
+      inset: -6px;
+      border-radius: 50%;
+    }
+
+    @media (hover: hover) {
+      .media-wall__toggle:hover {
+        opacity: 1;
+        color: var(--accent);
+        background: var(--c-scrim);
+      }
+    }
+
+    .media-wall__toggle:focus-visible {
+      opacity: 1;
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+      box-shadow: none;
+    }
+
+    .media-wall__toggle-icon {
+      width: 0.75rem;
+      height: 0.75rem;
+      fill: currentColor;
+    }
+
+    .media-wall__icon-play,
+    .media-wall[data-state='paused'] .media-wall__icon-pause {
+      display: none;
+    }
+
+    .media-wall[data-state='paused'] .media-wall__icon-play {
+      display: inline;
+    }
+
+    /* En pausa se queda a la vista: que se note que está parado. */
+    .media-wall[data-state='paused'] .media-wall__toggle {
+      opacity: 1;
     }
 
     .media-wall__button {
@@ -377,6 +447,11 @@ const json = JSON.stringify(wall.client).replace(/</g, '\\u003c');
     }
 
     @media (forced-colors: active) {
+      .media-wall__toggle {
+        border: 1px solid ButtonText;
+        opacity: 1;
+      }
+
       .media-wall__button,
       .media-wall__link {
         border: 1px solid ButtonText;

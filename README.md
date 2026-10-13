@@ -98,7 +98,8 @@ dispositivo pinta menos, las piezas caen igual de rápido. Un gobernador baja la
 resolución interna (y luego los vídeos simultáneos) si no llega a ~50 fps y la vuelve a
 subir cuando sobra. Como mucho 4 vídeos decodificándose (2 en móvil); el resto, con su
 foto. Se para fuera de la vista, con la pestaña oculta, con el menú móvil abierto y con
-«pausa». Al cambiar de página se libera todo.
+el botón de pausa (un círculo pequeño abajo a la izquierda, ⏸/▶). Al cambiar de página se
+libera todo.
 
 **Siempre se anima** (Luna, 13-10-2026), también con «reducir movimiento» (queda la
 pausa, WCAG 2.2.2): con WebGL, en tiempo real; sin WebGL (o si la GPU no da para
@@ -124,6 +125,11 @@ Para **añadir una pieza**:
    Opciones: `--caption`, `--filter`, `--focus-x/-y`. Todo en `npm run media:wall -- --help`.
 2. **Subirla**: `npm run media:upload -- wall/<slug>-<hash>`.
 3. **Añadirla** a `MEDIA_WALL.items` con el bloque que imprime el paso 1.
+
+**Sube las piezas a R2 antes de publicar la config que las nombra.** El 13-10-2026 el muro
+llegó a la web antes que sus piezas y Media se vio vacía. Ahora, si una pieza no carga, el
+muro deja de sacarla; si no carga ninguna, solo caen los rótulos y la consola del navegador
+lo explica.
 
 **Bucle pre-renderizado** (y piezas para redes). Con la web en marcha en local
 (`npm run dev` + `npm run media:serve`):

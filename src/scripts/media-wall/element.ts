@@ -76,8 +76,8 @@ const MIN_SCALE = 0.5;
 /** Límite de píxeles del canvas (≈ 2 Mpx más la mitad): de sobra para un panel. */
 const MAX_PIXELS = 3_200_000;
 
-const LABEL_PAUSE = 'pausa';
-const LABEL_RESUME = 'reanudar';
+const LABEL_PAUSE = 'pausar la animación';
+const LABEL_RESUME = 'reanudar la animación';
 
 const desktop = window.matchMedia(DESKTOP_MEDIA_QUERY);
 
@@ -882,8 +882,8 @@ export class MediaWallElement extends HTMLElement {
   #syncToggleButton(): void {
     const button = this.querySelector<HTMLButtonElement>('[data-action="toggle"]');
     if (!button) return;
-    button.textContent = this.#userPaused ? LABEL_RESUME : LABEL_PAUSE;
-    button.setAttribute('aria-pressed', String(this.#userPaused));
+    // El nombre dice lo que hará el botón; el símbolo (⏸/▶) lo cambia el CSS con data-state.
+    button.setAttribute('aria-label', this.#userPaused ? LABEL_RESUME : LABEL_PAUSE);
   }
 
   // -------------------------------------------------------------------------
