@@ -18,9 +18,12 @@ export class WallDom {
   readonly root: HTMLDivElement;
   #nodes = new Map<number, Node>();
   #imageFor: (ref: number) => string;
+  #onMissing: (ref: number) => void;
 
-  constructor(host: HTMLElement, imageFor: (ref: number) => string) {
+  /** `onMissing`: la imagen de la pieza no carga (404…); el muro deja de sacarla. */
+  constructor(host: HTMLElement, imageFor: (ref: number) => string, onMissing: (ref: number) => void = () => undefined) {
     this.#imageFor = imageFor;
+    this.#onMissing = onMissing;
     this.root = document.createElement('div');
     this.root.className = 'media-wall__dom';
     this.root.setAttribute('aria-hidden', 'true');
@@ -72,6 +75,7 @@ export class WallDom {
       const img = document.createElement('img');
       img.alt = '';
       img.decoding = 'async';
+      img.addEventListener('error', () => this.#onMissing(piece.ref), { once: true });
       img.src = this.#imageFor(piece.ref);
       img.style.objectPosition = item ? `${item.focusX * 100}% ${item.focusY * 100}%` : '50% 50%';
       frame.appendChild(img);

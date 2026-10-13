@@ -214,3 +214,26 @@ describe('WallSimulation', () => {
     expect(sim.pieces.map((p) => p.id).slice(-ids.length)).toEqual(ids);
   });
 });
+
+describe('piezas que no cargan', () => {
+  it('no vuelven a entrar; si no carga ninguna, solo caen rótulos', () => {
+    const sim = new WallSimulation(client(), METRICS, seededRandom(5));
+    sim.resize(720, 900);
+    sim.exclude(0);
+    for (let t = 0; t < 60; t += 1 / 30) sim.step(1 / 30);
+    expect(sim.pieces.some((p) => p.kind === 'item' && p.ref === 0)).toBe(false);
+
+    for (let i = 0; i < sim.items.length; i++) sim.exclude(i);
+    for (let t = 0; t < 60; t += 1 / 30) sim.step(1 / 30);
+    expect(sim.pieces.length).toBeGreaterThan(0);
+    expect(sim.pieces.every((p) => p.kind === 'tag')).toBe(true);
+  });
+
+  it('sin piezas ni rótulos, el panel se vacía sin colgarse', () => {
+    const sim = new WallSimulation(client({ tagCount: 0 }), METRICS, seededRandom(5));
+    sim.resize(720, 900);
+    for (let i = 0; i < sim.items.length; i++) sim.exclude(i);
+    for (let t = 0; t < 10; t += 1 / 30) sim.step(1 / 30);
+    expect(sim.pieces).toHaveLength(0);
+  });
+});

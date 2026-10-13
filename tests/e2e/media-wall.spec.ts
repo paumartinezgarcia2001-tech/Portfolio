@@ -217,6 +217,23 @@ test.describe('Muro de Media', () => {
   });
 });
 
+test.describe('Muro de Media sin las piezas en R2', () => {
+  test.skip(!MEDIA_WALL.enabled, 'El muro está apagado');
+  test.skip(Boolean(process.env.E2E_BASE_URL), 'Usa el servidor local de .media');
+
+  test('si ninguna pieza carga (404), el muro sigue vivo con los rótulos y lo avisa en la consola', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('console', (message) => {
+      if (message.type() === 'error') errors.push(message.text());
+    });
+    await page.route('**/wall/**', (route) => route.fulfill({ status: 404, body: 'Not Found' }));
+    await openMedia(page);
+    await expect(wall(page)).toHaveAttribute('data-ready', '', { timeout: 10_000 });
+    await expectAnimating(page);
+    await expect.poll(() => errors.some((e) => e.includes('No carga ninguna pieza del muro'))).toBe(true);
+  });
+});
+
 test.describe('Muro de Media sin JavaScript', () => {
   test.skip(!MEDIA_WALL.enabled, 'El muro está apagado');
   test.use({ javaScriptEnabled: false });

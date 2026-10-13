@@ -150,6 +150,8 @@ export class MediaWallElement extends HTMLElement {
   #players = new Map<number, VideoPlayer>();
   #masks = new Map<string, MaskTexture>();
   #imageWidth = 480;
+  /** Piezas cuya imagen no se ha podido cargar (404, CORS…): no se vuelven a pedir ni se dibujan. */
+  #failed = new Set<number>();
 
   #raf = 0;
   #last = 0;
@@ -230,7 +232,14 @@ export class MediaWallElement extends HTMLElement {
       this.#mountFallbackVideo();
     } else {
       this.#mode = 'dom';
-      this.#dom = new WallDom(this, (ref) => config.items[ref]?.image.jpg ?? '');
+      this.#dom = new WallDom(
+        this,
+        (ref) => config.items[ref]?.image.jpg ?? '',
+        (ref) => {
+          this.#failed.add(ref);
+          this.#sim?.exclude(ref);
+        },
+      );
     }
     this.dataset.mode = this.#mode;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -303,6 +312,7 @@ export class MediaWallElement extends HTMLElement {
     this.#textures.clear();
     this.#videoTextures.clear();
     this.#masks.clear();
+    this.#failed.clear();
     this.#gl?.destroy();
     this.#gl = null;
     this.#dom?.destroy();
@@ -424,7 +434,11 @@ export class MediaWallElement extends HTMLElement {
       }
     }
     this.#frames++;
-    if (drawn > 0 && !this.hasAttribute('data-ready')) this.toggleAttribute('data-ready', true);
+    // Se enseña en cuanto hay algo pintado, aunque sean solo rótulos (si faltan
+    // las piezas en R2, el muro sigue vivo con los bolos del archivo).
+    if ((drawn > 0 || this.#failed.size >= sim.items.length) && !this.hasAttribute('data-ready')) {
+      this.toggleAttribute('data-ready', true);
+    }
   }
 
   /** Textura de la pieza: el fotograma del vídeo si ya lo hay; si no, su foto. */
@@ -561,7 +575,13 @@ export class MediaWallElement extends HTMLElement {
         }
       })
       .catch((error: unknown) => {
-        if ((error as { name?: string } | null)?.name !== 'AbortError') console.warn(`[media-wall] No se ha podido cargar «${item.title}».`, error);
+        if ((error as { name?: string } | null)?.name === 'AbortError') return;
+        this.#failed.add(ref);
+        this.#sim?.exclude(ref);
+        console.warn(`[media-wall] No se ha podido cargar «${item.title}» (${item.image.jpg}). ¿Está subida a R2?`, error);
+        if (this.#failed.size === this.#config?.items.length) {
+          console.error('[media-wall] No carga ninguna pieza del muro: súbelas con `npm run media:upload` (ver README, «Muro de Media»). Mientras, solo caen los rótulos.');
+        }
       })
       .finally(() => {
         entry.loading = null;
@@ -698,6 +718,32 @@ export class MediaWallElement extends HTMLElement {
     this.#sync();
   }
 
+  /** Del bucle pre-renderizado (que no carga) a las piezas HTML. */
+  #switchToDom(): void {
+    const config = this.#config;
+    if (!config || !this.#abort || this.#mode === 'dom') return;
+    console.warn('[media-wall] El bucle pre-renderizado no carga; se usan piezas HTML.');
+    const video = this.#fallbackVideo;
+    if (video) {
+      video.removeAttribute('src');
+      video.load();
+      video.remove();
+    }
+    this.#fallbackVideo = null;
+    this.#mode = 'dom';
+    this.dataset.mode = 'dom';
+    this.#dom = new WallDom(
+      this,
+      (ref) => config.items[ref]?.image.jpg ?? '',
+      (ref) => {
+        this.#failed.add(ref);
+        this.#sim?.exclude(ref);
+      },
+    );
+    this.toggleAttribute('data-ready', true);
+    this.#sync();
+  }
+
   #mountFallbackVideo(): void {
     const fallback = this.#config?.fallback;
     if (!fallback) return;
@@ -713,6 +759,8 @@ export class MediaWallElement extends HTMLElement {
     video.poster = choice.poster;
     video.src = choice.mp4;
     video.addEventListener('loadeddata', () => this.toggleAttribute('data-ready', true), { once: true });
+    // Si el bucle no carga (no está subido a R2, códec…), piezas HTML.
+    video.addEventListener('error', () => this.#switchToDom(), { once: true });
     // insertBefore: los tipos de Workers redefinen `after`.
     this.#canvas?.parentNode?.insertBefore(video, this.#canvas.nextSibling);
     this.#fallbackVideo = video;

@@ -279,6 +279,8 @@ export class WallSimulation {
   #tagQueue: number[] = [];
   #lastItem = -1;
   #pointer: { x: number; y: number } | null = null;
+  /** Piezas que no se han podido cargar: no vuelven a entrar. */
+  #excluded = new Set<number>();
   #focusedItem: number | null = null;
 
   constructor(config: WallClientConfig, metrics: WallMetrics, random: RandomSource = seededRandom(Date.now() >>> 0)) {
@@ -344,6 +346,20 @@ export class WallSimulation {
     this.#pointer = point;
   }
 
+  /**
+   * La pieza `ref` no se puede enseñar (su imagen no carga): no vuelve a
+   * entrar, y las que ya están en el panel se van.
+   */
+  exclude(ref: number): void {
+    this.#excluded.add(ref);
+    for (const lane of this.#lanes) lane.pieces = lane.pieces.filter((p) => p.kind !== 'item' || p.ref !== ref);
+  }
+
+  /** ¿Queda alguna pieza (o rótulo) que pueda entrar? */
+  get #canSpawn(): boolean {
+    return this.#excluded.size < this.items.length || this.tags.length > 0;
+  }
+
   /** Pieza con el foco del teclado (índice en `items`), o `null`. */
   setFocusedItem(index: number | null): void {
     this.#focusedItem = index;
@@ -376,6 +392,7 @@ export class WallSimulation {
   /** Mientras quede hueco arriba de algún carril, entra una pieza nueva. */
   #fill(): void {
     for (const lane of this.#lanes) {
+      if (!this.#canSpawn) continue;
       let guard = 0;
       while (guard++ < 64) {
         const top = lane.pieces[0];
@@ -389,7 +406,8 @@ export class WallSimulation {
   /** Pone una pieza nueva con su borde inferior en `bottom`. */
   #spawnAbove(lane: LaneState, bottom: number): void {
     const { x, width } = lane.geometry;
-    const useTag = this.tags.length > 0 && !lane.lastWasTag && this.#random() < this.#config.tagChance;
+    const onlyTags = this.#excluded.size >= this.items.length;
+    const useTag = this.tags.length > 0 && (onlyTags || (!lane.lastWasTag && this.#random() < this.#config.tagChance));
     let piece: WallPiece;
     if (useTag) {
       const h = this.#metrics.tagH;
@@ -443,10 +461,14 @@ export class WallSimulation {
    */
   #nextItem(): number {
     const visible = new Set(this.pieces.filter((p) => p.kind === 'item' && p.y < this.height).map((p) => p.ref));
-    for (let attempt = 0; attempt < this.items.length; attempt++) {
+    for (let attempt = 0; attempt < this.items.length * 2; attempt++) {
       if (!this.#queue.length) this.#queue = this.#shuffled(this.items.length, this.#lastItem);
       const candidate = this.#queue[0] as number;
-      if (!visible.has(candidate) || attempt === this.items.length - 1) {
+      if (this.#excluded.has(candidate)) {
+        this.#queue.shift();
+        continue;
+      }
+      if (!visible.has(candidate) || attempt >= this.items.length - 1) {
         this.#queue.shift();
         this.#lastItem = candidate;
         return candidate;
@@ -454,7 +476,7 @@ export class WallSimulation {
       // Se queda para más tarde.
       this.#queue.push(this.#queue.shift() as number);
     }
-    return 0;
+    return this.items.findIndex((_, i) => !this.#excluded.has(i));
   }
 
   #nextTag(): number {
